@@ -39,7 +39,7 @@ const Int_t MaxSystematics =9;//(8)Systematics + Total Systematic
 class Prediction
 {
 private:
-    
+    bool firstPrediction;
     Double_t L[MaxSystematics][9*MaxNbins][9*MaxNbins];
     Double_t RenormToyMCSample[9*MaxNbins][9*MaxNbins];
     Double_t Correlation[9*MaxNbins][9*MaxNbins];
@@ -354,6 +354,8 @@ Prediction :: ~Prediction()
 
 Prediction :: Prediction()
 {
+    firstPrediction=0;
+
     std::cout << " the default constructor shouldn't be called, except for Minuit?" << std::endl;
     
     exit(EXIT_FAILURE);
@@ -480,6 +482,7 @@ Prediction :: Prediction()
 
 Prediction :: Prediction(NominalData* data)
 {
+    firstPrediction=0;
     Data = new NominalData(0,2);
     
     Data->CopyData(data);
@@ -629,7 +632,6 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
 {
     std::cout <<  "********************************************************************************************************" << std::endl;
     std::cout << "\t Making prediction" << std::endl;
-    
     MaxNearLoadOscModel= ADsEH1+ADsEH2;
     MaxFarLoadOscModel= ADsEH3;
     
@@ -915,8 +917,9 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
 
     std::cout << "\t Saved done" << std::endl;
     
-    if(Print&&mode==0)//Save Nominal Histograms
+    if(Print&&mode==0&&firstPrediction==0)//To print only once//Save Nominal Histograms
     {
+        firstPrediction=1;
         TCanvas* CombC = new TCanvas("CombC","CombC",MaxNearCombine*400,MaxFarCombine*400);
         CombC->Divide(MaxNearCombine,MaxFarCombine);
         
