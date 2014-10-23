@@ -890,181 +890,178 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
 
 void NominalData :: CopyData(NominalData * data)
 {
-    std::string ResponseDirectory;
-    std::string PredictionsDirectory;
-    std::string ToyMCSamplesDirectory;
-    std::string SysCovDirectory;
-    std::string BkgCovDirectory;
+    ResponseDirectory = data->ResponseDirectory;
+    PredictionsDirectory = data->PredictionsDirectory;
+    ToyMCSamplesDirectory = data->ToyMCSamplesDirectory;
+    SysCovDirectory = data->SysCovDirectory;
+    BkgCovDirectory = data->BkgCovDirectory;
     
     //Analysis type:
-    bool isH;
-    Int_t DataSet;
-    bool ToyMC;
+     isH = data->isH ;
+     DataSet = data->DataSet ;
+     ToyMC = data->ToyMC ;
     //Binning type:
-    bool LinearBinning;//0 is non linear (LBNL like binning), 1 is linear (51 bins);
+     LinearBinning = data->LinearBinning ;//0 is non linear (LBNL like binning), 1 is linear (51 bins);
     
     //Detectors:
-    Int_t NADs;
-    Int_t ADsEH1;
-    Int_t ADsEH2;
-    Int_t ADsEH3;
+     NADs = data->NADs ;
+     ADsEH1 = data->ADsEH1;
+     ADsEH2 = data->ADsEH2;
+     ADsEH3 = data->ADsEH3;
     
-    Int_t hierarchy;
-    Int_t Combine;
+     hierarchy = data->hierarchy;
+     Combine = data->Combine;
     
-    Double_t ProtonsPerKton; //protons per kton
-    Double_t DetectorMassGdLs[MaxDetectors];
-    Double_t DetectorMassLs[MaxDetectors];
-    
-    Double_t m_detectorEfficiency_Dt;
-    Double_t m_detectorEfficiency_Ep;
-    Double_t m_detectorEfficiency_Ed_nominal;
-    Double_t m_detectorEfficiency_flash;
-    Double_t m_detectorEfficiency_nGd;
-    Double_t m_detectorEfficiency_spill;
+     ProtonsPerKton = data->ProtonsPerKton; //protons per kton
+     std::copy(std::begin(data->DetectorMassGdLs), std::end(data->DetectorMassGdLs), std::begin(DetectorMassGdLs));
+     std::copy(std::begin(data->DetectorMassLs), std::end(data->DetectorMassLs), std::begin(DetectorMassLs));
+
+     m_detectorEfficiency_Dt = data->m_detectorEfficiency_Dt;
+     m_detectorEfficiency_Ep = data->m_detectorEfficiency_Ep;
+     m_detectorEfficiency_Ed_nominal = data->m_detectorEfficiency_Ed_nominal;
+     m_detectorEfficiency_flash = data->m_detectorEfficiency_flash;
+     m_detectorEfficiency_nGd = data->m_detectorEfficiency_nGd;
+     m_detectorEfficiency_spill = data->m_detectorEfficiency_spill;
     
     //Toy samples
-    Int_t NSamples;
-    Int_t NSteps;
+     NSamples = data->NSamples;
+     NSteps = data->NSteps;
     //Oscillation parameters
-    Double_t s22t12;
-    Double_t s22t12Error;
-    Double_t s22t13;
-    Double_t s22t13Error;
-    Double_t dm2_ee;
-    Double_t dm2_31;
-    Double_t dm2_32;
-    Double_t dm2_21;
-    Double_t sin_start;
-    Double_t sin_end;
-    Double_t dmee_start;
-    Double_t dmee_end;
-    Int_t NReactorPeriods;
+     s22t12 = data->s22t12;
+     s22t12Error = data->s22t12Error;
+     s22t13 = data->s22t13;
+     s22t13Error = data->s22t13Error;
+     dm2_ee = data->dm2_ee;
+     dm2_31 = data->dm2_31;
+     dm2_32 = data->dm2_32;
+     dm2_21 = data->dm2_21;
+     sin_start = data->sin_start;
+     sin_end = data->sin_end;
+     dmee_start = data->dmee_start;
+     dmee_end = data->dmee_end;
+     NReactorPeriods = data->NReactorPeriods;
     
     //Reactor parameters
-    Double_t IsotopeFrac[NIsotopes];
-    Double_t IsotopeFracError[NIsotopes];
-    
-    Double_t ReactorPower[NReactors];
-    Double_t ReactorPowerError[NReactors];
-    
-    Double_t EnergyPerFission[NReactors];
-    Double_t EnergyPerFissionError[NReactors];
-    
+    std::copy(std::begin(data->IsotopeFrac), std::end(data->IsotopeFrac), std::begin(IsotopeFrac));
+    std::copy(std::begin(data->IsotopeFracError), std::end(data->IsotopeFracError), std::begin(IsotopeFracError));
+    std::copy(std::begin(data->ReactorPower), std::end(data->ReactorPower), std::begin(ReactorPower));
+    std::copy(std::begin(data->ReactorPowerError), std::end(data->ReactorPowerError), std::begin(ReactorPowerError));
+    std::copy(std::begin(data->EnergyPerFission), std::end(data->EnergyPerFission), std::begin(EnergyPerFission));
+    std::copy(std::begin(data->EnergyPerFissionError), std::end(data->EnergyPerFissionError), std::begin(EnergyPerFissionError));
     //Background relative errors, rates and events:
-    Double_t AccidentalError[MaxDetectors*MaxPeriods];
-    Double_t LiHeError[MaxDetectors*MaxPeriods];
-    Double_t FastNeutronError[MaxDetectors*MaxPeriods];
-    Double_t AmCError[MaxDetectors*MaxPeriods];
-    
-    Double_t AccidentalRate[MaxDetectors*MaxPeriods];
-    Double_t FastNeutronRate[MaxDetectors*MaxPeriods];
-    Double_t LiHeRate[MaxDetectors*MaxPeriods];
-    Double_t AmCRate[MaxDetectors*MaxPeriods];
-    
-    Double_t AccidentalEvents[MaxDetectors*MaxPeriods];
-    Double_t FastNeutronEvents[MaxDetectors*MaxPeriods];
-    Double_t LiHeEvents[MaxDetectors*MaxPeriods];
-    Double_t AmCEvents[MaxDetectors*MaxPeriods];
-    
-    Double_t ObservedEvents[MaxDetectors*MaxPeriods];
+    std::copy(std::begin(data->AccidentalError), std::end(data->AccidentalError), std::begin(AccidentalError));
+    std::copy(std::begin(data->LiHeError), std::end(data->LiHeError), std::begin(LiHeError));
+    std::copy(std::begin(data->FastNeutronError), std::end(data->FastNeutronError), std::begin(FastNeutronError));
+    std::copy(std::begin(data->AmCError), std::end(data->AmCError), std::begin(AmCError));
+
+    std::copy(std::begin(data->AccidentalRate), std::end(data->AccidentalRate), std::begin(AccidentalRate));
+    std::copy(std::begin(data->FastNeutronRate), std::end(data->FastNeutronRate), std::begin(FastNeutronRate));
+    std::copy(std::begin(data->LiHeRate), std::end(data->LiHeRate), std::begin(LiHeRate));
+    std::copy(std::begin(data->AmCRate), std::end(data->AmCRate), std::begin(AmCRate));
+
+    std::copy(std::begin(data->AccidentalEvents), std::end(data->AccidentalEvents), std::begin(AccidentalEvents));
+    std::copy(std::begin(data->FastNeutronEvents), std::end(data->FastNeutronEvents), std::begin(FastNeutronEvents));
+    std::copy(std::begin(data->LiHeEvents), std::end(data->LiHeEvents), std::begin(LiHeEvents));
+    std::copy(std::begin(data->AmCEvents), std::end(data->AmCEvents), std::begin(AmCEvents));
+
+    std::copy(std::begin(data->ObservedEvents), std::end(data->ObservedEvents), std::begin(ObservedEvents));
     
     // Days and efficiencies:
-    Double_t FullTime[MaxDetectors*MaxPeriods];
-    Double_t MuonEff[MaxDetectors*MaxPeriods];
-    Double_t MultiEff[MaxDetectors*MaxPeriods];
+    std::copy(std::begin(data->FullTime), std::end(data->FullTime), std::begin(FullTime));
+    std::copy(std::begin(data->MuonEff), std::end(data->MuonEff), std::begin(MuonEff));
+    std::copy(std::begin(data->MultiEff), std::end(data->MultiEff), std::begin(MultiEff));
     
     //IAV error:
-    Double_t IAVError;
+     IAVError = data->IAVError;
     
     //Resolution errors:
-    Double_t ResolutionError;
-    Double_t ResolutionErrorUncorrelated;
+     ResolutionError = data->ResolutionError;
+     ResolutionErrorUncorrelated = data->ResolutionErrorUncorrelated;
     
     //Energy scale:
-    Double_t m_abs_escale;
-    Double_t m_abs_escale_error;
+     m_abs_escale = data->m_abs_escale;
+     m_abs_escale_error = data->m_abs_escale_error;
     
-    Double_t m_abs_eoffset;
-    Double_t m_abs_eoffset_error;
+     m_abs_eoffset = data->m_abs_eoffset;
+     m_abs_eoffset_error = data->m_abs_eoffset_error;
     
-    Double_t m_rel_eoffset_error;
-    Double_t m_rel_escale[MaxDetectors];
-    Double_t m_rel_escale_error[MaxDetectors];
-    Double_t m_rel_escale_nominal[MaxDetectors];
-    Double_t m_rel_eoffset[MaxDetectors];
+     m_rel_eoffset_error = data->m_rel_eoffset_error;
+    std::copy(std::begin(data->m_rel_escale), std::end(data->m_rel_escale), std::begin(m_rel_escale));
+    std::copy(std::begin(data->m_rel_escale_error), std::end(data->m_rel_escale_error), std::begin(m_rel_escale_error));
+    std::copy(std::begin(data->m_rel_escale_nominal), std::end(data->m_rel_escale_nominal), std::begin(m_rel_escale_nominal));
+    std::copy(std::begin(data->m_rel_eoffset), std::end(data->m_rel_eoffset), std::begin(m_rel_eoffset));
     
-    Double_t DetectorEfficiencyRelativeError;
+     DetectorEfficiencyRelativeError = data->DetectorEfficiencyRelativeError;
     
     //Binning variables:
-    Int_t Nweeks;
-    Int_t NBins;
-    Double_t Emin;
-    Double_t Emax;
-    Double_t EVisMin;
-    Double_t EVisMax;
+     Nweeks = data->Nweeks;
+     NBins = data->NBins;
+     Emin = data->Emin;
+     Emax = data->Emax;
+     EVisMin = data->EVisMin;
+     EVisMax = data->EVisMax;
     
     //Reactor
-    Double_t binWidth;
-    Double_t m_dNdE_nom[NReactors*MatrixBins];
-    Double_t m_dNdE_mcov[NReactors*MatrixBins][NReactors*MatrixBins];
-    Int_t m_nSamples;
-    Double_t m_eMin;
-    Double_t m_eMax;
+     binWidth = data->binWidth;
+    std::copy(std::begin(data->m_dNdE_nom), std::end(data->m_dNdE_nom), std::begin(m_dNdE_nom));
+
+     m_nSamples = data->m_nSamples;
+     m_eMin = data->m_eMin;
+     m_eMax = data->m_eMax;
     
     //Reactor Covariance Matrix
-    Double_t L[NReactors*MatrixBins][NReactors*MatrixBins]; // lower triangle of the reactor covariance matrix
+    std::copy(std::begin(data->L), std::end(data->L), std::begin(L));
     
-    bool TurnOnBudget;
-    bool TurnOffBudget;
+     TurnOnBudget = data->TurnOnBudget;
+     TurnOffBudget = data->TurnOffBudget;
     
-    bool BCW;
-    bool LBNL;
-    bool Unified;
+     BCW = data->BCW;
+     LBNL = data->LBNL;
+     Unified = data->Unified;
     
-    bool VaryAccidentalMatrix;
-    bool VaryLiHeMatrix;
-    bool VaryFastNeutronsMatrix;
-    bool VaryAmCMatrix;
-    bool DistortLiHeMatrix;
-    bool DistortFastNeutronsMatrix;
-    bool DistortAmCMatrix;
-    bool IsotopeMatrix;
-    bool ReactorPowerMatrix;
-    bool RelativeEnergyOffsetMatrix;
-    bool AbsoluteEnergyOffsetMatrix;
-    bool AbsoluteEnergyScaleMatrix;
-    bool RelativeEnergyScaleMatrix;
-    bool IAVMatrix;
-    bool NLMatrix;
-    bool ResolutionMatrix;
-    bool Sin22t12Matrix;
-    bool EfficiencyMatrix;
+     VaryAccidentalMatrix = data->VaryAccidentalMatrix;
+     VaryLiHeMatrix = data->VaryLiHeMatrix;
+     VaryFastNeutronsMatrix = data->VaryFastNeutronsMatrix;
+     VaryAmCMatrix = data->VaryAmCMatrix;
+     DistortLiHeMatrix = data->DistortLiHeMatrix;
+     DistortFastNeutronsMatrix = data->DistortFastNeutronsMatrix;
+     DistortAmCMatrix = data->DistortAmCMatrix;
+     IsotopeMatrix = data->IsotopeMatrix;
+     ReactorPowerMatrix = data->ReactorPowerMatrix;
+     RelativeEnergyOffsetMatrix = data->RelativeEnergyOffsetMatrix;
+     AbsoluteEnergyOffsetMatrix = data->AbsoluteEnergyOffsetMatrix;
+     AbsoluteEnergyScaleMatrix = data->AbsoluteEnergyScaleMatrix;
+     RelativeEnergyScaleMatrix = data->RelativeEnergyScaleMatrix;
+     IAVMatrix = data->IAVMatrix;
+     NLMatrix = data->NLMatrix;
+     ResolutionMatrix = data->ResolutionMatrix;
+     Sin22t12Matrix = data->Sin22t12Matrix;
+     EfficiencyMatrix = data->EfficiencyMatrix;
     
-    bool VaryAccidentalBudget;
-    bool VaryLiHeBudget;
-    bool VaryFastNeutronsBudget;
-    bool VaryAmCBudget;
-    bool DistortLiHeBudget;
-    bool DistortFastNeutronsBudget;
-    bool DistortAmCBudget;
-    bool IsotopeBudget;
-    bool ReactorPowerBudget;
-    bool RelativeEnergyOffsetBudget;
-    bool AbsoluteEnergyOffsetBudget;
-    bool AbsoluteEnergyScaleBudget;
-    bool RelativeEnergyScaleBudget;
-    bool IAVBudget;
-    bool NLBudget;
-    bool ResolutionBudget;
-    bool Sin22t12Budget;
-    bool EfficiencyBudget;
-    bool SystematicBudget;
-    bool BackgroundBudget;
-    bool TotalBudget;
+     VaryAccidentalBudget = data->VaryAccidentalBudget;
+     VaryLiHeBudget = data->VaryLiHeBudget;
+     VaryFastNeutronsBudget = data->VaryFastNeutronsBudget;
+     VaryAmCBudget = data->VaryAmCBudget;
+     DistortLiHeBudget = data->DistortLiHeBudget;
+     DistortFastNeutronsBudget = data->DistortFastNeutronsBudget;
+     DistortAmCBudget = data->DistortAmCBudget;
+     IsotopeBudget = data->IsotopeBudget;
+     ReactorPowerBudget = data->ReactorPowerBudget;
+     RelativeEnergyOffsetBudget = data->RelativeEnergyOffsetBudget;
+     AbsoluteEnergyOffsetBudget = data->AbsoluteEnergyOffsetBudget;
+     AbsoluteEnergyScaleBudget = data->AbsoluteEnergyScaleBudget;
+     RelativeEnergyScaleBudget = data->RelativeEnergyScaleBudget;
+     IAVBudget = data->IAVBudget;
+     NLBudget = data->NLBudget;
+     ResolutionBudget = data->ResolutionBudget;
+     Sin22t12Budget = data->Sin22t12Budget;
+     EfficiencyBudget = data->EfficiencyBudget;
+     SystematicBudget = data->SystematicBudget;
+     BackgroundBudget = data->BackgroundBudget;
+     TotalBudget = data->TotalBudget;
     
-    bool StatisticalFluctuation;
-    bool UseToyMCTree;
+     StatisticalFluctuation = data->StatisticalFluctuation;
+     UseToyMCTree = data->UseToyMCTree;
 
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
