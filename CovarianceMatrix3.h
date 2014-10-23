@@ -269,7 +269,6 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
     FluxOsc->GenerateFluxHisto();
     delete FluxOsc;
     delete FluxData;
-    Int_t check2 = Data->GetObservedEvents(0,0);
     
     NSamples = Data->GetNSamples();
     InitialEnergy = Data->GetEmin();
