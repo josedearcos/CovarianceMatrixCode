@@ -1,0 +1,76 @@
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: 0.0003 min: 0.0023
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: -0.0003 min: 0.0029
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: -0.00023 min: 0.0023
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: -0.00037 min: 0.0029
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: -0.00014 min: 0.0029
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: -0.00046 min: 0.0023
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: -1e+10 min: 1e+10
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: 0.000451811 min: 0.0023
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: -0.00014 min: 0.0029
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: -0.00026 min: 0.0021
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: -0.00014 min: 0.0029
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: 0.00034 min: 0.0015
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: -0.0001 min: 0.00286
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: -0.0001 min: 0.00286
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: 0.00032 min: 0.00152
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: -0.000459758 min: 0.0023
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: -0.000512 min: 0.0025
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 4.2e-05 min: 0.00294
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 4.2e-05 min: 0.00294
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: 0.000463246 min: 0.00248
+./ChiSquare/Combine1/1DChiSquareFitDm.root sigma: 0.000463246 min: 0.00248
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: -0.000512 min: 0.0025
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 4.2e-05 min: 0.00294
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 0.000208 min: 0.00178
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 0.000472407 min: 0.00248
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 4.2e-05 min: 0.00294
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 0.000488 min: 0.0015
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: -0.000372 min: 0.00236
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 0.000463976 min: 0.00248
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 0.000122 min: 0.00286
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 0.000464353 min: 0.00248
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 0.000122 min: 0.00286
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 0.000202 min: 0.00278
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: -0.000132 min: 0.00212
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 0.000464353 min: 0.00248
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 0.000122 min: 0.00286
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 0.000282 min: 0.0027
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: 0.000502 min: 0.00248
+./ChiSquare/Combine2/1DChiSquareFitDm.root sigma: -1.8e-05 min: 0.003
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -4e-05 min: 0.0028
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: 0.00046 min: 0.0023
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: 0.000450971 min: 0.0023
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -4e-05 min: 0.0028
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -0.00046 min: 0.0023
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: 0.000453977 min: 0.0023
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: 0.00014 min: 0.00262
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: 0.00014 min: 0.00262
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: 0.00014 min: 0.00262
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: 2e-05 min: 0.00274
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -0.00074 min: 0.0035
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -0.00074 min: 0.0035
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: 4e-05 min: 0.00272
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -0.00046 min: 0.0023
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -0.00042 min: 0.00318
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: 0.00046 min: 0.0023
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -0.00036 min: 0.00312
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: 0.00046 min: 0.0023
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -0.00052 min: 0.00328
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: 0.00046 min: 0.0023
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -0.0004 min: 0.00316
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -0.000415315 min: 0.0023
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -0.0001 min: 0.00286
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -0.00038 min: 0.00314
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root sigma: -0.00028 min: 0.00212
+./ChiSquare/Gadolinium/Combine1/1DChiSquareFitDm.root sigma: -0.000459774 min: 0.0023
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root -0.00051032 0.00248
+./ChiSquare/Gadolinium/Combine1/1DChiSquareFitDm.root -0.000382085 0.00246
+./ChiSquare/Gadolinium/Combine1/1DChiSquareFitDm.root 5.452e-05 0.0029
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root -0.000176043 0.00246
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root -0.00053032 0.0025
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root -0.00053032 0.0025
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root -0.00049032 0.00246
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root 0.000296478 0.00246
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root -0.00049032 0.00246
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root 1.452e-05 0.00294
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitDm.root -1.22036e-05 0.00246

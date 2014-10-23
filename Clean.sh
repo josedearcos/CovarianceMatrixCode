@@ -1,0 +1,79 @@
+#!/bin/bash
+svn delete --keep-local      .
+svn add     ResponseMatrices
+svn add      BackgroundSpectrum
+svn add    wangzhe@166.111.143.19
+svn add    NLCrossChecks
+svn delete --keep-local     a.out
+svn delete --keep-local     a.out.dSYM/Contents/Resources/DWARF/a.out
+svn delete --keep-local    CrossSections/TxTCrossSection.root
+svn delete --keep-local    ReactorInputs/p12c_blinded
+svn add    ReactorInputs/p12c_unblinded
+svn delete    plot_covariance_matrix.C
+svn add      Inputs/unified_nl_data
+svn add     Inputs/lbnl_nl_data
+svn add      Inputs/bcw_nl_data
+svn delete      plot_matrix.C
+svn delete      InverseBetaCS.h
+svn add   RootOutputs/NominalOutputs
+svn add     RootOutputs/RandomOutputs
+svn delete     RootOutputs/Spectra/TrueSpectrum.root
+svn delete      plot_statistical_matrix.C
+svn delete    CovarianceMatrices/VaryLiHeCovarianceMatrix75samples.eps
+svn delete     CovarianceMatrices/IsotopeSpectrum.root
+svn delete     CovarianceMatrices/VaryAccidentalCovarianceMatrix.root
+svn delete    CovarianceMatrices/DistortLiHeCovarianceMatrix75samples.eps
+svn delete     CovarianceMatrices/NominalCovarianceMatrix.root
+svn delete       CovarianceMatrices/VaryAmCCovarianceMatrix.txt
+svn delete     CovarianceMatrices/ResolutionCovarianceMatrix.txt
+svn delete    CovarianceMatrices/PowerSpectrum.root
+svn delete     CovarianceMatrices/ResolutionCovarianceMatrix.root
+svn delete     CovarianceMatrices/StatisticalCovarianceMatrixNoNormalized.eps
+svn delete  CovarianceMatrices/ReactorPowerCovarianceMatrix.txt
+svn delete   CovarianceMatrices/DistortAmCCovarianceMatrix.root
+svn delete    CovarianceMatrices/NLCovarianceMatrix75samples.eps
+svn delete   CovarianceMatrices/VaryFNCovarianceMatrixZoom75samples.eps
+svn delete       CovarianceMatrices/VaryLiHeCovarianceMatrix.txt
+svn delete       CovarianceMatrices/IAVSpectrum.root
+svn delete       CovarianceMatrices/VaryLiHeCovarianceMatrix.root
+svn delete       CovarianceMatrices/VaryFastNeutronsCovarianceMatrix.txt
+svn delete       CovarianceMatrices/DistortLiHeCovarianceMatrix.root
+svn delete       CovarianceMatrices/VaryFastNeutronsSpectrum.root
+svn delete       CovarianceMatrices/sin0.5StatisticalCovarianceMatrixNoNormalized.eps
+svn delete       CovarianceMatrices/VaryAmCSpectrum.root
+svn delete       CovarianceMatrices/DistortFastNeutronsSpectrum.root
+svn delete       CovarianceMatrices/NLCovarianceMatrix.root
+svn delete       CovarianceMatrices/SystematicCovarianceMatrixNormalized.root
+svn delete       CovarianceMatrices/ReactorPowerCovarianceMatrix.root
+svn delete       CovarianceMatrices/DistortFNCovarianceMatrix75samples.eps
+svn delete       CovarianceMatrices/NLCovarianceMatrixZoom75samples.eps
+svn delete       CovarianceMatrices/StatisticalCovarianceMatrix.txt
+svn delete       CovarianceMatrices/IsotopeCovarianceMatrix.root
+svn delete       CovarianceMatrices/VaryAccidentalCovarianceMatrix.txt
+svn delete       CovarianceMatrices/DistortLiHeCovarianceMatrix.txt
+svn delete       CovarianceMatrices/AccidentalCovarianceMatrix75samples.eps
+svn delete       CovarianceMatrices/VaryAccidentalSpectrum.root
+svn delete       CovarianceMatrices/DistortFastNeutronsCovarianceMatrix.txt
+svn delete       CovarianceMatrices/NominalSpectrum.root
+svn delete       CovarianceMatrices/DistortAmCCovarianceMatrix.txt
+svn delete       CovarianceMatrices/ResolutionSpectrum.root
+svn delete       CovarianceMatrices/IAVCovarianceMatrix.txt
+svn delete       CovarianceMatrices/DistortAmCSpectrum.root
+svn delete       CovarianceMatrices/IsotopeCovarianceMatrix.txt
+svn delete       CovarianceMatrices/IAVCovarianceMatrix.root
+svn delete       CovarianceMatrices/sin0.15StatisticalCovarianceMatrixNoNormalized.eps
+svn delete       CovarianceMatrices/StatisticalCovarianceMatrixZoomRed.eps
+svn delete       CovarianceMatrices/StatisticalCovarianceMatrix.eps
+svn delete       CovarianceMatrices/VaryLiHeSpectrum.root
+svn delete       CovarianceMatrices/StatisticalMatrixNoNormalized9x9.eps
+svn delete       CovarianceMatrices/ResolutionSpectrumSpectrum.root
+svn delete       CovarianceMatrices/StatisticalCovarianceMatrixZoom.eps
+svn delete       CovarianceMatrices/VaryFastNeutronsCovarianceMatrix.root
+svn delete       CovarianceMatrices/DistortLiHeSpectrum.root
+svn delete       CovarianceMatrices/AccidentalCovarianceMatrixZoom75samples.eps
+svn delete       CovarianceMatrices/VaryAmCCovarianceMatrix.root
+svn delete       CovarianceMatrices/DistortFastNeutronsCovarianceMatrix.root
+svn delete       CovarianceMatrices/NLCovarianceMatrix.txt
+svn delete       CovarianceMatrices/VaryAmCCovarianceMatrixZoom75samples.eps
+svn delete       CovarianceMatrices/DistortAmCCovarianceMatrix75samples.eps
+svn --keep-local delete       delete/

@@ -1,0 +1,13 @@
+# Fission isotope data
+#    IsotopeIds: U235=1, U238=2, Pu239=3, Pu241=4 
+#    EnergyPerFission: The mean energy released by one fission [MeV]
+#    NominalFissionFraction: The nominal fission fractions of a standard core
+#      Energy per fission values taken from:
+#        Z.~Djurcic {\it et al.} J. Phys. G. {\bf 36}, 045002 (2009)
+#      Nominal fission fractions taken from:
+#        Blind Analysis Policy: DocDB-6375
+#IsotopeId    EnergyPerFission[MeV]  NominalFissionFraction
+         1                    201.7                   0.64
+         2                    205.0                   0.08 
+         3                    210.0                   0.25
+         4                    212.4                   0.03

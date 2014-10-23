@@ -1,0 +1,11 @@
+Bryce Littlejohn
+September 11, 2012
+
+The IAV corrections histograms and uncertainty histograms are located in IAVDistortion.root.
+
+- IAV Correction: Correction TH2F
+- Uncorrelated uncertainty: UncUncorr TH1F
+
+Follow the example in AddIAVCorrection.C to apply the correction to an input IBD spectrum, in this case InputIBD.dat.
+
+Email Bryce at me.Bryce@gmail.com if you have any questions.

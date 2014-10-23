@@ -1,0 +1,35 @@
+Hi Yasu,
+
+the 5 models are:
+IHEP 1, LBNL, BCW 1+6, IHEP marginal 3.
+
+I attach all 5 models:
+
+IHEP : Model1.root, positronFull is the nominal curve, positronFullMarg3 is marginal 3.
+If you need the full marginal 3 with gamma and electron NL, it's in flt_glb_marg3.root
+
+BCW1+6: eff_model1.root/eff_model6.root
+
+--Soeren
+
+
+On Sat, Jun 15, 2013 at 11:02 AM, Jiajie Ling <jjling@bnl.gov> wrote:
+Hi Yasu,
+
+This is the model Xin summarized.
+
+Jiajie
+
+
+On 06/14/2013 10:44 PM, Yasuhiro Nakajima wrote:
+Hi Soeren,
+
+Could you send me the list of the final set of 5/8 non-linearity curves?
+I can see some curves in doc-8995 and doc-8992, but I'm confused which curves are in the final model.
+
+Thanks,
+
+Yasu
+
+
+
