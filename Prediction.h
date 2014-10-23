@@ -39,7 +39,8 @@ const Int_t MaxSystematics =9;//(8)Systematics + Total Systematic
 class Prediction
 {
 private:
-    bool firstPrediction;
+    bool firstNominalPrediction;
+    bool firstRandomPrediction;
     Double_t L[MaxSystematics][9*MaxNbins][9*MaxNbins];
     Double_t RenormToyMCSample[9*MaxNbins][9*MaxNbins];
     Double_t Correlation[9*MaxNbins][9*MaxNbins];
@@ -49,6 +50,7 @@ private:
     
     TTree *T;
     std::string AnalysisString;
+    std::string RandomString;
     
     TH1D* TNominalHisto;
     TH1D* TDataHisto;
@@ -354,8 +356,8 @@ Prediction :: ~Prediction()
 
 Prediction :: Prediction()
 {
-    firstPrediction=0;
-
+    firstNominalPrediction=0;
+    firstRandomPrediction=0;
     std::cout << " the default constructor shouldn't be called, except for Minuit?" << std::endl;
     
     exit(EXIT_FAILURE);
@@ -482,7 +484,8 @@ Prediction :: Prediction()
 
 Prediction :: Prediction(NominalData* data)
 {
-    firstPrediction=0;
+    firstNominalPrediction=0;
+    firstRandomPrediction=0;
     Data = new NominalData(0,2);
     
     Data->CopyData(data);
@@ -630,6 +633,15 @@ void Prediction :: SetSystematic()
 //Run one time with random parameters = 0 to generate the Expected Oscillation file.
 void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode, Int_t week,bool ToyMC,bool CovMatrix)
 {
+    if(!mode)//Nominal
+    {
+        RandomString = "Nominal";
+    }
+    else
+    {
+        RandomString = "Random";
+    }
+    
     std::cout <<  "********************************************************************************************************" << std::endl;
     std::cout << "\t Making prediction" << std::endl;
     MaxNearLoadOscModel= ADsEH1+ADsEH2;
@@ -664,7 +676,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     OscRea= new OscillationReactor(Data);
     Osc= new Oscillation(Data);
 
-    if(mode==1)
+    if(mode)
     {
         SetSystematic();
     }
@@ -870,7 +882,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     //    delete CopyTHisto;
     
     
-    if(mode==0)
+    if(!mode)
     {
         sprintf(FileName,("./RootOutputs/"+AnalysisString+Form("/Spectra/Combine%d/NominalPredictedSpectrum.root",Combine)).c_str());
     }
@@ -917,9 +929,10 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
 
     std::cout << "\t Saved done" << std::endl;
     
-    if(Print&&mode==0&&firstPrediction==0)//To print only once//Save Nominal Histograms
+    if(Print&&(firstNominalPrediction==0||firstRandomPrediction==0))//To print only once
     {
-        firstPrediction=1;
+        if(!mode){firstNominalPrediction=1;}
+        else{firstRandomPrediction=1;}
         TCanvas* CombC = new TCanvas("CombC","CombC",MaxNearCombine*400,MaxFarCombine*400);
         CombC->Divide(MaxNearCombine,MaxFarCombine);
         
@@ -934,7 +947,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
             }
         }
         CombC->Update();
-        CombC->Print(("./Images/"+AnalysisString+"/FitterInputs/CombinePredictions.eps").c_str());
+        CombC->Print(("./Images/"+AnalysisString+"/FitterInputs/"+RandomString+"CombinePredictions.eps").c_str());
         
         delete CombC;
         
@@ -951,7 +964,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
                 PredictionVisH[far][near]->Draw("HIST");
             }
         }
-        PredictionC->Print(("./Images/"+AnalysisString+"/FitterInputs/Predictions.eps").c_str(),".eps");
+        PredictionC->Print(("./Images/"+AnalysisString+"/FitterInputs/"+RandomString+"Predictions.eps").c_str(),".eps");
         delete PredictionC;
         
         TCanvas* AllPredictionC = new TCanvas("AllPredictionC","AllPredictionC",MaxFarLoadOscModel*400,400);
@@ -1004,7 +1017,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
             
             AllPredictionC->Update();
         }
-        AllPredictionC->Print(("./Images/"+AnalysisString+"/FitterInputs/AllPredictions.eps").c_str(),".eps");
+        AllPredictionC->Print(("./Images/"+AnalysisString+"/FitterInputs/"+RandomString+"AllPredictions.eps").c_str(),".eps");
         delete AllPredictionC;
         if(ToyMC)//ToyMC uses reactor prediction
         {
@@ -1022,7 +1035,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
                 ReactorPredictionVisH[far]->SetLineWidth(1);
                 ReactorPredictionVisH[far]->Draw("HIST");
         }
-        AllReactorPredC->Print(("./Images/"+AnalysisString+"/FitterInputs/AllReactorPredictions.eps").c_str(),".eps");
+        AllReactorPredC->Print(("./Images/"+AnalysisString+"/FitterInputs/"+RandomString+"AllReactorPredictions.eps").c_str(),".eps");
 
         delete AllReactorPredC;
         }
@@ -2542,46 +2555,34 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
 
 void Prediction :: LoadBackgrounds(Int_t week,bool mode)
 {
-    std::cout <<  "\t ***********************************************************************************************" << std::endl;
-    std::cout <<"\t \t IN LOAD BACKGROUNDS" << std::endl;
-    
-    std::cout << "\t \t \t MaxFarCombine" << MaxFarCombine<< std::endl;
-    std::cout << "\t \t \t MaxNearCombine" << MaxNearCombine << std::endl;
-
     Char_t backgroundC[100];
     
     if (mode==1)
     {
-        sprintf(backgroundC,("./RootOutputs/"+ AnalysisString+ "/Backgrounds/RandomBackgrounds.root").c_str());
+        RandomString = "Random";
     }
     else
     {
-        sprintf(backgroundC,("./RootOutputs/"+ AnalysisString+ "/Backgrounds/NominalBackgrounds.root").c_str());
+        RandomString = "Nominal";
     }
+    
+    std::cout <<  "\t ***********************************************************************************************" << std::endl;
+    std::cout <<"\t \t IN LOAD" << RandomString << " BACKGROUNDS" << std::endl;
+    
+    std::cout << "\t \t \t MaxFarCombine" << MaxFarCombine<< std::endl;
+    std::cout << "\t \t \t MaxNearCombine" << MaxNearCombine << std::endl;
+
+    sprintf(backgroundC,("./RootOutputs/"+ AnalysisString+ "/Backgrounds/"+RandomString+"Backgrounds.root").c_str());
 
     TFile* BackgroundsF = TFile::Open(backgroundC);
     
     for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
     {
-        if(mode==0)
-        {
-            NearBackgroundSpectrumH[near]=(TH1D*)gDirectory->Get(Form("Near AD%i Nominal Background Period%d",near,week));
-        }
-        else
-        {
-            NearBackgroundSpectrumH[near]=(TH1D*)gDirectory->Get(Form("Near AD%i Varied Background Period%d",near,week));
-        }
+        NearBackgroundSpectrumH[near]=(TH1D*)gDirectory->Get((Form("Near AD%i ",near)+RandomString+ Form(" Background Period%d",week)).c_str());
     }
     for (Int_t far = 0; far < ADsEH3; far++)
     {
-        if(mode==0)
-        {
-            FarBackgroundSpectrumH[far]=(TH1D*)gDirectory->Get(Form("Far AD%i Nominal Background Period%d",far,week));
-        }
-        else
-        {
-            FarBackgroundSpectrumH[far]=(TH1D*)gDirectory->Get(Form("Far AD%i Varied Background Period%d",far,week));
-        }
+        FarBackgroundSpectrumH[far]=(TH1D*)gDirectory->Get((Form("Far AD%i ",far)+RandomString+ Form(" Background Period%d",week)).c_str());
     }
     
     BackgroundsF->Close();
@@ -2662,8 +2663,8 @@ void Prediction :: LoadBackgrounds(Int_t week,bool mode)
         NearBackgroundSpectrumH[ad]->Draw("HIST");
     }
     
-    FarBackgroundsC->Print(("./Images/"+AnalysisString+"/FitterInputs/FarBackgrounds.eps").c_str(),".eps");
-    NearBackgroundsC->Print(("./Images/"+AnalysisString+"/FitterInputs/NearBackgrounds.eps").c_str(),".eps");
+    FarBackgroundsC->Print(("./Images/"+AnalysisString+"/FitterInputs/"+RandomString+"FarBackgrounds.eps").c_str(),".eps");
+    NearBackgroundsC->Print(("./Images/"+AnalysisString+"/FitterInputs/"+RandomString+"NearBackgrounds.eps").c_str(),".eps");
 
     delete FarBackgroundsC;
     delete NearBackgroundsC;

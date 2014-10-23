@@ -37,6 +37,7 @@ class Oscillation
 {
 private:
     
+    string RandomString;
     //External classes used
     NominalData* Nom;
     //Survival probability calculation parameters:
@@ -603,6 +604,15 @@ void Oscillation :: OscillationFromNearHallData(Int_t Week,bool ToyMC,bool mode)
     flagDelete = 0;
     
     Mode = mode;
+    
+    if(Mode)
+    {
+        RandomString="Random";
+    }
+    else
+    {
+        RandomString="Nominal";
+    }
     week = Week;
     std::cout <<  "\t ***********************************************************************************************" << std::endl;
     std::cout << "\t Calculating Oscillation" << std::endl;
@@ -1059,7 +1069,7 @@ void Oscillation :: LoadToyHistograms(Int_t week)
             ADSpectrumVisH[near]->Draw("HIST");
         }
         
-        cr->Print(("./Images/"+ AnalysisString+ "/NearReactorPredictionWithoutBackground.eps").c_str(),".eps");
+        cr->Print(("./Images/"+ AnalysisString+ "/"+RandomString+"NearReactorPredictionWithoutBackground.eps").c_str(),".eps");
         delete cr;
     }
 }
@@ -1073,7 +1083,7 @@ void Oscillation :: LoadBackgrounds(Int_t week)
 {
     LoadNominalBackgrounds();
     
-    if(Mode==1)
+    if(Mode)
     {
         if(VaryAccidentalMatrix)
         {
@@ -1208,7 +1218,7 @@ void Oscillation :: LoadNearData(Int_t week)
         }
         
         //Substract backgrounds:
-        ADSpectrumVisH[near]->Add(NearBackgroundSpectrumH[near],-1);//Substract backgrounds from data
+        ADSpectrumVisH[near]->Add(NearBackgroundSpectrumH[near],-1);//Substract (varied if necessary) backgrounds from data
         
         for(Int_t i = 0; i< ADSpectrumVisH[near]->GetXaxis()->GetNbins();i++)
         {
@@ -1230,7 +1240,12 @@ void Oscillation :: LoadNearData(Int_t week)
             ADSpectrumVisH[near]->Draw();
         }
         
-        c1->Print(("./Images/"+ AnalysisString+ "/NearData.eps").c_str(),".eps");
+        c1->Print(("./Images/"+ AnalysisString+ "/"+RandomString+"NearData.eps").c_str(),".eps");
+        if(RandomString!="Nominal")
+        {
+            std::cout << "REAL DATA SHOULD HAVE NOMINAL BACKGROUNDS SUBTRACTED INSTEAD OF RANDOM BACKGROUNDS, CHECK CASES" << std::endl;
+            exit(EXIT_FAILURE);
+        }
         delete c1;
     }
 }
@@ -1536,49 +1551,18 @@ void Oscillation :: SetSin22t12(Double_t S22t12)
 void Oscillation :: SaveBackgrounds(){
     
     std::cout << "\t Saving Backgrounds" << std::endl;
-    
-    Char_t BackC[100];
-    Char_t NameNearB[100];
-    Char_t NameFarB[100];
-    
-    if (Mode==1)
-    {
-        sprintf(BackC,("./RootOutputs/"+ AnalysisString+ "/Backgrounds/RandomBackgrounds.root").c_str());
-    }
-    else
-    {
-        sprintf(BackC,("./RootOutputs/"+ AnalysisString+ "/Backgrounds/NominalBackgrounds.root").c_str());
-    }
 
-    TFile* BackgroundF1 = new TFile(BackC,"recreate");
+    TFile* BackgroundF1 = new TFile(("./RootOutputs/"+ AnalysisString+ "/Backgrounds/"+RandomString+"Backgrounds.root").c_str(),"recreate");
     
     for(Int_t near=0; near<(ADsEH1+ADsEH2); near++)
     {
-        if (Mode==1)
-        {
-            sprintf(NameNearB,"Near AD%i Varied Background Period%d",near,week);
-        }
-        else
-        {
-            sprintf(NameNearB,"Near AD%i Nominal Background Period%d",near,week);
-        }
-        NearBackgroundSpectrumH[near]->Write(NameNearB);
+        NearBackgroundSpectrumH[near]->Write((Form("Near AD%i ",near)+RandomString+ Form(" Background Period%d",week)).c_str());
     }
     for(Int_t far=0; far<ADsEH3; far++)
     {
-        if(Mode==1)
-        {
-            sprintf(NameFarB,"Far AD%i Varied Background Period%d",far,week);
-        }
-        else
-        {
-            sprintf(NameFarB,"Far AD%i Nominal Background Period%d",far,week);
-        }
-
-        FarBackgroundSpectrumH[far]->Write(NameFarB);
+        FarBackgroundSpectrumH[far]->Write((Form("Far AD%i ",far)+RandomString+ Form(" Background Period%d",week)).c_str());
     }
     delete BackgroundF1;
-
 }
 
 

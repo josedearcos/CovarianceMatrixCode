@@ -2397,11 +2397,14 @@ Double_t NominalData :: GetDmeeEnd()
 {
     return dmee_end;
 }
-Double_t NominalData :: GetObservedEvents(Int_t i,Int_t j){
+
+Double_t NominalData :: GetObservedEvents(Int_t i,Int_t j)
+{
     return ObservedEvents[i+j*MaxDetectors];
 }
 
-Int_t NominalData :: GetNReactorPeriods(){
+Int_t NominalData :: GetNReactorPeriods()
+{
     return NReactorPeriods;
 }
 

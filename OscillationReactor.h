@@ -767,7 +767,7 @@ void OscillationReactor :: LoadGdExternalInputs()//This only works for week = 1 
         
         TFile* LoadPredictionF;
         
-        if(Mode==1)//return random toy sample
+        if(Mode)//return random toy sample
         {
             LoadPredictionF = new TFile((RandomPredictionDirectory).c_str());
             
@@ -953,7 +953,7 @@ void OscillationReactor :: SetUpDetectorResponse()
     
     // GET ENERGY SHIFT< IAV< NL < RESOLUTION
     
-    if(Mode==1)
+    if(Mode)
     {
         SetSystematic();
     }
@@ -1186,7 +1186,7 @@ void OscillationReactor :: LoadReactorHistograms()
         
         TFile* nHLoadPredictionF;
         
-        if(Mode==1)//return random toy sample
+        if(Mode)//return random toy sample
         {
             nHLoadPredictionF = new TFile((RandomPredictionDirectory).c_str());
             
@@ -1214,7 +1214,7 @@ void OscillationReactor :: LoadReactorHistograms()
 
 //            nHPredictionMatrix[AD] = T->SetBranchAddress(Form("Vis Prediction AD%d",AD+1));
             
-            if(Mode==1&&EfficiencyMatrix)
+            if(Mode&&EfficiencyMatrix)
             {
                 //            DetectorEfficiencyDelayed[AD] = T->SetBranchAddress(Efficiency);
             }

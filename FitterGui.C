@@ -28,7 +28,7 @@
 
 //#define NDEBUG
 const bool TestExternalInputs=0;
-const bool PrintOnConsole=1;
+const bool PrintOnConsole=0;
 
 //To interpolate the chi2 curves
 const Int_t InterpolationFactor = 100;
