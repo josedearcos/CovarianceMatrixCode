@@ -164,7 +164,7 @@ private:
     Double_t m_eMax;
     
     //Reactor Covariance Matrix
-    Double_t L[NReactors*MatrixBins][NReactors*MatrixBins]; // lower triangle of the reactor covariance matrix
+    Double_t L[NReactors*MatrixBins*NReactors*MatrixBins]; // lower triangle of the reactor covariance matrix
 
 public:
     
@@ -234,6 +234,11 @@ public:
     void SetDm231(Double_t);
     void SetDm232(Double_t);
     void SetDm221(Double_t);
+    void SetSinStart(Double_t);
+    void SetSinEnd(Double_t);
+    void SetDmeeStart(Double_t);
+    void SetDmeeEnd(Double_t);
+    
     void SetNSamples(Int_t);
     void SetNSteps(Int_t);
     void SetNbins(Int_t);
@@ -309,7 +314,7 @@ public:
     void SetTurnOnBudget(bool);
     void SetTurnOffBudget(bool);
     
-    void SetNReactorPeriods();
+    void SetNReactorPeriods(Int_t);
     
     //getters
     Int_t GetDataSet();
@@ -986,10 +991,10 @@ void NominalData :: CopyData(NominalData * data)
      m_abs_eoffset_error = data->m_abs_eoffset_error;
     
      m_rel_eoffset_error = data->m_rel_eoffset_error;
-    std::copy(std::begin(data->m_rel_escale), std::end(data->m_rel_escale), std::begin(m_rel_escale));
-    std::copy(std::begin(data->m_rel_escale_error), std::end(data->m_rel_escale_error), std::begin(m_rel_escale_error));
-    std::copy(std::begin(data->m_rel_escale_nominal), std::end(data->m_rel_escale_nominal), std::begin(m_rel_escale_nominal));
-    std::copy(std::begin(data->m_rel_eoffset), std::end(data->m_rel_eoffset), std::begin(m_rel_eoffset));
+     std::copy(std::begin(data->m_rel_escale), std::end(data->m_rel_escale), std::begin(m_rel_escale));
+     std::copy(std::begin(data->m_rel_escale_error), std::end(data->m_rel_escale_error), std::begin(m_rel_escale_error));
+     std::copy(std::begin(data->m_rel_escale_nominal), std::end(data->m_rel_escale_nominal), std::begin(m_rel_escale_nominal));
+     std::copy(std::begin(data->m_rel_eoffset), std::end(data->m_rel_eoffset), std::begin(m_rel_eoffset));
     
      DetectorEfficiencyRelativeError = data->DetectorEfficiencyRelativeError;
     
@@ -1003,14 +1008,14 @@ void NominalData :: CopyData(NominalData * data)
     
     //Reactor
      binWidth = data->binWidth;
-    std::copy(std::begin(data->m_dNdE_nom), std::end(data->m_dNdE_nom), std::begin(m_dNdE_nom));
+     std::copy(std::begin(data->m_dNdE_nom), std::end(data->m_dNdE_nom), std::begin(m_dNdE_nom));
 
      m_nSamples = data->m_nSamples;
      m_eMin = data->m_eMin;
      m_eMax = data->m_eMax;
     
     //Reactor Covariance Matrix
-    std::copy(std::begin(data->L), std::end(data->L), std::begin(L));
+     std::copy(std::begin(data->L), std::end(data->L), std::begin(L));
     
      TurnOnBudget = data->TurnOnBudget;
      TurnOffBudget = data->TurnOffBudget;
@@ -2214,7 +2219,7 @@ void NominalData :: ReadChristineCovMatrix()
     {
         for (Int_t j = 0; j <  m_nSamples * NReactors; j++)
         {
-            L[i][j] = tmp_matrix[i * m_nSamples * NReactors + j];
+            L[j+i*m_nSamples*NReactors] = tmp_matrix[i * m_nSamples * NReactors + j];
         }
     }
     covmatrix.~TMatrixD();
@@ -2224,7 +2229,7 @@ void NominalData :: ReadChristineCovMatrix()
 
 Double_t NominalData :: GetReactorCovMatrix(Int_t i,Int_t j)
 {
-    return L[i][j];
+    return L[j+i*m_nSamples*NReactors];
 }
 
 Double_t NominalData :: GetNominalReactorSpectrum(Int_t reactor, Int_t sample)
@@ -2378,7 +2383,7 @@ Double_t NominalData :: GetSinStart()
     return sin_start;
 }
 
-Double_t NominalData :: GetSinEnd();
+Double_t NominalData :: GetSinEnd()
 {
     return sin_end;
 }
