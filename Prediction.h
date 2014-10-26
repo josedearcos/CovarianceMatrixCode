@@ -1368,7 +1368,6 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
         }
     }
     
-    
     if(!Rate)
     {
         partial_chi2 = this->ChiSquare(week);
@@ -1376,6 +1375,8 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
     else
     {
         partial_chi2 = this->RateChiSquare(week);
+        std::cout << "Rate analysis is not properly done yet" << std::endl;
+        exit(EXIT_FAILURE);
     }
     
     std::cout <<  " "  << std::endl;
@@ -2986,6 +2987,7 @@ void Prediction :: LoadTxtCovarianceMatrices(Int_t week)
 
 void Prediction :: SaveCovarianceMatrices(Int_t week)
 {
+    std::cout << "SAVING COVARIANCE MATRICES " << std::endl;
     if(ReadTxt)
     {
         for (Int_t i = 0; i<MaxBins; i++)
@@ -3200,6 +3202,7 @@ void Prediction :: SaveCovarianceMatrices(Int_t week)
                 if(TMath::Abs(UnityH->GetBinContent(i+1,j+1)-1)>=0.000000001)
                 {
                     std::cout << " INVERSE HAS NOT BEEN CALCULATED PROPERLY:" << UnityH->GetBinContent(i+1,j+1) << std::endl;
+                    
                     exit(EXIT_FAILURE);
                 }
             }

@@ -28,7 +28,7 @@
 
 //#define NDEBUG
 const bool TestExternalInputs=0;
-const bool PrintOnConsole=0;
+const bool PrintOnConsole=1;
 
 //To interpolate the chi2 curves
 const Int_t InterpolationFactor = 100;
@@ -657,11 +657,11 @@ void FitterGui::RunFitter()
     Data->SetBinning(Binning);//  0 for LBNL binning or 1 for Linear binning
     Data->SetNSteps(NFits);// 101 in the final version.
     Data->SetWeeks(Period);
-    Data->SetNReactorPeriods(NReactorPeriods);
     Data->SetBCWModel(NL[0]);
     Data->SetLBNLModel(NL[1]);
     Data->SetUnifiedModel(NL[2]);
-    
+    Data->SetNReactorPeriods(NReactorPeriods);
+
     Data->SetToyMC(ToyMC);
     
     std::string FluxInputS;
@@ -676,8 +676,6 @@ void FitterGui::RunFitter()
         FluxInputS="GdInputs";
     }
     
-    NReactorPeriods=Data->GetNReactorPeriods();
-
     // Generate SuperHistogram:
     NominalData* FluxData = new NominalData(0,2);//Same for nH and nGd, difference is on efficiencies.
     FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());

@@ -13,7 +13,7 @@
 
 bool TestAllTheSame = 0;
 
-const bool Print = 0;//To save results in .eps files
+const bool Print = 1;//To save results in .eps files
 
 const bool DeltaMee = 0;//Use Δm^2ee instead of Δm32 and Δm31 values
 
@@ -515,6 +515,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     ToyMC=0;//Data is default;
     LinearBinning=0;
     Nweeks = 1;
+    NReactorPeriods=20;
     NADs = 6;
     ADsEH1 = 2;
     ADsEH2 = 1;
@@ -645,11 +646,18 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     s22t12Error = 0.024;
     dm2_32 = 2.41e-3;//eV2
     dm2_21 = 7.50e-5;//eV2
-    
+
     hierarchy=1;//-1 for inverted           // Set as external input to be set in the GUI   !!!!
     
     dm2_31=dm2_32+hierarchy*dm2_21;
     dm2_ee = dm2_32+hierarchy*5.21e-5;
+    
+    sin_start = 0;
+    sin_end = 0.2;
+    
+    dmee_start = dm2_ee - 0.001;
+    dmee_end = dm2_ee + 0.001;
+    
     //For Hydrogen and 6 ADs: from http://dayabay.ihep.ac.cn/DocDB/0085/008556/016/Main-version2.pdf
     
     if(this->GetAnalysis())
