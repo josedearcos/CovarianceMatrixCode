@@ -357,8 +357,8 @@ void FitterGui::DoFitter()
     ToyMCBox->Connect("Selected(Int_t)", "FitterGui", this, "ChooseToyMC()");
     ToyMCBox->Select(1);//6 ADs default for now
     fFitterFrame2->AddFrame(ToyMCBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    ToyMCBox->MoveResize(400,250,90,22);
-    
+    ToyMCBox->MoveResize(12,310,100,22);
+
     MinuitBox = new TGComboBox(fFitterFrame2,-1,kHorizontalFrame | kSunkenFrame | kDoubleBorder | kOwnBackground);
     MinuitBox->SetName("MinuitBox");
     MinuitBox->AddEntry("Manual grid",0);
@@ -366,7 +366,7 @@ void FitterGui::DoFitter()
     MinuitBox->Connect("Selected(Int_t)", "FitterGui", this, "ChooseMinuit()");
     MinuitBox->Select(0);//Minuit still needs testing
     fFitterFrame2->AddFrame(MinuitBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    MinuitBox->MoveResize(390,280,100,22);
+    MinuitBox->MoveResize(12,330,100,22);
     
     FluctuationBox = new TGComboBox(fFitterFrame2,-1,kHorizontalFrame | kSunkenFrame | kDoubleBorder | kOwnBackground);
     FluctuationBox->SetName("Statistical Fluctuation");
@@ -396,21 +396,38 @@ void FitterGui::DoFitter()
     (NFitsBox->GetNumberEntry())->Connect("ReturnPressed()", "FitterGui", this,"DoFits()");
     
     gClient->GetColorByName("#ffffff",ucolor);
-    TGLabel *PeriodLabel = new TGLabel(fFitterFrame2,"Period",TGLabel::GetDefaultGC()(),TGLabel::GetDefaultFontStruct(),kChildFrame,ucolor);
+    TGLabel *PeriodLabel = new TGLabel(fFitterFrame2,"Fit periods",TGLabel::GetDefaultGC()(),TGLabel::GetDefaultFontStruct(),kChildFrame,ucolor);
     PeriodLabel->SetTextJustify(36);
     PeriodLabel->SetMargins(0,0,0,0);
     PeriodLabel->SetWrapLength(-1);
     fFitterFrame2->AddFrame(PeriodLabel, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    PeriodLabel->MoveResize(390,200,128,18);
+    PeriodLabel->MoveResize(388,198,128,18);
     
     PeriodBox = new TGNumberEntry(fFitterFrame2, (Int_t) Period,6,-1,(TGNumberFormat::EStyle) 5,(TGNumberFormat::EAttribute) 0,(TGNumberFormat::ELimit) 2,0,500);//It can be any number of weeks,500 is about 10 years of data taking, if you need more change this atribute.
-    PeriodBox->SetName("Period");
+    PeriodBox->SetName("Fit periods");
     fFitterFrame2->AddFrame(PeriodBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    PeriodBox->MoveResize(424,220,59,22);
+    PeriodBox->MoveResize(424,218,59,22);
     
     PeriodBox->Connect("ValueSet(Long_t)", "FitterGui", this, "DoPeriod()");
     
     (PeriodBox->GetNumberEntry())->Connect("ReturnPressed()", "FitterGui", this,"DoPeriod()");
+    
+    TGLabel *NReactorPeriodLabel = new TGLabel(fFitterFrame2,"Reactor periods",TGLabel::GetDefaultGC()(),TGLabel::GetDefaultFontStruct(),kChildFrame,ucolor);
+    NReactorPeriodLabel->SetTextJustify(36);
+    NReactorPeriodLabel->SetMargins(0,0,0,0);
+    NReactorPeriodLabel->SetWrapLength(-1);
+    fFitterFrame2->AddFrame(NReactorPeriodLabel, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
+    NReactorPeriodLabel->MoveResize(376,240,128,18);
+    
+    NReactorPeriodBox = new TGNumberEntry(fFitterFrame2, (Int_t) NReactorPeriods,6,-1,(TGNumberFormat::EStyle) 5,(TGNumberFormat::EAttribute) 0,(TGNumberFormat::ELimit) 2,0,500);//It can be any number of weeks,500 is about 10 years of data taking, if you need more change this atribute.
+    NReactorPeriodBox->SetName("Reactor periods");
+    fFitterFrame2->AddFrame(NReactorPeriodBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
+    NReactorPeriodBox->MoveResize(424,260,59,22);
+    
+    NReactorPeriodBox->Connect("ValueSet(Long_t)", "FitterGui", this, "DoNReactorPeriods()");
+    
+    (NReactorPeriodBox->GetNumberEntry())->Connect("ReturnPressed()", "FitterGui", this,"DoNReactorPeriods()");
+    
     
     gClient->GetColorByName("#ffffff",ucolor);
     TGLabel *fLabel751 = new TGLabel(fFitterFrame2,"Combine Mode",TGLabel::GetDefaultGC()(),TGLabel::GetDefaultFontStruct(),kChildFrame,ucolor);
@@ -1258,6 +1275,22 @@ void FitterGui::DoToyMC()
     
     (PeriodBox->GetNumberEntry())->Connect("ReturnPressed()", "FitterGui", this,"DoPeriod()");
     
+    TGLabel *NReactorPeriodLabel = new TGLabel(fToyMCFrame2,"Reactor periods",TGLabel::GetDefaultGC()(),TGLabel::GetDefaultFontStruct(),kChildFrame,ucolor);
+    NReactorPeriodLabel->SetTextJustify(36);
+    NReactorPeriodLabel->SetMargins(0,0,0,0);
+    NReactorPeriodLabel->SetWrapLength(-1);
+    fToyMCFrame2->AddFrame(NReactorPeriodLabel, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
+    NReactorPeriodLabel->MoveResize(376,240,128,18);
+    
+    NReactorPeriodBox = new TGNumberEntry(fToyMCFrame2, (Int_t) NReactorPeriods,6,-1,(TGNumberFormat::EStyle) 5,(TGNumberFormat::EAttribute) 0,(TGNumberFormat::ELimit) 2,0,500);//It can be any number of weeks,500 is about 10 years of data taking, if you need more change this atribute.
+    NReactorPeriodBox->SetName("Reactor periods");
+    fToyMCFrame2->AddFrame(NReactorPeriodBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
+    NReactorPeriodBox->MoveResize(424,260,59,22);
+    
+    NReactorPeriodBox->Connect("ValueSet(Long_t)", "FitterGui", this, "DoNReactorPeriods()");
+    
+    (NReactorPeriodBox->GetNumberEntry())->Connect("ReturnPressed()", "FitterGui", this,"DoNReactorPeriods()");
+    
     gClient->GetColorByName("#ffffff",ucolor);
     TGLabel *fLabel751 = new TGLabel(fToyMCFrame2,"Combine Mode",TGLabel::GetDefaultGC()(),TGLabel::GetDefaultFontStruct(),kChildFrame,ucolor);
     fLabel751->SetTextJustify(36);
@@ -1431,6 +1464,16 @@ void FitterGui::DoToyMC()
     
     fToyMCFrame2->AddFrame(RunToyMCButton, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
     RunToyMCButton->MoveResize(200,80,112,44);
+    
+    TGTextButton *GenerateFluxHistogramsButton = new TGTextButton(fToyMCFrame2,"Regenerate flux");
+    GenerateFluxHistogramsButton->Connect("Clicked()","FitterGui",this,"RunFlux()");
+    GenerateFluxHistogramsButton->SetTextJustify(36);
+    GenerateFluxHistogramsButton->SetMargins(0,0,0,0);
+    GenerateFluxHistogramsButton->SetWrapLength(-1);
+    GenerateFluxHistogramsButton->Resize(92,24);
+    
+    fToyMCFrame2->AddFrame(GenerateFluxHistogramsButton, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
+    GenerateFluxHistogramsButton->MoveResize(12,160,92,24);
     
     //    ToyMCProgressBar = new TGHProgressBar(fToyMCFrame2,TGProgressBar::kFancy,500);
     
@@ -1681,6 +1724,151 @@ void FitterGui::RunToyMC()
     
 }
 
+void FitterGui::RunFlux()
+{
+    gBenchmark->Start("RunFlux");
+    std::cout << "Regenerating Flux" << std::endl;
+    if(!PrintOnConsole)
+    {
+        coutstream = cout.rdbuf(0);//change stream of cout
+    }
+    
+    //To draw using a better palette:
+    const Int_t NRGBs = 5;
+    const Int_t NCont = 999;
+    Double_t stops[NRGBs] = { 0.00, 0.34, 0.61, 0.84, 1.00 };
+    Double_t red[NRGBs]   = { 0.00, 0.00, 0.87, 1.00, 0.51 };
+    Double_t green[NRGBs] = { 0.00, 0.81, 1.00, 0.20, 0.00 };
+    Double_t blue[NRGBs]  = { 0.51, 1.00, 0.12, 0.00, 0.00 };
+    TColor::CreateGradientColorTable(NRGBs, stops, red, green, blue, NCont);
+    gStyle->SetNumberContours(NCont);
+    
+    Int_t DataSet=2;//0 is Simulation, 2 is P12E
+    
+    NominalData* Data = new NominalData(Analysis,DataSet);
+    
+    Data->SetToyMCSamplesDirectory(ToyMCSampleDirectory);
+    Data->SetPredictionDirectory(NominalPredictionsDirectory);
+    Data->SetResponseDirectory(ResponseMatrixDirectory);
+    Data->SetBkgCovDirectory(BkgCovarianceMatrixDirectory);
+    Data->SetSysCovDirectory(SysCovarianceMatrixDirectory);
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //Parameters of the model
+    
+    Data->SetNSamples(NSamples);// 500 in the final version.
+    
+    Data->SetToyMC(ToyMC);//  1 for Toy MC, 0 for data. To produce covariance matrices we use ToyMC.
+    
+    Data->SetCombineMode(CombineMode); //0 is 9x9, 1 is 1x1 and 2 is 2x2
+    Data->SetUseToyMCTree(UseToyMCTree);
+    Data->SetBinning(Binning);//  0 for LBNL binning or 1 for Linear binning
+    Data->SetWeeks(Period);
+    Data->SetNReactorPeriods(NReactorPeriods);
+    std::cout <<  "********************************************************************************************************" << std::endl;
+    std::cout <<  "**********************************            MAIN             *****************************************" << std::endl;
+    std::cout <<  "********************************************************************************************************" << std::endl;
+    
+    //Chose Data Set
+    if(Data->GetAnalysis())//   Hydrogen data
+    {
+        switch (DataSet)
+        {
+            case 0://  Simple reactor model used as input data
+                std::cout << "\t Loading simple reactor model" << std::endl;
+                break;
+            case 1://   P12E
+                if(1==Data->GetWeeks())
+                {
+                    std::cout << "\t Loading nH P12E Data" << std::endl;
+                    Data->LoadMainData("./Inputs/HInputs/P12E_Inclusive.txt");
+                }
+                else
+                {
+                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN H ANALYSIS YET " << std::endl;
+                    exit(EXIT_FAILURE);
+                    Data->LoadMainData(Form("./Inputs/HInputs/P12E_%d.txt",NReactorPeriods));
+                }
+                break;
+            case 2:// LBNL
+                std::cout << "\t \t \t NO LBNL H ANALYSIS, OPTION NOT VALID " << std::endl;
+                exit(EXIT_FAILURE);
+                break;
+            default:
+                break;
+        }
+    }
+    else//  Gd data
+    {
+        switch (DataSet)
+        {
+            case 0://  Simple reactor model used as input data
+                std::cout << "\t Loading simple reactor model" << std::endl;
+                break;
+            case 1://   P12E
+                if(1==Data->GetWeeks())
+                {
+                    std::cout << "\t Loading Gd P12E Data" << std::endl;
+                    //                    Data->LoadMainData("./Inputs/GdInputs/P12E_Inclusive.txt");
+                }
+                else
+                {
+                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN Gd ANALYSIS YET " << std::endl;
+                    exit(EXIT_FAILURE);
+                    Data->LoadMainData(Form("./Inputs/GdInputs/P12E_%d.txt",NReactorPeriods));
+                }
+                break;
+            case 2:// LBNL
+                if(1==Data->GetWeeks())
+                {
+                    std::cout << "\t Loading LBNL Gd Data" << std::endl;
+                    //                    Data->LoadMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
+                }
+                else
+                {
+                    std::cout << "\t Loading weekly LBNL Gd Data" << std::endl;
+                    Data->LoadMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
+                }
+                break;
+            default:
+                break;
+        }
+    }
+    
+    //To check non theta13 oscillation behaviour of the fitter. To avoid any oscillation at all then theta12 has to be set to 0 too.
+    //    Data->SetSin22t12(0);
+    //    Data->SetSin22t13(0);
+
+
+    std::string FluxInputS;
+    if(Analysis)
+    {
+        AnalysisString = "Hydrogen";
+        FluxInputS="HInputs";
+    }
+    else
+    {
+        AnalysisString = "Gadolinium";
+        FluxInputS="GdInputs";
+    }
+    
+    // Generate SuperHistogram:
+    NominalData* FluxData = new NominalData(0,2);
+    FluxData->CopyData(Data);
+    
+    FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
+    Oscillation* FluxOsc= new Oscillation(FluxData);
+    
+    FluxOsc->GenerateFluxHisto();
+    delete FluxOsc;
+    delete FluxData;
+    
+    delete Data;
+    cout.rdbuf(coutstream);
+    gBenchmark->Show("RunFlux");
+    
+}
+
 void FitterGui::DoSamples()
 {
     NSamples = (Int_t)NSamplesBox->GetNumberEntry()->GetIntNumber();
@@ -1886,6 +2074,7 @@ void FitterGui::DoChangeBin()
 void FitterGui::DoAnalysis()
 {
     Analysis = HGdBox->GetSelected();
+    
     if(Analysis)
     {
         AnalysisString = "Hydrogen";
@@ -4027,7 +4216,13 @@ void FitterGui :: DoNADs()
 void FitterGui :: DoPeriod()
 {
     Period =(Int_t)PeriodBox->GetNumberEntry()->GetIntNumber();
-    std::cout << "NUMBER OF Period : " << Period << std::endl;
+    std::cout << "NUMBER OF Fit Periods : " << Period << std::endl;
+}
+
+void FitterGui :: DoNReactorPeriods()
+{
+    NReactorPeriods =(Int_t)NReactorPeriodBox->GetNumberEntry()->GetIntNumber();
+    std::cout << "NUMBER OF Reactor Periods : " << NReactorPeriods << std::endl;
 }
 
 void FitterGui :: ChooseToyMC()

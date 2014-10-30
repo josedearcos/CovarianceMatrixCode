@@ -1,3 +1,4 @@
+#pragma once
 #include <TQObject.h>
 #include <RQ_OBJECT.h>
 #include "Riostream.h"
@@ -229,6 +230,7 @@ private:
 
     TGNumberEntry* NSamplesBox;
     TGNumberEntry* PeriodBox;
+    TGNumberEntry* NReactorPeriodBox;
     TGNumberEntry* CombineBox;
     TGNumberEntry* NFitsBox;
     TGButtonGroup* VariationsBox;
@@ -281,6 +283,7 @@ public:
     void DoFitter();
     void RunFitter();
     void RunToyMC();
+    void RunFlux();
     void RunFitterTests();
     void LoadResponseMatrix();//To convert data to true energy
     void LoadNominalPredictions();//To fit and to create covariance matrices
@@ -297,7 +300,7 @@ public:
     void DoAnalysis();
     void DoNADs();
     void DoPeriod();
-    
+    void DoNReactorPeriods();
     void PlotBkgd();
     
     void PlotADVis();

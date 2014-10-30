@@ -37,7 +37,7 @@ class Oscillation
 {
 private:
     
-    string RandomString;
+    std::string RandomString;
     //External classes used
     NominalData* Nom;
     //Survival probability calculation parameters:

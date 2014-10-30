@@ -1,4 +1,3 @@
-
 #pragma once
 #include <string>
 #include <iostream>
@@ -18,13 +17,28 @@
 #include "TCanvas.h"
 #include "TF1.h"
 #include "TGProgressBar.h"
+#include "FitterGui.h"
 
+#ifndef ActivateTest
+const bool TestSamples = 0;
+std::string TestString = "";
 //To produce test plots
 const bool TESTNEARFARCORR = 0;
 const bool TESTFARCORR = 0;
 const bool TESTFARANDNEARCORR = 0;
 const bool TESTNOCORR = 0;
 const bool TESTEH1CORR = 0;
+#else
+const bool TestSamples = 1;
+std::string TestString = "/Test";
+//To produce test plots
+const bool TESTNEARFARCORR = 0;
+const bool TESTFARCORR = 0;
+const bool TESTFARANDNEARCORR = 0;
+const bool TESTNOCORR = 0;
+const bool TESTEH1CORR = 0;
+#endif
+
 
 class CovarianceMatrix3
 {
@@ -245,30 +259,8 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
     
     Combine = Data->GetCombineMode();
     Analysis = Data->GetAnalysis();
-    std::string FluxInputS;
-    if(Analysis)
-    {
-        AnalysisString = "Hydrogen";
-        FluxInputS="HInputs";
-    }
-    else
-    {
-        AnalysisString = "Gadolinium";
-        FluxInputS="GdInputs";
-    }
     
     NReactorPeriods=Data->GetNReactorPeriods();
-
-    // Generate SuperHistogram:
-    NominalData* FluxData = new NominalData(0,2);
-    FluxData->CopyData(Data);
-    
-    FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
-    Oscillation* FluxOsc= new Oscillation(FluxData);
-
-    FluxOsc->GenerateFluxHisto();
-    delete FluxOsc;
-    delete FluxData;
     
     NSamples = Data->GetNSamples();
     InitialEnergy = Data->GetEmin();
@@ -519,7 +511,10 @@ void CovarianceMatrix3 :: CovarianceMatrixMain(FitterGui* FitterGui)
                     delete AlteredPredictionVisH[near][far];
                 }
             }
-            FitterGui->Update(samples);
+            if(!TestSamples)
+            {
+               FitterGui->Update(samples);
+            }
         }
         if(SystematicE != (CovarianceMatrix3::SystematicType)(-1))
         {
@@ -854,116 +849,134 @@ void CovarianceMatrix3 :: SaveCovarianceMatrix(Int_t week)
     
     //  In case there are no variations:
 
-    sprintf(filenameCov,("./CovarianceMatrices/"+ AnalysisString+ "/Combine%d/CovarianceMatricesRoot/NominalCovarianceMatrix.root").c_str(),Combine);
-    sprintf(txtfilenameCov,("./CovarianceMatrices/"+ AnalysisString+ "/Combine%d/CovarianceMatricesTxT/NominalCovarianceMatrix.txt").c_str(),Combine);
+    sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+ AnalysisString+ "/Combine%d/CovarianceMatricesRoot/NominalCovarianceMatrix.root").c_str(),Combine);
+    sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+ AnalysisString+ "/Combine%d/CovarianceMatricesTxT/NominalCovarianceMatrix.txt").c_str(),Combine);
     
     //  Save Cov Matrix (Either background or systematics)
     switch (BackgroundE)
     {
         case 0://   Vary Accidentals
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/VaryAccidental.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/VaryAccidentalPeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/VaryAccidental.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/VaryAccidentalPeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Vary Accidental Covariance Matrix");
             break;
         case 1://   Vary LiHe
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/VaryLiHe.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/VaryLiHePeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/VaryLiHe.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/VaryLiHePeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Vary LiHe Covariance Matrix");
             break;
         case 2://   Vary Fast Neutrons
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/VaryFastNeutrons.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/VaryFastNeutronsPeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/VaryFastNeutrons.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/VaryFastNeutronsPeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Vary FN Covariance Matrix");
             break;
         case 3://   Vary AmC
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/VaryAmC.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/VaryAmCPeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/VaryAmC.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/VaryAmCPeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Vary AmC Covariance Matrix");
             break;
         case 4://   Distort LiHe
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/DistortLiHe.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/DistortLiHePeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/DistortLiHe.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/DistortLiHePeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Distort LiHe Covariance Matrix");
             break;
         case 5://   Distort Fast Neutrons
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/DistortFastNeutrons.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/DistortFastNeutronsPeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/DistortFastNeutrons.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/DistortFastNeutronsPeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Distort FN Covariance Matrix");
             break;
         case 6://   Distort AmC
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/DistortAmC.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/DistortAmCPeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/DistortAmC.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/DistortAmCPeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Distort AmC Covariance Matrix");
             break;
     }
     switch (SystematicE)
     {
         case 0://   Vary Reactor
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/Isotope.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/IsotopePeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/Isotope.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/IsotopePeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Isotope Covariance Matrix");
             break;
         case 1://   Vary Reactor
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/ReactorPower.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/ReactorPowerPeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/ReactorPower.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/ReactorPowerPeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Reactor Power Covariance Matrix");
             break;
         case 2://   Vary Energy Scale
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/RelativeEnergyScale.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/RelativeEnergyScalePeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/RelativeEnergyScale.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/RelativeEnergyScalePeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Relative Energy Scale Covariance Matrix");
             break;
         case 3://   Vary Absolute Energy Scale
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/AbsoluteEnergyScale.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/AbsoluteEnergyScalePeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/AbsoluteEnergyScale.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/AbsoluteEnergyScalePeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Absolute Energy Scale Covariance Matrix");
             break;
         case 4://   Vary Energy Offset
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/RelativeEnergyOffset.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/RelativeEnergyOffsetPeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/RelativeEnergyOffset.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/RelativeEnergyOffsetPeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Relative Energy Offset Covariance Matrix");
             break;
         case 5://   Vary Absolute Energy Offset
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/AbsoluteEnergyOffset.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/AbsoluteEnergyOffsetPeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/AbsoluteEnergyOffset.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/AbsoluteEnergyOffsetPeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Absolute Energy Offset Covariance Matrix");
             break;
         case 6://   Vary IAV
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/IAV.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/IAVPeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/IAV.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/IAVPeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("IAV Covariance Matrix");
             break;
         case 7://   Vary NL
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/NL.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/NLPeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/NL.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/NLPeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("NL Covariance Matrix");
             break;
         case 8://   Vary Resolution
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/Resolution.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/ResolutionPeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/Resolution.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/ResolutionPeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Resolution Covariance Matrix");
             break;
         case 9://   Vary Sin22t12
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/Sin22t12.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/Sin22t12Period%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/Sin22t12.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/Sin22t12Period%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Sin22t12 Covariance Matrix");
             break;
         case 10:
-            sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/Efficiency.root").c_str(),Combine);
-            sprintf(txtfilenameCov,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/EfficiencyPeriod%d.txt").c_str(),Combine,week);
+            sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/Efficiency.root").c_str(),Combine);
+            sprintf(txtfilenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesTxT/EfficiencyPeriod%d.txt").c_str(),Combine,week);
             CovMatrix2H->SetTitle("Efficiency Covariance Matrix");
             break;
     }
     
-    TFile* SaveCovarianceMatrixF = new TFile(filenameCov,"recreate");
+    Char_t CharUpdate[20];
     
-    if(SystematicE != (CovarianceMatrix3::SystematicType)(-1))
+    if(TestSamples)
     {
-        TotalMatrixBeforeNormalizing->Write(Form("Before Covariance Matrix%d",week));
-        TotalMatrixAfterNormalizing->Write(Form("After Covariance Matrix%d",week));
+      sprintf(CharUpdate,"update");
+    }
+    else
+    {
+        sprintf(CharUpdate,"recreate");
     }
     
-    CovMatrix2H->Write();
+    TFile* SaveCovarianceMatrixF = new TFile(filenameCov,CharUpdate);
+
+    if(SystematicE != (CovarianceMatrix3::SystematicType)(-1))
+    {
+        if(TestSamples)
+        {
+            TotalMatrixBeforeNormalizing->Write(Form("Before Covariance Matrix%d %d",week,NSamples));
+            TotalMatrixAfterNormalizing->Write(Form("After Covariance Matrix%d %d",week,NSamples));
+        }
+        else
+        {
+            TotalMatrixBeforeNormalizing->Write(Form("Before Covariance Matrix%d",week));
+            TotalMatrixAfterNormalizing->Write(Form("After Covariance Matrix%d",week));
+            CovMatrix2H->Write();
+        }
+    }
     
     delete SaveCovarianceMatrixF;
     
@@ -1091,6 +1104,7 @@ void CovarianceMatrix3 :: SaveSpectrum(Int_t sample, Int_t week)
             sprintf(filenameSpec,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/Spectrum/DistortAmC.root").c_str(),Combine);
             break;
         default:
+            sprintf(filenameSpec,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/Spectrum/Nominal.root").c_str(),Combine);
             break;
     }
     switch (SystematicE)
@@ -1128,8 +1142,8 @@ void CovarianceMatrix3 :: SaveSpectrum(Int_t sample, Int_t week)
         case 10:
             sprintf(filenameSpec,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/Spectrum/Efficiency.root").c_str(),Combine);
             break;
-
         default:
+            sprintf(filenameSpec,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/Spectrum/Nominal.root").c_str(),Combine);
             break;
     }
 

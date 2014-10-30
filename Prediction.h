@@ -304,7 +304,6 @@ public:
     
     TH1D* GetPrediction(Int_t,Int_t);
     TH1D* GetReactorPrediction(Int_t);
-    TH1D* GetReactorPredictionBkg(Int_t);
     
     TH1D* GetToyMCSample(Int_t);
     void DeletePrediction(Int_t,Int_t);
@@ -772,9 +771,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     {
         for (Int_t far=ADsEH1+ADsEH2; far<NADs; far++)
         {
-
             CombinedReactorPredictionVisH[far-(ADsEH1+ADsEH2)] = (TH1D*)ReactorPredictionVisH[far]->Clone();
-            
             
             CombinedReactorPredictionVisH[far-(ADsEH1+ADsEH2)]->SetTitle(Form("Combined Reactor Prediction AD%d", far+1));
             
@@ -1218,6 +1215,36 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
             
             delete ScanSinPred2;
         }
+        
+        if(sen22t13==0&&(dm2_ee>0.0024&&dm2_ee<0.0025))
+        {
+            TCanvas* canvasC1 = new TCanvas("canvasC1","canvasC1");
+            
+            if(Combine==1)
+            {
+                canvasC1->Divide(1,2);
+            }
+            else if(Combine==2)
+            {
+                canvasC1->Divide(2,2);
+            }
+            
+            canvasC1->cd(1);
+            PredictionH[0][0]->Draw();
+            canvasC1->cd(2);
+            PredictionDataH[0][0]->Draw();
+            
+            if(Combine==2)
+            {
+                canvasC1->cd(3);
+                PredictionH[0][1]->Draw();
+                canvasC1->cd(4);
+                PredictionDataH[0][1]->Draw();
+            }
+            
+            canvasC1->Print("./Images/NoTreeCheck.eps");
+            delete canvasC1;
+        }
     }
     else
     {
@@ -1298,13 +1325,11 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
                 canvasC->Divide(2,2);
             }
             
-            if(Combine==1)
-            {
-                canvasC->cd(1);
-                TNominalHisto->Draw();
-                canvasC->cd(2);
-                TDataHisto->Draw();
-            }
+            canvasC->cd(1);
+            TNominalHisto->Draw();
+            canvasC->cd(2);
+            TDataHisto->Draw();
+            
             if(Combine==2)
             {
                 canvasC->cd(3);
@@ -1321,7 +1346,7 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
         {
             for (Int_t far=0; far<MaxFarCombine; far++)
             {
-                if(near<1)
+                if(near<1)//Already combined in DB and LO predictions
                 {
                     PredictionH[far][near]=(TH1D*)TNominalHisto->Clone();
                 }
@@ -1329,11 +1354,11 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
                 {
                     PredictionH[far][near]=(TH1D*)TNominalHisto1->Clone();
                 }
-                if(ToyMC)
+                if(ToyMC)//Here the prediction and the data are the same histogram
                 {
                     PredictionDataH[far][near]=(TH1D*)PredictionH[far][near]->Clone();
                 }
-                else
+                else//here the real data is used.
                 {
                     if(near<1)
                     {
@@ -1353,6 +1378,23 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
     
     if(Print)
     {
+      /*  TH1D* DifferenceH2;
+        TCanvas* DifferenceC2 = new TCanvas("diffenreceC2","differenceC2");
+        DifferenceC2->Divide(MaxNearCombine,1);
+        for (Int_t near=0; near<MaxNearCombine; near++)
+        {
+            for (Int_t far=0; far<MaxFarCombine; far++)
+            {
+                DifferenceH2 = (TH1D*)PredictionH[far][near]->Clone();
+                DifferenceH2->Add(PredictionDataH[far][near],-1);
+                DifferenceC2->cd(far+near*MaxFarCombine+1);
+                DifferenceH2->Draw();
+            }
+        }
+        DifferenceC2->Print(("./Images/"+AnalysisString+"/NominalVsDataDifference.eps").c_str());
+        delete DifferenceC2;
+        delete DifferenceH2;*/ //Just to check that it was working.
+
         if(Combine==2)
         {
             TH1D* DifferenceH;
@@ -1365,6 +1407,7 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
             DifferenceH->Draw();
             DifferenceC->Print(("./Images/"+AnalysisString+"/PredictionDifference.eps").c_str());
             delete DifferenceC;
+            delete DifferenceH;
         }
     }
     
@@ -1676,7 +1719,6 @@ void Prediction :: GenerateStatisticalCovarianceMatrix()
         cstat->cd(3);
         CombinedNearDataH[2]->Draw();
         
-        
         cstat->Print("./Images/TestStatisticalmatrix.eps", ".eps");
         
         delete cstat;
@@ -1945,6 +1987,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
 
     if(ToyMC)//ToyMC
     {
+        //create predictions
         Prediction* DataPred = new Prediction(Data);
         
         DataPred->MakePrediction(Sin22t13,DM2_ee,Mode,week,1,0);// Let's use the data for a fixed real sin22t13 and relative oscillation model. Set mode = 1 to apply variations if desired.
@@ -1959,6 +2002,13 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             {
                 ApplyStatisticalFluctuation(NearDataH[near]);
             }
+        }
+        
+        //Substract nominal background from data after any statistical fluctuation has been applied.
+        
+        for (Int_t near=0; near<ADsEH1+ADsEH2; near++)
+        {
+            NearDataH[near]->Add(NearBackgroundSpectrumH[near],-1);
         }
         
         if(!UseToyMCTree)
@@ -1985,6 +2035,9 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
                 }
             }
         }
+        
+        //delete prediction
+        
         for (Int_t near=0; near<MaxNearLoadOscModel; near++)
         {
             for (Int_t far=0; far<MaxFarLoadOscModel; far++)
@@ -1995,33 +2048,25 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
         
         delete DataPred;
         
-//        //Substract nominal background from data after any statistical fluctuation has been applied.
-
-            for (Int_t near=0; near<ADsEH1+ADsEH2; near++)
-            {
-                NearDataH[near]->Add(NearBackgroundSpectrumH[near],-1);
-            }
-
-        if(!UseToyMCTree)
+        if(!UseToyMCTree)//otherwise this will be overrriden by loading the predictions from the tree
         {
-                for (Int_t near=0; near<MaxNearCombine; near++)
+            for (Int_t near=0; near<MaxNearCombine; near++)
+            {
+                for (Int_t far=0; far<MaxFarCombine; far++)
                 {
-                    for (Int_t far=0; far<MaxFarCombine; far++)
-                    {
-                        FarDataH[far][near]->Add(CombinedFarBackgroundSpectrumH[far],-1);
-                    }
+                    FarDataH[far][near]->Add(CombinedFarBackgroundSpectrumH[far],-1);
                 }
+            }
         }
         else
         {
             TFile* f[MaxSystematics];
           
-            if(!StatisticalFluctuation)
+            if(!StatisticalFluctuation)//Nominal mode, otherwise test mode
             {
                 NExperiments = 1;//This will make the difference between running a big number of fake experiments for performance testing or just fitting a fake experiment for fitter fake data test.
                 
                 f[0] = new TFile(Form("./ToyMCTrees/ToyMCTreeCombined%d.root",Combine));
-                //                f[SystematicI] = new TFile("./ToyMCTrees/TreeOnesCombine2.root");//test
                 
                 T = (TTree*)f[0]->Get("TNom");
                 T->SetBranchAddress("sin22t13",&Tsin22t13);
@@ -2053,7 +2098,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
                     
                     if(Fake_Experiments)
                     {
-                        std::cout << "USING FAKE EXPERIMENTS VARIATIONS TREE" << std::endl;
+                        std::cout << "USING 1000 FAKE EXPERIMENTS 21x21 VARIATIONS TREE" << std::endl;
 
                         f[SystematicI] = new TFile(Form("./ToyMCTrees/FakeExperiments%d_Combined_%d.root",SystematicI,Combine));
                         
@@ -2080,7 +2125,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
                     else
                     {
                         
-                        std::cout << "USING VARIATIONS TREE" << std::endl;
+                        std::cout << "USING 101x101 VARIATIONS TREE" << std::endl;
 
                         f[SystematicI] = new TFile(Form("./ToyMCTrees/Variations%d_ToyMCTreeCombined%d.root",SystematicI,Combine));
                         
@@ -2118,25 +2163,33 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             {
                 std::cout << " TREE SIN / DELTAM IS DIFFERENT FROM EXPECTED VALUE:" << std::endl << Tsin22t13 << " " << Sin22t13 << " " << std::endl << Tdm2_ee << " " << DM2_ee << std::endl;
                 
-//                exit(EXIT_FAILURE);
+                exit(EXIT_FAILURE);
             }
             
             for (Int_t near=0; near<MaxNearCombine; near++)
             {
                 for (Int_t far=0; far<MaxFarCombine; far++)
                 {
+                    
+                    //Dilema: we have two predictions (DB and LO) but data should be 1 unique histogram. The difference between them is less than 1% and probably this is negligible, but this implies that the total chi2 will never be 0. I am going to use an average of both of them.
+                    
+                    FarDataH[far][near]=(TH1D*)TNominalHisto->Clone();//No need to apply fluctuations if using tree, since they are already included
+                    FarDataH[far][near]->Add(TNominalHisto1);
+                    FarDataH[far][near]->Scale(1./2);
+                    
+                    // If we set the far data histograms to be different and exactly matching the predictions, then the chi2 should be 0.
                     if(near<1)
                     {
                         FarDataH[far][near]=(TH1D*)TNominalHisto->Clone();//No need to apply fluctuations if using tree, since they are already included
+
                     }
                     else
                     {
-                        FarDataH[far][near]=(TH1D*)TNominalHisto->Clone();
-                        FarDataH[far][near]->Add(TNominalHisto1);
-                        FarDataH[far][near]->Scale(1./2);
-                        //Use an average of the predictions, this is arbitrary, the difference between predictions without fluctuations should be negligible.
-                        //Before I expected that by using different FarDataH the chi2 should be minimal, but realistically the  real fardata must be the same since we don't have data based on different near hall information.
+                        FarDataH[far][near]=(TH1D*)TNominalHisto1->Clone();//No need to apply fluctuations if using tree, since they are already included
                     }
+                    
+                    //Use an average of the predictions, this is arbitrary, the difference between predictions without fluctuations should be negligible.
+                    //Before I expected that by using different FarDataH the chi2 should be minimal, but realistically the  real fardata must be the same since we don't have data based on different near hall information.
                 }
             }
             if(!StatisticalFluctuation)

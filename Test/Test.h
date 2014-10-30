@@ -1,3 +1,5 @@
+#define ActivateTest
+
 #pragma once
 #include "TColor.h"
 #include "TStyle.h"
@@ -30,6 +32,10 @@
 #include "Oscillation.h"
 #include "OscillationReactor.h"
 #include "Prediction.h"
+#include "CovarianceMatrix3.h"
+
+
+const bool TestExternalInputs = 0;
 
 const Int_t Combine = 2;
 const Int_t P12E=0;
@@ -46,11 +52,11 @@ const Int_t n_etrue_bins =39;
 const Int_t MaxBins = 9*n_evis_bins;
 const Double_t InitialEnergy = 1.8;
 const Double_t FinalVisibleEnergy = 12.0;
-
 class Test
 {
 public:
     void TestCovarianceMatrixConstruction();//  Tested, works
+    void TestCovarianceMatrixSamples();
     void TestCombineMain();//   Tested, works
     Test();
     void TestInputData();// Tested, works
@@ -62,13 +68,78 @@ public:
     void LBNLPredictions();
     void FitterMainTests();
     void TestAllPredictions();
-    void TestSuperHistograms();
+    void TestSuperHistograms();//Superhistograms in LBNL are the same between different ADs, I don't understand this! It doesn't agree with their definition
 private:
     Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
     Double_t enu_bins[MaxNbins+1]; // 39 bins between 1.8 and 9.6 MeV +1 for the 9.6 limit.
     
     std::vector<TH1D*> CombineData(std::vector<TH1D*>,std::vector<TH1D*>);
+    Int_t Period;
+    Int_t NReactorPeriods;
+    Int_t NADs;
+    Int_t NSamples;
+    Int_t CombineMode;
+    Int_t NFits;
+    bool Analysis;
+    bool flagCombine;
+    bool flagNear;
+    bool flagFar;
+    bool Binning;
+    Int_t PlotBin;
+    bool Automatic;
+    bool ToyMC;
+    bool Minuit;
+    bool deleteFlag;
+    bool deleteFlagSpec;
+    Int_t MaxFar;
+    Int_t MaxNear;
+    Int_t NearTrueIndex;
     
+    Double_t Sin22t13SliderValue;
+    Double_t DeltaMSilderValue;
+    
+    bool UseToyMCTree;
+    
+    bool Fit2D;
+    bool FitSin22t13;
+    //Manual Control:
+    //To calculate Covariance Matrices set to 1. Activate only one at a time.
+    //Backgrounds
+    bool VaryAccidentalMatrix;
+    bool VaryLiHeMatrix;
+    bool VaryFastNeutronsMatrix;
+    bool VaryAmCMatrix;
+    bool DistortLiHeMatrix;
+    bool DistortFastNeutronsMatrix;
+    bool DistortAmCMatrix;
+    //Systematics
+    bool IsotopeMatrix;
+    bool ReactorPowerMatrix;
+    bool EnergyScaleMatrix;
+    //        bool EnergyOffsetMatrix;
+    //        bool AbsoluteScaleMatrix;
+    //        bool AbsoluteOffsetMatrix;
+    bool IAVMatrix;
+    bool NLMatrix;
+    bool ResolutionMatrix;
+    bool Sin22t12Matrix;
+    bool EfficiencyMatrix;
+    
+    bool PlotCovariance;
+    bool NL[3];
+    bool FitterMode[2];
+    bool Fitter1DMode[2];
+    
+    bool AutomaticBudget; //  To loop the fitter over all possible systematics
+    bool TurnOnBudget; // Generates Turn On Error Budget
+    bool TurnOffBudget;// Generates Turn Off Error Budget
+    bool StatisticalFluctuation;
+    
+    std::string ResponseMatrixDirectory;
+    std::string ToyMCSampleDirectory;
+    std::string NominalPredictionsDirectory;
+    std::string SysCovarianceMatrixDirectory;
+    std::string BkgCovarianceMatrixDirectory;
 };
 Test :: Test()
 {
@@ -1288,55 +1359,32 @@ void Test::TestAllPredictions()
     
     Double_t dm2_ee = dm2_32+hierarchy*5.21e-5;
     
-    bool Backgrounds = 0;
-    
     Prediction* Pred = new Prediction(Data);
-    Pred->MakePrediction(sin22t13, dm2_ee,  mode,  week,  ToyMC, CovMatrix, Backgrounds);
+    Pred->MakePrediction(sin22t13, dm2_ee,  mode,  week,  ToyMC, CovMatrix);
     
-    TH1D* ReactorPredNoBkg[NADs];
     TH1D* ReactorPred[NADs];
     TH1D* Prediction[MaxFarADs][MaxNearADs];
     TH1D* DifferencePred[MaxFarADs][MaxNearADs];
-    TH1D* Background[NADs];
     
     //Difference between reactorpred and reactor should be the background spectrum:
     //compare to the one produced in makepred to see if the background is correctly added
 
-    TCanvas* CheckBkg = new TCanvas("1","1");
     TCanvas* CheckReactorPred = new TCanvas("2","2");
 
-    CheckBkg->Divide(NADs/2,NADs/2);
     CheckReactorPred->Divide(NADs,2);
     
     for (Int_t AD=0; AD<NADs; AD++)
     {
-        ReactorPredNoBkg[AD] = Pred->GetReactorPrediction(AD);
-        ReactorPredNoBkg[AD]->SetStats(kTRUE);
-        if(Backgrounds==1)
-        {
-            ReactorPred[AD] = Pred->GetReactorPredictionBkg(AD);//should have background added
-        }
-        else
-        {
-            ReactorPred[AD] = Pred->GetReactorPrediction(AD);
-        }
+        ReactorPred[AD] = Pred->GetReactorPrediction(AD);
+        
         ReactorPred[AD]->SetStats(kTRUE);
 
-        Background[AD] = (TH1D*)ReactorPred[AD]->Clone();
-
-        Background[AD]->Add(ReactorPredNoBkg[AD],-1);
-        
-        CheckReactorPred->cd(AD+1);
-        ReactorPredNoBkg[AD]->Draw("HIST");
         CheckReactorPred->cd(AD+NADs+1);
         ReactorPred[AD]->Draw("HIST");
-        CheckBkg->cd(AD+1);
-        Background[AD]->Draw("HIST");
     }
-    
-    CheckBkg->Print("./Images/Test/BackgroundAdditionTest.eps");
+
     CheckReactorPred->Print("./Images/Test/ReactorPredictionWithAndWithoutBkg.eps");
-    delete CheckBkg;
+    
     delete CheckReactorPred;
     
     //Combined-Reactor prediction difference
@@ -1453,6 +1501,269 @@ void Test::TestSuperHistograms()
     SuperHistoResultsC->Print("./Images/Test/SuperHistogramTest.eps");
     
     SuperHistoResultsC2->Print("./Images/Test/SuperHistogramTest2.eps");
+}//Results to be understood, the comparison between superhistograms from LBNL are flat, meaning that they are the same for all ADs, but different for each reactor. In my case since AD efficiencies are applied all 36 histograms are different
 
+void Test :: TestCovarianceMatrixSamples()//A test to decide how many samples are necessary to build the covariance matrices.
+{
+    bool Generate = 1;//1 to generate 500 covariance matrices in a file, 0 to do the test
+    if(Generate)//GenerateFiles
+    {
+    if(TestExternalInputs)
+    {
+        ToyMCSampleDirectory = "/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/ToyMCTrees/nGdInputs/toySpectra_allsys_and_stat.root";
+        NominalPredictionsDirectory = "/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/ToyMCTrees/nGdInputs/toySpectra_allsys_and_stat.root";
+        ResponseMatrixDirectory = "/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/matrix_evis_to_enu_unified_p12e_unblinded.root";
+        SysCovarianceMatrixDirectory = "/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/CovarianceMatrices/Berkeley/matrix_sigsys_full.root";
+        BkgCovarianceMatrixDirectory = "/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/CovarianceMatrices/Berkeley/matrix_bgsys_full.root";
+    }
+    else
+    {
+        ToyMCSampleDirectory =  "";
+        NominalPredictionsDirectory = "";
+        ResponseMatrixDirectory = "";
+        SysCovarianceMatrixDirectory = "";
+        BkgCovarianceMatrixDirectory = "";
+    }
     
+    Minuit = 0;//Choose between applying Minuit or manual grid fitting.
+    Fit2D = 0; // 1 for 2D Fit, 0 for 1D Fit
+    FitSin22t13 = 1; //  1 for Sin22t13 Fit, 0 for DM2ee Fit.
+    NFits = 101;//101 in the final version
+    Period=1;
+    NReactorPeriods=20;
+    PlotBin=0;//Initial bin
+    Binning = 0;
+    NADs=6;
+    ToyMC=1;//1 ToyMC, 0 Data. To test the fitter use 1, to fit real data use 0.
+    deleteFlag=0;
+    deleteFlagSpec=0;
+    NearTrueIndex = 0;
+    flagCombine = 1;//Show Combine Plot as default
+    Analysis = 0; //0 for Gd, 1 for H
+
+    NSamples = 500; //change default to 500 once debug is completed
+    CombineMode = 2; // change default to 2 once debug is completed
+    NL[0]=0;//BCW
+    NL[1]=0;//LBNL
+    NL[2]=1;//Unified (Default)
+    
+
+    //         EnergyOffsetMatrix=0;
+    //         AbsoluteScaleMatrix=0;
+    //         AbsoluteOffsetMatrix=0;
+    IAVMatrix=0;
+    NLMatrix=0;
+    ResolutionMatrix=0;
+    Sin22t12Matrix=0;
+    EfficiencyMatrix=0;
+    
+    UseToyMCTree = 0;
+    PlotCovariance= 1;
+    
+    //To draw using a better palette:
+    const Int_t NRGBs = 5;
+    const Int_t NCont = 999;
+    Double_t stops[NRGBs] = { 0.00, 0.34, 0.61, 0.84, 1.00 };
+    Double_t red[NRGBs]   = { 0.00, 0.00, 0.87, 1.00, 0.51 };
+    Double_t green[NRGBs] = { 0.00, 0.81, 1.00, 0.20, 0.00 };
+    Double_t blue[NRGBs]  = { 0.51, 1.00, 0.12, 0.00, 0.00 };
+    TColor::CreateGradientColorTable(NRGBs, stops, red, green, blue, NCont);
+    gStyle->SetNumberContours(NCont);
+    
+    Int_t DataSet=2;//0 is Simulation, 2 is P12E
+    
+    NominalData* Data = new NominalData(Analysis,DataSet);
+    
+    Data->SetToyMCSamplesDirectory(ToyMCSampleDirectory);
+    Data->SetPredictionDirectory(NominalPredictionsDirectory);
+    Data->SetResponseDirectory(ResponseMatrixDirectory);
+    Data->SetBkgCovDirectory(BkgCovarianceMatrixDirectory);
+    Data->SetSysCovDirectory(SysCovarianceMatrixDirectory);
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // CrossCalc takes a lot of time and it needs to be run only once to produce the root file. Uncomment only if binning is different from standards and you want to produce a new cross section for this new binning.
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    if(Analysis)//nGd cross section is already tabulated, this is to calculate nH
+    {
+        CrossSection* Cross = new CrossSection(Data);
+        Cross->CrossCalc();
+        delete Cross;
+    }
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    //Parameters of the model
+    
+    Data->SetNSamples(NSamples);// 500 in the final version.
+    
+    Data->SetToyMC(1);//  1 for Toy MC, 0 for data. To produce covariance matrices we use ToyMC.
+    
+    Data->SetCombineMode(CombineMode); //0 is 9x9, 1 is 1x1 and 2 is 2x2
+    Data->SetUseToyMCTree(UseToyMCTree);
+    Data->SetBinning(Binning);//  0 for LBNL binning or 1 for Linear binning
+    Data->SetWeeks(Period);
+    Data->SetNReactorPeriods(NReactorPeriods);
+    std::cout <<  "********************************************************************************************************" << std::endl;
+    std::cout <<  "**********************************            MAIN             *****************************************" << std::endl;
+    std::cout <<  "********************************************************************************************************" << std::endl;
+    
+    //Chose Data Set
+    if(Data->GetAnalysis())//   Hydrogen data
+    {
+        switch (DataSet)
+        {
+            case 0://  Simple reactor model used as input data
+                std::cout << "\t Loading simple reactor model" << std::endl;
+                break;
+            case 1://   P12E
+                if(1==Data->GetWeeks())
+                {
+                    std::cout << "\t Loading nH P12E Data" << std::endl;
+                    Data->LoadMainData("./Inputs/HInputs/P12E_Inclusive.txt");
+                }
+                else
+                {
+                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN H ANALYSIS YET " << std::endl;
+                    exit(EXIT_FAILURE);
+                    Data->LoadMainData(Form("./Inputs/HInputs/P12E_%d.txt",NReactorPeriods));
+                }
+                break;
+            case 2:// LBNL
+                std::cout << "\t \t \t NO LBNL H ANALYSIS, OPTION NOT VALID " << std::endl;
+                exit(EXIT_FAILURE);
+                break;
+            default:
+                break;
+        }
+    }
+    else//  Gd data
+    {
+        switch (DataSet)
+        {
+            case 0://  Simple reactor model used as input data
+                std::cout << "\t Loading simple reactor model" << std::endl;
+                break;
+            case 1://   P12E
+                if(1==Data->GetWeeks())
+                {
+                    std::cout << "\t Loading Gd P12E Data" << std::endl;
+                    //                    Data->LoadMainData("./Inputs/GdInputs/P12E_Inclusive.txt");
+                }
+                else
+                {
+                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN Gd ANALYSIS YET " << std::endl;
+                    exit(EXIT_FAILURE);
+                    Data->LoadMainData(Form("./Inputs/GdInputs/P12E_%d.txt",NReactorPeriods));
+                }
+                break;
+            case 2:// LBNL
+                if(1==Data->GetWeeks())
+                {
+                    std::cout << "\t Loading LBNL Gd Data" << std::endl;
+                    //                    Data->LoadMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
+                }
+                else
+                {
+                    std::cout << "\t Loading weekly LBNL Gd Data" << std::endl;
+                    Data->LoadMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
+                }
+                break;
+            default:
+                break;
+        }
+    }
+    
+    //To check non theta13 oscillation behaviour of the fitter. To avoid any oscillation at all then theta12 has to be set to 0 too.
+    //    Data->SetSin22t12(0);
+    //    Data->SetSin22t13(0);
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    CovarianceMatrix3* Cov;
+    
+    Data->SetBCWModel(NL[0]);
+    Data->SetLBNLModel(NL[1]);
+    Data->SetUnifiedModel(NL[2]);
+    //Order is important (Inititialize NL model before randomize it)
+    VaryAccidentalMatrix=0;
+    VaryLiHeMatrix=0;
+    VaryFastNeutronsMatrix=0;
+    VaryAmCMatrix=0;
+    DistortLiHeMatrix=0;
+    DistortFastNeutronsMatrix=0;
+    DistortAmCMatrix=0;
+    //Systematics
+    IsotopeMatrix=0;
+    ReactorPowerMatrix=0;
+    EnergyScaleMatrix=1;
+    
+    Data->SetVaryAccidentalMatrix(VaryAccidentalMatrix);
+    Data->SetVaryLiHeMatrix(VaryLiHeMatrix);
+    Data->SetVaryFastNeutronsMatrix(VaryFastNeutronsMatrix);
+    Data->SetVaryAmCMatrix(VaryAmCMatrix);
+    Data->SetDistortLiHeMatrix(DistortLiHeMatrix);
+    Data->SetDistortFastNeutronsMatrix(DistortFastNeutronsMatrix);
+    Data->SetDistortAmCMatrix(DistortAmCMatrix);
+    Data->SetIsotopeMatrix(IsotopeMatrix);
+    Data->SetReactorPowerMatrix(ReactorPowerMatrix);
+    Data->SetRelativeEnergyScaleMatrix(EnergyScaleMatrix);
+    //        Data->SetAbsoluteEnergyScaleMatrix(AbsoluteScaleMatrix);
+    //        Data->SetRelativeEnergyOffsetMatrix(EnergyOffsetMatrix);
+    //        Data->SetAbsoluteEnergyOffsetMatrix(AbsoluteOffsetMatrix);
+    Data->SetIAVMatrix(IAVMatrix);
+    Data->SetNLMatrix(NLMatrix);
+    Data->SetResolutionMatrix(ResolutionMatrix);
+    Data->SetSin22t12Matrix(Sin22t12Matrix);
+    Data->SetEfficiencyMatrix(EfficiencyMatrix);
+    
+        for(Int_t samples = 321; samples<=NSamples+1; samples+=20)
+        {
+            std::cout << "CALCULATING SAMPLE: " << samples << std::endl;
+            
+            Data->SetNSamples(samples);// 500 in the final version.
+            
+            Cov = new CovarianceMatrix3(Data);
+            
+            Cov->CovarianceMatrixMain(NULL);
+            
+            delete Cov;
+        }
+    }
+    else
+    {
+        TFile* File = new TFile("./CovarianceMatrices/Gadolinium/Combine2/CovarianceMatricesRoot/RelativeEnergyScale.root");
+        
+        TH2D* CovMatrix500;
+        TH2D* CovMatrixNSample;
+        TH1D* DifferenceHisto = new TH1D("DifferenceH","Difference of Covariance Matrices vs Samples", NSamples,1,NSamples);
+        
+        CovMatrix500 = (TH2D*)File->Get(Form("Before Covariance Matrix%d %d",0,NSamples));
+        Double_t Integral500[n_evis_bins*2][n_evis_bins*2];//To store the abs values in each bin from the largest matrix
+        Double_t TotalDifference;//To store the total difference expressed as the difference between absolute values of each matrix
+        for(Int_t i = 0; i<n_evis_bins*2; i++)
+        {
+            for(Int_t j = 0; j<n_evis_bins*2; j++)
+            {
+                Integral500[i][j] = TMath::Abs(CovMatrix500->GetBinContent(i+1,j+1));
+            }
+        }
+        for(Int_t samples = 1; samples<=NSamples+1; samples+=20)
+        {
+            TotalDifference=0;
+            
+            CovMatrixNSample = (TH2D*)File->Get(Form("Before Covariance Matrix%d %d",0,NSamples));
+            for(Int_t i = 0; i<n_evis_bins*2; i++)
+            {
+                for(Int_t j = 0; j<n_evis_bins*2; j++)
+                {
+                    TotalDifference = TotalDifference+TMath::Abs(CovMatrixNSample->GetBinContent(i+1,j+1))-Integral500[i][j];
+                }
+            }
+            
+            DifferenceHisto->SetBinContent(samples,TotalDifference);
+
+        }
+        
+        TCanvas* DifferenceC = new TCanvas("DifferenceC","CovMatrix difference vs NSamples");
+        DifferenceHisto->Draw();
+        DifferenceC->Print("./Images/Test/CovMatrixVsNSamples.eps");
+        delete DifferenceC;
+    }
 }

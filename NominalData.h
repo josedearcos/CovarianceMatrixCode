@@ -34,7 +34,7 @@ const Int_t MaxFarADs =4;
 const Int_t Nbins=240-36;
 
 // To control how to produce the predictions with variations
-const bool Fake_Experiments = 1;
+const bool Fake_Experiments = 0;
 const bool CholeskyVariations = 0;
 
 class NominalData
