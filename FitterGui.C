@@ -1269,7 +1269,7 @@ void FitterGui::DoToyMC()
     PeriodBox = new TGNumberEntry(fToyMCFrame2, (Int_t) Period,6,-1,(TGNumberFormat::EStyle) 5,(TGNumberFormat::EAttribute) 0,(TGNumberFormat::ELimit) 2,0,500);//It can be any number of weeks,500 is about 10 years of data taking, if you need more change this atribute.
     PeriodBox->SetName("Period");
     fToyMCFrame2->AddFrame(PeriodBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    PeriodBox->MoveResize(424,220,59,22);
+    PeriodBox->MoveResize(424,220,59,20);
     
     PeriodBox->Connect("ValueSet(Long_t)", "FitterGui", this, "DoPeriod()");
     
@@ -1285,7 +1285,7 @@ void FitterGui::DoToyMC()
     NReactorPeriodBox = new TGNumberEntry(fToyMCFrame2, (Int_t) NReactorPeriods,6,-1,(TGNumberFormat::EStyle) 5,(TGNumberFormat::EAttribute) 0,(TGNumberFormat::ELimit) 2,0,500);//It can be any number of weeks,500 is about 10 years of data taking, if you need more change this atribute.
     NReactorPeriodBox->SetName("Reactor periods");
     fToyMCFrame2->AddFrame(NReactorPeriodBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    NReactorPeriodBox->MoveResize(424,260,59,22);
+    NReactorPeriodBox->MoveResize(424,260,59,20);
     
     NReactorPeriodBox->Connect("ValueSet(Long_t)", "FitterGui", this, "DoNReactorPeriods()");
     
