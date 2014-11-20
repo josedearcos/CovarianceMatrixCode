@@ -14,7 +14,9 @@ class FitBackgrounds2
 private:
     NominalData* Nom;
     std::string AnalysisString;
+    std::string SaveString;
     TF1* HAmCFunc;
+    TF1* GdAmCFunc;
     bool isH;
     
     Int_t Nweeks;
@@ -35,6 +37,9 @@ private:
     TH1D* FinalFastNeutronsH[MaxDetectors][MaxPeriods];
     TH1D* FinalAmCH[MaxDetectors][MaxPeriods];
     
+    TH1D* NearBackgroundSpectrumH[MaxDetectors][MaxPeriods];
+    TH1D* FarBackgroundSpectrumH[MaxDetectors][MaxPeriods];
+    
     //  Background rates:
     Double_t ScaleAcc[MaxDetectors][MaxPeriods];
     Double_t ScaleLiHe[MaxDetectors][MaxPeriods];
@@ -50,14 +55,16 @@ private:
     Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
     void FitAmc();
     void FitFastNeutrons();
-    
+    void PrintBackgrounds();
+    void SaveAndDelete();
+    void ReadHBackgrounds();
+    void ReadGdBackgrounds();
 public:
     
     FitBackgrounds2();
     FitBackgrounds2(NominalData*);
-    
-    void ReadHBackgrounds();
-    void ReadGdBackgrounds();
+    void ProduceNominalBackgroundHistograms();
+
 };
 
 FitBackgrounds2 :: FitBackgrounds2()
@@ -72,10 +79,12 @@ FitBackgrounds2 :: FitBackgrounds2()
     if(isH)
     {
         AnalysisString = "Hydrogen";
+        SaveString = "HBackground";
     }
     else
     {
         AnalysisString = "Gadolinium";
+        SaveString = "GDBackground";
     }
     if(NADs == 8)//    ADs can only be 6 or 8
     {
@@ -137,10 +146,12 @@ FitBackgrounds2 :: FitBackgrounds2(NominalData* Data)
     if(isH)
     {
         AnalysisString = "Hydrogen";
+        SaveString = "HBackground";
     }
     else
     {
         AnalysisString = "Gadolinium";
+        SaveString = "GDBackground";
     }
     if(NADs == 8)//    ADs can only be 6 or 8
     {
@@ -190,26 +201,23 @@ FitBackgrounds2 :: FitBackgrounds2(NominalData* Data)
 void FitBackgrounds2 :: ReadHBackgrounds()
 {
     std::cout << "Reading Hydrogen Backgroudns" << std::endl;
-    Char_t filenameAccidentals[100];
     
     Int_t j=0;
     
     for(Int_t AD = 0; AD < NADs; AD++)
     {
-        sprintf(filenameAccidentals,"./BackgroundSpectrum/HBackground/Bkg_Accidental_AD%i.root", AD+1);
-        
-        TFile* AccidentalsF = TFile::Open(filenameAccidentals);
+        TFile* AccidentalsF = TFile::Open(("./BackgroundSpectrum/"+SaveString+Form("/Bkg_Accidental_AD%i.root", AD+1)).c_str());
         
         if(AD==2)
         {
             AccidentalsH[AD]=(TH1D*)gDirectory->Get("h1dAccBkg22_1");
         }
-        if(AD<2)
+        else if(AD<2)
         {
             AccidentalsH[AD]=(TH1D*)gDirectory->Get(Form("h1dAccBkg22_%i",j+1));
             j++;
         }
-        if(AD>2)
+        else if(AD>2)
         {
             AccidentalsH[AD]=(TH1D*)gDirectory->Get(Form("h1dAccBkg22_%i",j-1));
             j++;
@@ -218,13 +226,14 @@ void FitBackgrounds2 :: ReadHBackgrounds()
         
         BackgroundsH[AD]->Reset();
         
-        // cout<<"NPoints "<<AccidentalsH[AD]->GetXaxis()->GetNbins();
+//         cout<<"NPoints "<<AccidentalsH[AD]->GetXaxis()->GetNbins();
         for (Int_t pts=1; pts <= AccidentalsH[AD]->GetXaxis()->GetNbins(); pts++)
         {
             BackgroundsH[AD]->SetBinContent(pts,AccidentalsH[AD]->GetBinContent(pts));
         }
         AccidentalsF->Close();
     }
+    
     
     FitFastNeutrons();//Pol0 and Pol1 fit
     
@@ -234,92 +243,17 @@ void FitBackgrounds2 :: ReadHBackgrounds()
     
     BackgroundsH[NADs]=(TH1D*)BackgroundsH[NADs+1]->Clone("Fake LIHE");;//Need to implement this
     
-    //Save Backgrounds
+    TCanvas* CheckAccidentalsC = new TCanvas("","");
+    CheckAccidentalsC->Divide(3,3);
     
-    
-    for (Int_t week = 0; week<Nweeks; week++)
+    for(Int_t AD = 0; AD < NADs+3; AD++)
     {
-        for (Int_t AD = 0; AD<NADs; AD++)
-        {
-            for(Int_t BGND = 0; BGND < BGNDs; BGND++)
-            {
-                if(BGND<NADs)//Accidentals
-                {
-                    FinalAccidentalsH[AD][week]->Rebin(n_evis_bins,Form("Accidentals_AD%i",AD),evis_bins);
-                    FinalAccidentalsH[AD][week]->Scale(ScaleAcc[AD][week]/FinalAccidentalsH[AD][week]->Integral());
-                    FinalAccidentalsH[AD][week]->SetTitle(Form("Accidentals_AD%i",AD));
-                }
-                else if(BGND==NADs)//LiHe
-                {
-                    FinalLiHeH[AD][week]=(TH1D*)BackgroundsH[BGND]->Rebin(n_evis_bins,"LiHe",evis_bins);
-                    FinalLiHeH[AD][week]->Scale(ScaleLiHe[AD][week]/FinalLiHeH[AD][week]->Integral());
-                    FinalLiHeH[AD][week]->SetTitle("LiHe");
-                }
-                else if(BGND==NADs+1)//FN
-                {
-                    FinalFastNeutronsH[AD][week]=(TH1D*)BackgroundsH[BGND]->Rebin(n_evis_bins,"FN",evis_bins);
-                    FinalFastNeutronsH[AD][week]->Scale(ScaleFN[AD][week]/FinalFastNeutronsH[AD][week]->Integral());
-                    FinalFastNeutronsH[AD][week]->SetTitle("FN");
-                }
-                else//AmC
-                {
-                    FinalAmCH[AD][week]=(TH1D*)BackgroundsH[BGND]->Rebin(n_evis_bins,"AmC",evis_bins);
-                    FinalAmCH[AD][week]->Scale(ScaleAmC[AD][week]/FinalAmCH[AD][week]->Integral());
-                    FinalAmCH[AD][week]->SetTitle("AmC");
-                }
-            }
-        }
+        CheckAccidentalsC->cd(AD+1);
+        // AccidentalsH[AD]->Draw();
+        BackgroundsH[AD]->Draw();
     }
-    
-    TFile* BackgroundsF4 = TFile::Open("./BackgroundSpectrum/HBackground/Backgrounds.root","recreate");
-    
-    for (Int_t AD = 0; AD<NADs; AD++)
-    {
-        for (Int_t week = 0; week<Nweeks; week++)
-        {
-            if(AD<ADsEH1+ADsEH2)
-            {
-                TH1D* NearBackgroundSpectrumH = new TH1D(Form("Near AD%i Nominal Background Period%d",AD,week),Form("Near AD%i Nominal Background Period%d",AD,week),n_evis_bins,evis_bins);
-                NearBackgroundSpectrumH->Add(FinalAccidentalsH[AD][week]);
-                NearBackgroundSpectrumH->Add(FinalLiHeH[AD][week]);
-                NearBackgroundSpectrumH->Add(FinalFastNeutronsH[AD][week]);
-                NearBackgroundSpectrumH->Add(FinalAmCH[AD][week]);
-                NearBackgroundSpectrumH->Write();
-                delete NearBackgroundSpectrumH;
-            }
-            else
-            {
-                TH1D* FarBackgroundSpectrumH = new TH1D(Form("Far AD%i Nominal Background Period%d",AD,week),Form("Far AD%i Nominal Background Period%d",AD,week),n_evis_bins,evis_bins);
-                FarBackgroundSpectrumH->Add(FinalAccidentalsH[AD][week]);
-                FarBackgroundSpectrumH->Add(FinalLiHeH[AD][week]);
-                FarBackgroundSpectrumH->Add(FinalFastNeutronsH[AD][week]);
-                FarBackgroundSpectrumH->Add(FinalAmCH[AD][week]);
-                FarBackgroundSpectrumH->Write();
-                delete FarBackgroundSpectrumH;
-                
-            }
-            
-            FinalAccidentalsH[AD][week]->Write();
-            FinalLiHeH[AD][week]->Write();
-            FinalFastNeutronsH[AD][week]->Write();
-            FinalAmCH[AD][week]->Write();
-            
-            delete FinalAccidentalsH[AD][week];
-            delete FinalLiHeH[AD][week];
-            delete FinalFastNeutronsH[AD][week];
-            delete FinalAmCH[AD][week];
-        }
-    }
-    
-    HAmCFunc->Write();
-    BackgroundsF4->Close();
-    
-    delete HAmCFunc;
-    
-    for(Int_t BGND = 0; BGND<BGNDs; BGND++)
-    {
-        delete BackgroundsH[BGND];
-    }
+    CheckAccidentalsC->Print("./Images/BackgroundVariations/HydrogenBackgrounds.eps");
+    delete CheckAccidentalsC;
 }
 
 void FitBackgrounds2 :: ReadGdBackgrounds()
@@ -330,11 +264,11 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
     
     if(ADSimple) //P12E ADSimple
     {
-        sprintf(filenameBackgrounds,"./BackgroundSpectrum/GdBackground/accidental_eprompt_shapes.root");//ADSimple
+        sprintf(filenameBackgrounds,("./BackgroundSpectrum/"+SaveString+"/accidental_eprompt_shapes.root").c_str());//ADSimple
     }
     else //P14 ADScaled
     {
-        sprintf(filenameBackgrounds,"./BackgroundSpectrum/GdBackground/IHEP_accidental_lbnlbin_6AD.root");//ADScaled
+        sprintf(filenameBackgrounds,("./BackgroundSpectrum/"+SaveString+"/IHEP_accidental_lbnlbin_6AD.root").c_str());//ADScaled
     }
     
     TFile* BackgroundsF = TFile::Open(filenameBackgrounds);
@@ -365,26 +299,20 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
     
     BackgroundsF->Close();
     
-    sprintf(filenameBackgrounds,"./BackgroundSpectrum/GdBackground/li9_spectrum.root");
-    
-    TFile* BackgroundsF1 = TFile::Open(filenameBackgrounds);
+    TFile* BackgroundsF1 = TFile::Open(("./BackgroundSpectrum/"+SaveString+"/li9_spectrum.root").c_str());
     
     BackgroundsH[NADs]=(TH1D*)gDirectory->Get("h_li9_smeared_toy");
     
     BackgroundsF1->Close();
     
-    sprintf(filenameBackgrounds,"./BackgroundSpectrum/GdBackground/fn_spectrum.root");
-    
-    TFile* BackgroundsF2 = TFile::Open(filenameBackgrounds);
+    TFile* BackgroundsF2 = TFile::Open(("./BackgroundSpectrum/"+SaveString+"/fn_spectrum.root").c_str());
     
     BackgroundsH[NADs+1]=(TH1D*)gDirectory->Get("h_toy");
     
     BackgroundsF2->Close();
     
-    sprintf(filenameBackgrounds,"./BackgroundSpectrum/GdBackground/amc_spectrum.root");
-    
-    TFile* BackgroundsF3 = TFile::Open(filenameBackgrounds);
-    TF1* GdAmCFunc=(TF1*)gDirectory->Get("expo");
+    TFile* BackgroundsF3 = TFile::Open(("./BackgroundSpectrum/"+SaveString+"/amc_spectrum.root").c_str());
+    GdAmCFunc=(TF1*)gDirectory->Get("expo");
     GdAmCFunc->SetRange(0.7,FinalVisibleEnergy);
     GdAmCFunc->SetName("AmCFunc");
     BackgroundsH[NADs+2]=(TH1D*)gDirectory->Get("h_toy");
@@ -414,6 +342,14 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
 
     }
     
+    std::cout << "Finished Reading Gadollinium Backgroudns" << std::endl;
+    
+}
+
+void FitBackgrounds2::SaveAndDelete()
+{
+
+    //Save Backgrounds
     for(Int_t BGND = 0; BGND < BGNDs; BGND++)
     {
         for (Int_t week = 0; week<Nweeks; week++)
@@ -427,7 +363,7 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
                     
                     FinalAccidentalsH[AD][week]->Scale(ScaleAcc[AD][week]/FinalAccidentalsH[AD][week]->Integral());
                     FinalAccidentalsH[AD][week]->SetTitle(Form("Accidentals_AD%i",AD));
-//                    std::cout <<ScaleAcc[AD][week]  << " " <<  FinalAccidentalsH[AD][week]->Integral() << std::endl;
+                    //                    std::cout <<ScaleAcc[AD][week]  << " " <<  FinalAccidentalsH[AD][week]->Integral() << std::endl;
                 }
                 else if(BGND==NADs)//LiHe
                 {
@@ -435,7 +371,7 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
                     FinalLiHeH[AD][week]=(TH1D*)FinalLiHeH[AD][week]->Rebin(n_evis_bins,Form("LiHe_AD%i",AD),evis_bins);
                     FinalLiHeH[AD][week]->Scale(ScaleLiHe[AD][week]/FinalLiHeH[AD][week]->Integral());
                     FinalLiHeH[AD][week]->SetTitle("LiHe");
-//                    std::cout <<ScaleLiHe[AD][week]  << " " <<  FinalLiHeH[AD][week]->Integral() << std::endl;
+                    //                    std::cout <<ScaleLiHe[AD][week]  << " " <<  FinalLiHeH[AD][week]->Integral() << std::endl;
                     
                 }
                 else if(BGND==NADs+1)//FN
@@ -445,7 +381,7 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
                     FinalFastNeutronsH[AD][week]->Scale(ScaleFN[AD][week]/FinalFastNeutronsH[AD][week]->Integral());
                     
                     FinalFastNeutronsH[AD][week]->SetTitle("FN");
-//                    std::cout <<ScaleFN[AD][week]  << " " <<  FinalFastNeutronsH[AD][week]->Integral() << std::endl;
+                    //                    std::cout <<ScaleFN[AD][week]  << " " <<  FinalFastNeutronsH[AD][week]->Integral() << std::endl;
                     
                 }
                 else//AmC
@@ -454,15 +390,174 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
                     FinalAmCH[AD][week]=(TH1D*)FinalAmCH[AD][week]->Rebin(n_evis_bins,Form("AmC_AD%i",AD),evis_bins);
                     FinalAmCH[AD][week]->Scale(ScaleAmC[AD][week]/FinalAmCH[AD][week]->Integral());
                     FinalAmCH[AD][week]->SetTitle("AmC");
-//                    std::cout <<ScaleAmC[AD][week]  << " " <<  FinalAmCH[AD][week]->Integral() << std::endl;
+                    //                    std::cout <<ScaleAmC[AD][week]  << " " <<  FinalAmCH[AD][week]->Integral() << std::endl;
                     
                 }
             }
         }
     }
     
+    TFile* BackgroundsF4 = TFile::Open(("./BackgroundSpectrum/"+SaveString+"/Backgrounds.root").c_str(),"recreate");
+    
+    for (Int_t AD = 0; AD<NADs; AD++)
+    {
+        for (Int_t week = 0; week<Nweeks; week++)
+        {
+            if(AD<ADsEH1+ADsEH2)
+            {
+                NearBackgroundSpectrumH[AD][week] = new TH1D(Form("Near AD%i Nominal Background Period%d",AD,week),Form("Near AD%i Nominal Background Period%d",AD,week),n_evis_bins,evis_bins);
+                NearBackgroundSpectrumH[AD][week]->Add(FinalAccidentalsH[AD][week]);
+                NearBackgroundSpectrumH[AD][week]->Add(FinalLiHeH[AD][week]);
+                NearBackgroundSpectrumH[AD][week]->Add(FinalFastNeutronsH[AD][week]);
+                NearBackgroundSpectrumH[AD][week]->Add(FinalAmCH[AD][week]);
+                NearBackgroundSpectrumH[AD][week]->Write();
+            }
+            else
+            {
+                FarBackgroundSpectrumH[AD][week] = new TH1D(Form("Far AD%i Nominal Background Period%d",AD,week),Form("Far AD%i Nominal Background Period%d",AD,week),n_evis_bins,evis_bins);
+                FarBackgroundSpectrumH[AD][week]->Add(FinalAccidentalsH[AD][week]);
+                FarBackgroundSpectrumH[AD][week]->Add(FinalLiHeH[AD][week]);
+                FarBackgroundSpectrumH[AD][week]->Add(FinalFastNeutronsH[AD][week]);
+                FarBackgroundSpectrumH[AD][week]->Add(FinalAmCH[AD][week]);
+                FarBackgroundSpectrumH[AD][week]->Write();
+            }
+            
+            FinalAccidentalsH[AD][week]->Write();
+            FinalLiHeH[AD][week]->Write();
+            FinalFastNeutronsH[AD][week]->Write();
+            FinalAmCH[AD][week]->Write();
+        }
+    }
+    
+    if(isH)
+    {
+        HAmCFunc->Write();
+        delete HAmCFunc;
+    }
+    else
+    {
+        GdAmCFunc->Write();
+        delete GdAmCFunc;
+    }
+
+    BackgroundsF4->Close();
+    
+    //print
     if(Print)
     {
+        PrintBackgrounds();
+    }
+    
+    //delete
+    
+    for (Int_t AD = 0; AD<NADs; AD++)
+    {
+        if(isH)
+        {
+            delete AccidentalsH[AD];
+        }
+        for (Int_t week = 0; week<Nweeks; week++)
+        {
+            delete FinalAccidentalsH[AD][week];
+            delete FinalLiHeH[AD][week];
+            delete FinalFastNeutronsH[AD][week];
+            delete FinalAmCH[AD][week];
+            
+            if(AD<ADsEH1+ADsEH2)
+            {
+                delete NearBackgroundSpectrumH[AD][week];
+            }
+            else
+            {
+                delete FarBackgroundSpectrumH[AD][week];
+            }
+        }
+    }
+    
+    for(Int_t BGND = 0; BGND<BGNDs; BGND++)
+    {
+        delete BackgroundsH[BGND];
+    }
+}
+
+void FitBackgrounds2::FitFastNeutrons()
+{
+    
+    TFile* FastNeutronF = TFile::Open(("./BackgroundSpectrum/"+SaveString+"/Bkg_FastNeutron_EH1_MC.root").c_str());
+    TH1D* FastNeutronH=(TH1D*)gDirectory->Get("hist_FastNeutron");
+    FastNeutronF->Close();
+    
+    FastNeutronH->Fit("pol0","Q0","",10,100);
+    TF1* FitFNResult = FastNeutronH->GetFunction("pol0");
+    Double_t AveragePol0 = FitFNResult->GetParameter(0);
+    
+    FastNeutronH->Fit("pol1","+Q0","",10,100);
+    TF1* polynomial = FastNeutronH->GetFunction("pol1");
+    
+    Double_t ConstantPol1 = polynomial->GetParameter(0);
+    Double_t SlopePol1 = polynomial->GetParameter(1);
+    Double_t AveragePol1=ConstantPol1+SlopePol1*55; //Value of the function in the middle point of the range 55 = ((100-10)/2)
+    
+    Double_t TotalAverage = (AveragePol0 + AveragePol1)/2;
+    
+    BackgroundsH[NADs+1] = new TH1D("FN","FN",n_evis_bins,evis_bins);//60 so the bins are 0.2
+    
+    for(Int_t i=1;i<=n_evis_bins;i++)
+    {
+        BackgroundsH[NADs+1]->SetBinContent(i,TotalAverage);
+    }
+    
+    delete FastNeutronH;
+//    delete polynomial;
+//    delete FitFNResult;
+}
+
+void FitBackgrounds2 :: FitAmc()
+{
+    TFile* AmCF1 = TFile::Open(("./BackgroundSpectrum/"+SaveString+"/Bkg_StrongAmC.root").c_str());
+    AmCH=(TH1D*)gDirectory->Get("hist_Bkg_StrongAmC");
+    AmCF1->Close();
+    
+    BackgroundsH[NADs+2]=(TH1D*)AmCH->Clone();
+    BackgroundsH[NADs+2]->Reset();
+    
+    for(Int_t i=1;i<=AmCH->GetXaxis()->GetNbins();i++)
+    {
+        if((AmCH->GetBinContent(i))<0)
+        {
+            AmCH->SetBinContent(i,-1*(AmCH->GetBinContent(i))); //Invert negative bins??
+            //                          OR
+            // AmCH->SetBinContent(i,0);//Set negative bins to 0?
+        }
+    }
+    //    I need to study what are the implications. Right now I'm not applying any correction to the original histogram.
+    
+    Double_t IntegralOriginal = AmCH->Integral();
+    //    cout << IntegralOriginal<<"\n";
+    
+    HAmCFunc = new TF1("AmCFunc","exp([0]+x*[1])",InitialVisibleEnergy,FinalVisibleEnergy);
+    AmCH->Fit("AmCFunc","Q0");//"Q0 is quiet mode and no draw
+    // Try to change FIT options from 1.5-12? Maybe improves the output.
+    
+    ///////////////////////////////////////////////////
+    //Should I fit this with or without errors? (CHECK) (Original histogram (errors+content) vs only GetBinContent)???? What about negative bins?
+    ///////////////////////////////////////////////////
+    
+    BackgroundsH[NADs+2]->Add(HAmCFunc);
+    
+    Double_t IntegralExponential = BackgroundsH[NADs+2]->Integral();//  Check that this works correctly, otherwise write explicitly limits in terms of the bins (InitialVisibleEnergy/binwidth, Final...)
+    //    cout << IntegralExponential <<"\n";
+    
+    //Normalize histogram with respect to integral of the original graph, I can use data once I have it and normalize it to the expected number of AmC events.
+    BackgroundsH[NADs+2]->Scale(IntegralOriginal/IntegralExponential);
+    // BackgroundsH[NADs]->Draw("same");
+    //cout << IntegralOriginal/IntegralExponential <<"\n";
+    delete AmCH;
+}
+
+void FitBackgrounds2::PrintBackgrounds()
+{
+
         TCanvas* AccidentalC = new TCanvas("AccidentalC","Accidental Backgrounds", NADs*400/2,400*2);
         for (Int_t week = 0; week<Nweeks; week++)
         {
@@ -538,53 +633,7 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
             AmCC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/AmCBackgroundsPeriod%d.eps",week)).c_str(),".eps");
         }
         delete AmCC;
-    }
-    
-    TFile* BackgroundsF4 = TFile::Open("./BackgroundSpectrum/GDBackground/Backgrounds.root","recreate");
-    
-    TH1D* NearBackgroundSpectrumH[MaxDetectors][MaxPeriods];
-    TH1D* FarBackgroundSpectrumH[MaxDetectors][MaxPeriods];
-    
-    for (Int_t AD = 0; AD<NADs; AD++)
-    {
-        for (Int_t week = 0; week<Nweeks; week++)
-        {
-            if(AD<ADsEH1+ADsEH2)
-            {
-                NearBackgroundSpectrumH[AD][week] = new TH1D(Form("Near AD%i Nominal Background Period%d",AD,week),Form("Near AD%i Nominal Background Period%d",AD,week),n_evis_bins,evis_bins);
-                NearBackgroundSpectrumH[AD][week]->Add(FinalAccidentalsH[AD][week]);
-                NearBackgroundSpectrumH[AD][week]->Add(FinalLiHeH[AD][week]);
-                NearBackgroundSpectrumH[AD][week]->Add(FinalFastNeutronsH[AD][week]);
-                NearBackgroundSpectrumH[AD][week]->Add(FinalAmCH[AD][week]);
-                NearBackgroundSpectrumH[AD][week]->Write();
-            }
-            else
-            {
-                FarBackgroundSpectrumH[AD][week] = new TH1D(Form("Far AD%i Nominal Background Period%d",AD,week),Form("Far AD%i Nominal Background Period%d",AD,week),n_evis_bins,evis_bins);
-                FarBackgroundSpectrumH[AD][week]->Add(FinalAccidentalsH[AD][week]);
-                FarBackgroundSpectrumH[AD][week]->Add(FinalLiHeH[AD][week]);
-                FarBackgroundSpectrumH[AD][week]->Add(FinalFastNeutronsH[AD][week]);
-                FarBackgroundSpectrumH[AD][week]->Add(FinalAmCH[AD][week]);
-                FarBackgroundSpectrumH[AD][week]->Write();
-            }
-            
-            FinalAccidentalsH[AD][week]->Write();
-            FinalLiHeH[AD][week]->Write();
-            FinalFastNeutronsH[AD][week]->Write();
-            FinalAmCH[AD][week]->Write();
-            delete FinalAccidentalsH[AD][week];
-            delete FinalLiHeH[AD][week];
-            delete FinalFastNeutronsH[AD][week];
-            delete FinalAmCH[AD][week];
-        }
-    }
-    GdAmCFunc->Write();
-    BackgroundsF4->Close();
 
-    delete GdAmCFunc;
-    
-    if(Print)
-    {
         TCanvas* NearBackgroundC = new TCanvas("NearBackgroundC","Near Backgrounds", (ADsEH1+ADsEH2)*400,400);
         TCanvas* FarBackgroundC = new TCanvas("FarBackgroundC","Far Backgrounds", (ADsEH3)*400,400);
         
@@ -615,104 +664,20 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
         
         delete NearBackgroundC;
         delete FarBackgroundC;
-    }
-    
-    for (Int_t AD = 0; AD<NADs; AD++)
-    {
-        for (Int_t week = 0; week<Nweeks; week++)
-        {
-            
-            if(AD<ADsEH1+ADsEH2)
-            {
-                delete NearBackgroundSpectrumH[AD][week];
-            }
-            else
-            {
-                delete FarBackgroundSpectrumH[AD][week];
-            }
-        }
-    }
-    
-    for(Int_t BGND = 0; BGND<BGNDs; BGND++)
-    {
-        delete BackgroundsH[BGND];
-    }
-    
-    std::cout << "Finished Reading Gadollinium Backgroudns" << std::endl;
     
 }
 
-void FitBackgrounds2::FitFastNeutrons()
+void FitBackgrounds2::ProduceNominalBackgroundHistograms()
 {
-    
-    TFile* FastNeutronF = TFile::Open("./BackgroundSpectrum/HBackground/Bkg_FastNeutron_EH1_MC.root");
-    TH1D* FastNeutronH=(TH1D*)gDirectory->Get("hist_FastNeutron");
-    FastNeutronF->Close();
-    
-    FastNeutronH->Fit("pol0","Q0","",10,100);
-    TF1* FitFNResult = FastNeutronH->GetFunction("pol0");
-    Double_t AveragePol0 = FitFNResult->GetParameter(0);
-    
-    FastNeutronH->Fit("pol1","+Q0","",10,100);
-    TF1* polynomial = FastNeutronH->GetFunction("pol1");
-    
-    Double_t ConstantPol1 = polynomial->GetParameter(0);
-    Double_t SlopePol1 = polynomial->GetParameter(1);
-    Double_t AveragePol1=ConstantPol1+SlopePol1*55; //Value of the function in the middle point of the range 55 = ((100-10)/2)
-    
-    Double_t TotalAverage = (AveragePol0 + AveragePol1)/2;
-    
-    BackgroundsH[NADs+1] = new TH1D("FN","FN",n_evis_bins,evis_bins);//60 so the bins are 0.2
-    
-    for(Int_t i=1;i<=n_evis_bins;i++)
+    if(isH)
     {
-        BackgroundsH[NADs+1]->SetBinContent(i,TotalAverage);
+         ReadHBackgrounds();
+    }
+    else
+    {
+         ReadGdBackgrounds();
     }
     
-    delete FastNeutronH;
-    delete polynomial;
-    delete FitFNResult;
-}
-
-void FitBackgrounds2 :: FitAmc()
-{
-    TFile* AmCF1 = TFile::Open("./BackgroundSpectrum/HBackground/Bkg_StrongAmC.root");
-    AmCH=(TH1D*)gDirectory->Get("hist_Bkg_StrongAmC");
-    AmCF1->Close();
+    SaveAndDelete();
     
-    BackgroundsH[NADs+2]=(TH1D*)AmCH->Clone();
-    BackgroundsH[NADs+2]->Reset();
-    
-    for(Int_t i=1;i<=AmCH->GetXaxis()->GetNbins();i++)
-    {
-        if((AmCH->GetBinContent(i))<0)
-        {
-            AmCH->SetBinContent(i,-1*(AmCH->GetBinContent(i))); //Invert negative bins??
-            //                          OR
-            // AmCH->SetBinContent(i,0);//Set negative bins to 0?
-        }
-    }
-    //    I need to study what are the implications. Right now I'm not applying any correction to the original histogram.
-    
-    Double_t IntegralOriginal = AmCH->Integral();
-    //    cout << IntegralOriginal<<"\n";
-    
-    HAmCFunc = new TF1("AmCFunc","exp([0]+x*[1]",InitialVisibleEnergy,FinalVisibleEnergy);
-    AmCH->Fit("AmCFunc","Q0");//"Q0 is quiet mode and no draw
-    // Try to change FIT options from 1.5-12? Maybe improves the output.
-    
-    ///////////////////////////////////////////////////
-    //Should I fit this with or without errors? (CHECK) (Original histogram (errors+content) vs only GetBinContent)???? What about negative bins?
-    ///////////////////////////////////////////////////
-    
-    BackgroundsH[NADs+2]->Add(HAmCFunc);
-    
-    Double_t IntegralExponential = BackgroundsH[NADs+2]->Integral();//  Check that this works correctly, otherwise write explicitly limits in terms of the bins (InitialVisibleEnergy/binwidth, Final...)
-    //    cout << IntegralExponential <<"\n";
-    
-    //Normalize histogram with respect to integral of the original graph, I can use data once I have it and normalize it to the expected number of AmC events.
-    BackgroundsH[NADs+2]->Scale(IntegralOriginal/IntegralExponential);
-    // BackgroundsH[NADs]->Draw("same");
-    //cout << IntegralOriginal/IntegralExponential <<"\n";
-    delete AmCH;
 }

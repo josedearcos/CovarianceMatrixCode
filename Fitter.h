@@ -7,7 +7,6 @@
 #include "stdio.h"
 #include <stdlib.h>
 #include "TFile.h"
-#include "TRandom3.h"
 #include "TGraph.h"
 #include "TH1D.h"
 #include "TH2.h"
@@ -138,7 +137,7 @@ private:
 
 Fitter :: Fitter()
 {
-    std::cout << " the default constructor shouldn't be called" << std::endl;
+    std::cout << " the fitter default constructor shouldn't be called" << std::endl;
     
     exit(EXIT_FAILURE);
     

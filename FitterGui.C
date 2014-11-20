@@ -1540,12 +1540,12 @@ void FitterGui::RunToyMC()
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // CrossCalc takes a lot of time and it needs to be run only once to produce the root file. Uncomment only if binning is different from standards and you want to produce a new cross section for this new binning.
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    if(Analysis)//nGd cross section is already tabulated, this is to calculate nH
-    {
-        CrossSection* Cross = new CrossSection(Data);
-        Cross->CrossCalc();
-        delete Cross;
-    }
+//    if(Analysis)// cross section is already tabulated, this can be used to produce Zhe's crosssection
+//    {
+//        CrossSection* Cross = new CrossSection(Data);
+//        Cross->CrossCalc();
+//        delete Cross;
+//    }
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //Parameters of the model
     
@@ -1584,8 +1584,7 @@ void FitterGui::RunToyMC()
                 }
                 break;
             case 2:// LBNL
-                std::cout << "\t \t \t NO LBNL H ANALYSIS, OPTION NOT VALID " << std::endl;
-                exit(EXIT_FAILURE);
+                std::cout << "\t \t \t NEED TO ADD LOADMAIN DATA FOR H ANALYSIS" << std::endl;
                 break;
             default:
                 break;
@@ -1634,14 +1633,7 @@ void FitterGui::RunToyMC()
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     FitBackgrounds2* Bkg = new FitBackgrounds2(Data);
     
-    if(Analysis)
-    {
-        Bkg->ReadHBackgrounds();
-    }
-    else
-    {
-        Bkg->ReadGdBackgrounds();
-    }
+    Bkg->ProduceNominalBackgroundHistograms();
     
     delete Bkg;
     

@@ -663,8 +663,8 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     if(this->GetAnalysis())
     {
         if(DataSet==2)
-        {
-            // P12E values
+        {            
+            //p12b values
             if(Nweeks==1)
             {
                 ObservedEvents[0]=101362;
@@ -697,7 +697,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
                 
                 std::cout << "Change all as absolute uncertainties, otherwise this won't work!!!" << std::endl;
                 
-                exit(EXIT_FAILURE);
+           //     exit(EXIT_FAILURE);
                 
                 AccidentalError[0]=0.002;//Relative uncertainty AD1 Fix this?
                 AccidentalError[1]=0.002;//Relative uncertainty AD2
@@ -726,6 +726,37 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
                 AmCError[3]=0.25;//Relative uncertainty EH3
                 AmCError[4]=0.25;//Relative uncertainty EH3
                 AmCError[5]=0.25;//Relative uncertainty EH3
+                
+                
+                //rates are for gd, need to put Hydrogen data here:
+                
+                AccidentalRate[0]=9.5508;// per day
+                AccidentalRate[1]=9.3657;
+                AccidentalRate[2]=7.441;
+                AccidentalRate[3]=2.9645;
+                AccidentalRate[4]=2.9238;
+                AccidentalRate[5]=2.8741;
+                
+                FastNeutronRate[0]=0.92;// per day
+                FastNeutronRate[1]=0.92;
+                FastNeutronRate[2]=0.62;
+                FastNeutronRate[3]=0.04;
+                FastNeutronRate[4]=0.04;
+                FastNeutronRate[5]=0.04;
+                
+                LiHeRate[0]=2.4;// per day
+                LiHeRate[1]=2.4;
+                LiHeRate[2]=1.2;
+                LiHeRate[3]=0.22;
+                LiHeRate[4]=0.22;
+                LiHeRate[5]=0.22;
+                
+                AmCRate[0] = 0.26;//per day
+                AmCRate[1] = 0.26;
+                AmCRate[2] = 0.26;
+                AmCRate[3] = 0.26;
+                AmCRate[4] = 0.26;
+                AmCRate[5] = 0.26;
             }
             else
             {

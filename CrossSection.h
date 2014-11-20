@@ -69,10 +69,6 @@ CrossSection* gCrossSection;
 
 CrossSection :: CrossSection()
 {
-    std::cout << " the default constructor shouldn't be called" << std::endl;
-    
-    exit(EXIT_FAILURE);
-    
     Nom = new NominalData(0,2);
     
     InitialEnergy = Nom->GetEmin();

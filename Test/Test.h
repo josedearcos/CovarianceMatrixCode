@@ -52,6 +52,7 @@ const Int_t n_etrue_bins =39;
 const Int_t MaxBins = 9*n_evis_bins;
 const Double_t InitialEnergy = 1.8;
 const Double_t FinalVisibleEnergy = 12.0;
+
 class Test
 {
 public:
@@ -445,6 +446,7 @@ void Test :: TestCovarianceMatrixConstruction()
     {
         for (Int_t far=0; far<ADsEH3; far++)
         {
+            rand->SetSeed(0);
             randvec[near*ADsEH3+far] = Nominal*(1+Error*rand->Gaus());
             if(near < ADsEH1)
             {
@@ -1338,7 +1340,8 @@ void Test::TestAllPredictions()
     
     NominalData* Data = new NominalData(0,2);//Gadollinium
     
-    Data->SetCombineMode(0); //0 is 9x9, 1 is 1x1 and 2 is 2x2
+    Data->SetCombineMode(0); //0 is 9x9, 1 is 1x1 and 2 is 2x2f
+
     //    Data->SetSin22t12(0);
     //Parameters of the model
     Data->SetAnalysis(0);//  Gd or H data
@@ -1505,9 +1508,8 @@ void Test::TestSuperHistograms()
 
 void Test :: TestCovarianceMatrixSamples()//A test to decide how many samples are necessary to build the covariance matrices.
 {
-    bool Generate = 1;//1 to generate 500 covariance matrices in a file, 0 to do the test
-    if(Generate)//GenerateFiles
-    {
+    bool Generate = 0;//1 to generate 500 covariance matrices in a file, 0 to do the test
+
     if(TestExternalInputs)
     {
         ToyMCSampleDirectory = "/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/ToyMCTrees/nGdInputs/toySpectra_allsys_and_stat.root";
@@ -1546,7 +1548,6 @@ void Test :: TestCovarianceMatrixSamples()//A test to decide how many samples ar
     NL[0]=0;//BCW
     NL[1]=0;//LBNL
     NL[2]=1;//Unified (Default)
-    
 
     //         EnergyOffsetMatrix=0;
     //         AbsoluteScaleMatrix=0;
@@ -1712,58 +1713,155 @@ void Test :: TestCovarianceMatrixSamples()//A test to decide how many samples ar
     Data->SetResolutionMatrix(ResolutionMatrix);
     Data->SetSin22t12Matrix(Sin22t12Matrix);
     Data->SetEfficiencyMatrix(EfficiencyMatrix);
-    
-        for(Int_t samples = 321; samples<=NSamples+1; samples+=20)
+   
+    Int_t SampleStep = 20;
+    Int_t MaxRepetitions = 15;
+    if(Generate)//GenerateFiles
+    {
+        for(Int_t repetitions = 0; repetitions<MaxRepetitions; repetitions++)
         {
-            std::cout << "CALCULATING SAMPLE: " << samples << std::endl;
-            
-            Data->SetNSamples(samples);// 500 in the final version.
-            
-            Cov = new CovarianceMatrix3(Data);
-            
-            Cov->CovarianceMatrixMain(NULL);
-            
-            delete Cov;
+            std::cout << "REP: " << repetitions << std::endl;
+            for(Int_t samples = NSamples-(SampleStep*4)+1; samples<NSamples+1-(SampleStep); samples+=SampleStep)
+            {
+                std::cout << "CALCULATING SAMPLE: " << samples << std::endl;
+                
+                Data->SetNSamples(samples);// 500 in the final version.
+                
+                Cov = new CovarianceMatrix3(Data);
+                
+                Cov->CovarianceMatrixMain(NULL);
+                
+                delete Cov;
+            }
         }
     }
     else
     {
-        TFile* File = new TFile("./CovarianceMatrices/Gadolinium/Combine2/CovarianceMatricesRoot/RelativeEnergyScale.root");
+        TFile* File = new TFile("./Test/CovarianceMatrices/Gadolinium/Combine2/CovarianceMatricesRoot/RelativeEnergyScale.root");
         
-        TH2D* CovMatrix500;
-        TH2D* CovMatrixNSample;
-        TH1D* DifferenceHisto = new TH1D("DifferenceH","Difference of Covariance Matrices vs Samples", NSamples,1,NSamples);
+        TH2D* CovMatrix500[MaxRepetitions];
+        TH1D* DifferenceHisto[MaxRepetitions];
         
-        CovMatrix500 = (TH2D*)File->Get(Form("Before Covariance Matrix%d %d",0,NSamples));
-        Double_t Integral500[n_evis_bins*2][n_evis_bins*2];//To store the abs values in each bin from the largest matrix
-        Double_t TotalDifference;//To store the total difference expressed as the difference between absolute values of each matrix
-        for(Int_t i = 0; i<n_evis_bins*2; i++)
-        {
-            for(Int_t j = 0; j<n_evis_bins*2; j++)
-            {
-                Integral500[i][j] = TMath::Abs(CovMatrix500->GetBinContent(i+1,j+1));
-            }
-        }
-        for(Int_t samples = 1; samples<=NSamples+1; samples+=20)
-        {
-            TotalDifference=0;
-            
-            CovMatrixNSample = (TH2D*)File->Get(Form("Before Covariance Matrix%d %d",0,NSamples));
-            for(Int_t i = 0; i<n_evis_bins*2; i++)
-            {
-                for(Int_t j = 0; j<n_evis_bins*2; j++)
-                {
-                    TotalDifference = TotalDifference+TMath::Abs(CovMatrixNSample->GetBinContent(i+1,j+1))-Integral500[i][j];
-                }
-            }
-            
-            DifferenceHisto->SetBinContent(samples,TotalDifference);
+        bool CompareConsecutive = 1;//compare [cov sample - cov sample-1] or [cov sample - cov max sample]
+        bool Maximum = 0;// maximum error or average
+        Double_t Error = 0;
+        Double_t MaxError;
+        const Int_t MaxSamples = Int_t(NSamples/SampleStep);
+        TH2D* CovMatrixNSample[MaxSamples][MaxRepetitions];
 
+        for(Int_t repetitions = 1; repetitions<MaxRepetitions+1; repetitions++)
+        {
+            DifferenceHisto[repetitions] = new TH1D(Form("DifferenceH%d",repetitions),Form("Difference of Covariance Matrices vs Samples%d",repetitions), NSamples,0,NSamples);
+           
+            CovMatrix500[repetitions] = (TH2D*)File->FindObjectAny(Form("After Covariance Matrix%d %d;%d",0,NSamples+1,repetitions));
+            for(Int_t samples = 1; samples<=(NSamples+1); samples+=SampleStep)
+            {
+                MaxError=0;
+                
+                CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions] = (TH2D*)File->FindObjectAny(Form("After Covariance Matrix%d %d;%d",0,samples,repetitions));
+                
+                std::cout << Int_t((samples-1)/SampleStep) << repetitions << Form("After Covariance Matrix%d %d;%d",0,samples,repetitions) << std::endl;
+                if(Maximum)
+                {
+                    if(!CompareConsecutive)
+                    {
+                        if(samples==1)
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            for(Int_t i = 0; i<CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetXaxis()->GetNbins(); i++)
+                            {
+                                for(Int_t j = 0; j<CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetYaxis()->GetNbins(); j++)
+                                {
+                                    Error = TMath::Abs((CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetBinContent(i+1,j+1) - CovMatrix500[repetitions]->GetBinContent(i+1,j+1))/TMath::Abs(CovMatrix500[repetitions]->GetBinContent(i+1,j+1)));
+                                    
+                                    if(Error>MaxError)
+                                    {
+                                        MaxError =  Error;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if(samples>SampleStep)
+                        {
+                            for(Int_t i = 0; i<CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetXaxis()->GetNbins(); i++)
+                            {
+                                for(Int_t j = 0; j<CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetYaxis()->GetNbins(); j++)
+                                {
+                                    Error = TMath::Abs((CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetBinContent(i+1,j+1) - CovMatrixNSample[Int_t((samples-SampleStep-1))/SampleStep][repetitions]->GetBinContent(i+1,j+1))/TMath::Abs(CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetBinContent(i+1,j+1)));
+                                    
+                                    if(Error>MaxError)
+                                    {
+                                        MaxError =  Error;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    Error = 0;
+                    
+                    if(!CompareConsecutive)
+                    {
+                        if(samples==1)
+                        {
+                            continue;
+                        }
+                        else
+                        {
+                            for(Int_t i = 0; i<CovMatrixNSample[(samples-1)/SampleStep][repetitions]->GetXaxis()->GetNbins(); i++)
+                            {
+                                for(Int_t j = 0; j<CovMatrixNSample[(samples-1)/SampleStep][repetitions]->GetYaxis()->GetNbins(); j++)
+                                {
+                                    Error = Error + TMath::Abs((CovMatrixNSample[(samples-1)/SampleStep][repetitions]->GetBinContent(i+1,j+1) - CovMatrix500[repetitions]->GetBinContent(i+1,j+1))/TMath::Abs(CovMatrix500[repetitions]->GetBinContent(i+1,j+1)));
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if(samples>SampleStep)
+                        {
+                            for(Int_t i = 0; i<CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetXaxis()->GetNbins(); i++)
+                            {
+                                for(Int_t j = 0; j<CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetYaxis()->GetNbins(); j++)
+                                {
+                                    Error = Error + TMath::Abs((CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetBinContent(i+1,j+1) - CovMatrixNSample[Int_t((samples-SampleStep-1))/SampleStep][repetitions]->GetBinContent(i+1,j+1))/CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetBinContent(i+1,j+1));
+                                    
+                                }
+                            }
+                    
+                            Error = Error/(CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetYaxis()->GetNbins()*CovMatrixNSample[Int_t((samples-1)/SampleStep)][repetitions]->GetXaxis()->GetNbins());
+                        }
+                    }
+                }
+                
+                
+                std::cout << " SAMPLE " << samples << " error: " << Error << std::endl;
+                
+                DifferenceHisto[repetitions]->SetBinContent(samples,Error);
+                
+            }
+            
         }
         
-        TCanvas* DifferenceC = new TCanvas("DifferenceC","CovMatrix difference vs NSamples");
-        DifferenceHisto->Draw();
-        DifferenceC->Print("./Images/Test/CovMatrixVsNSamples.eps");
-        delete DifferenceC;
+        
+        for(Int_t repetitions = 1; repetitions<MaxRepetitions+1; repetitions++)
+        {
+            TCanvas* DifferenceC = new TCanvas("DifferenceC","CovMatrix difference vs NSamples");
+
+            DifferenceHisto[repetitions]->SetStats(0);
+            DifferenceHisto[repetitions]->Draw();
+            DifferenceC->Print(Form("./Images/Test/AverageDifferenceCovMatrixVsNSamples%d.png",repetitions));
+            delete DifferenceC;
+        }
     }
 }
+

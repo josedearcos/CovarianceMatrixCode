@@ -100,7 +100,7 @@ public:
 //Default values
 ReactorSpectrumMultiple :: ReactorSpectrumMultiple()
 {
-    std::cout << " the default constructor shouldn't be called" << std::endl;
+    std::cout << " the reactor default constructor shouldn't be called" << std::endl;
     
     exit(EXIT_FAILURE);
     
@@ -274,6 +274,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
             
             for (Int_t i = 0; i < NReactors*m_nSamples; i++)
             {
+                rand->SetSeed(0);
                 ranvec[i] = rand->Gaus(0,1);
             }
             
@@ -601,9 +602,9 @@ void ReactorSpectrumMultiple :: Plot(TH1D* Hist)
 void ReactorSpectrumMultiple :: RandomIsotopes()
 {
     Norm =0;//reset
-    rand->SetSeed(0);
     for (Int_t isotope=0; isotope<NIsotopes; isotope++)
     {
+        rand->SetSeed(0);
         RandomIsotopeError[isotope] = (IsotopeError[isotope] * rand->Gaus(0,1));
         IsotopeFrac[isotope]  = (1 + RandomIsotopeError[isotope]) * NominalIsotopeFrac[isotope];
         
@@ -625,6 +626,7 @@ void ReactorSpectrumMultiple :: RandomPower()
 {
     for(Int_t reactor=0; reactor<NReactors;reactor++)
     {
+        rand->SetSeed(0);
         RandomReactorPowerError[reactor] = (ReactorPowerError[reactor] * rand->Gaus(0,1));
         ReactorPower[reactor] = (1 + RandomReactorPowerError[reactor]) * NominalReactorPower[reactor];
         std::cout << " Random Power" << reactor+1 << " is " << ReactorPower[reactor] << "\n";

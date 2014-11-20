@@ -2,6 +2,7 @@
 #include "NominalData.h"
 #include <math.h>
 
+//#define UseZhesCrossSection
 //
 //  AntineutrinoSpectrum.h
 //  I multiply the reactour spectrum by the neutrino cross section to get the True Energy Spectrum without oscillation.
@@ -55,7 +56,7 @@ public:
 
 AntineutrinoSpectrum :: AntineutrinoSpectrum()
 {
-    std::cout << " the default constructor shouldn't be called" << std::endl;
+    std::cout << " the antineutrino default constructor shouldn't be called" << std::endl;
     
     exit(EXIT_FAILURE);
     
@@ -96,11 +97,11 @@ AntineutrinoSpectrum :: AntineutrinoSpectrum(NominalData* Data)
 
 void AntineutrinoSpectrum :: LoadCrossSectionFile()
 {
-    if(!Analysis)//0 for Gd, 1 for H
-    {
         //Read txt file with already calculated nGd cross section
         
             CrossSectionH = new TH1D("Cross Section","Cross Section", Nbins, InitialEnergy,FinalVisibleEnergy);
+    
+#ifndef UseZhesCrossSection
             std::string line;
             std::ifstream CrossF("./CrossSections/Xsec1_2011.dat");
             
@@ -139,14 +140,12 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
                     CrossSectionH->SetBinContent((i/(Samples/Nbins))+1,CrossSection[i]);
                 }
             }
-        }
-    else//nH
-    {
+#else
         TFile* CrossSectionF = new TFile("./CrossSections/nHCrossSection.root");
         CrossSectionH = (TH1D*)gDirectory->Get("CrossSection");
         CrossSectionH->Scale(10e-42*conv_s_per_day*conv_m2_per_cm2);// We will do the calculations in terms of the # days and m. //DetectorProtons
         delete CrossSectionF;
-    }
+#endif
     
 //    TFile* CrossSecF = new TFile("./CrossSections/CheckCrossSection.root","recreate");
 //        CrossSectionH->Write();

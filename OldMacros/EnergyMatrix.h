@@ -4,7 +4,6 @@
 #include "stdio.h"
 #include <stdlib.h>
 #include "TFile.h"
-#include "TRandom3.h"
 #include "TH1F.h"
 #include "TMath.h"
 
@@ -33,8 +32,6 @@ Double_t reso_func_bcw(Double_t * x, Double_t * par);
 class EnergyMatrix
 {
     private:
-    
-    TRandom3* rand;
     
     //AD configuration parameters:
     Int_t NADs;
@@ -102,7 +99,6 @@ class EnergyMatrix
 EnergyMatrix::EnergyMatrix()
 {
     Nom = new NominalData();
-    rand = new TRandom3();
     
     Nbins = Nom.GetNbins();
     InitialEnergy = Nom.GetEmin();
@@ -143,8 +139,6 @@ EnergyMatrix::EnergyMatrix()
 
 EnergyMatrix :: EnergyMatrix (NominalData Data)
 {
-    rand = new TRandom3();
-    
     Nbins = Data.GetNbins();
     InitialEnergy = Data.GetEmin();
     FinalEnergy = Data.GetEmax();

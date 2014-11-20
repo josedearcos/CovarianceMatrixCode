@@ -216,9 +216,9 @@ public:
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //Default values
-Oscillation :: Oscillation ()
+Oscillation :: Oscillation()
 {
-    std::cout << " the default constructor shouldn't be called" << std::endl;
+    std::cout << " oscillation the default constructor shouldn't be called" << std::endl;
 
     flagDelete=0;
 
@@ -348,7 +348,7 @@ Oscillation :: Oscillation ()
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //USEFUL CONSTRUCTOR
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-Oscillation :: Oscillation (NominalData* OData)
+Oscillation :: Oscillation(NominalData* OData)
 {
     flagDelete=0;
     ResponseDirectory = OData->GetResponseDirectory();
@@ -1588,21 +1588,25 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
         
         if(VaryAccidentalMatrix)
         {
+            rand->SetSeed(0);
             ScaleFactorAccidental[AD]=(1.+(AccidentalError[AD][week]*rand->Gaus(0,1)));
             //            std::cout << "\t Accidental error " << AccidentalError[AD][week] << std::endl;
         }
         if(VaryLiHeMatrix)
         {
+            rand->SetSeed(0);
             ScaleFactorLiHe[AD]=(1.+(LiHeError[AD][week]*rand->Gaus(0,1)));
             //            std::cout <<"\t LiHe error " << LiHeError[AD][week] << std::endl;
         }
         if(VaryFastNeutronsMatrix)
         {
+            rand->SetSeed(0);
             ScaleFactorFastNeutrons[AD]=(1.+(FastNeutronsError[AD][week]*rand->Gaus(0,1)));
             //            std::cout <<"\t Fast Neutron error " << FastNeutronsError[AD][week] << std::endl;
         }
         if(VaryAmCMatrix)
         {
+            rand->SetSeed(0);
             ScaleFactorAmC[AD]=(1.+(AmCError[AD][week]*rand->Gaus(0,1)));
             //            std::cout <<"\t AmC error " << AmCError[AD][week] << std::endl;
         }
@@ -1704,6 +1708,7 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
     if(DistortAmCMatrix)//  Distort AmC shape for all ADs in the same way
     {
         TF1* func_AmC = (TF1*)NominalAmCF->Clone("amccopy");
+        rand->SetSeed(0);
         Double_t invpar1=1./NominalAmCF->GetParameter(1)*rand->Gaus(1,DistortAmC);
         func_AmC->SetParameter(1,1./invpar1);
         
@@ -1800,6 +1805,7 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
 
 void Oscillation :: GetDistortionFunction(Double_t amount,TF1* DistortionFunc)
 {
+    rand->SetSeed(0);
     Double_t slope = amount*rand->Gaus(0,1);
     
     Double_t anchor_point=3.5;
@@ -1812,6 +1818,7 @@ void Oscillation :: GetDistortionFunction(Double_t amount,TF1* DistortionFunc)
 
 void Oscillation :: GetFastNeutronsDistortionFunction(Double_t amount,TF1* DistortionFunc)
 {
+    rand->SetSeed(0);
     Double_t scaling =amount*rand->Gaus(0,1);
     
     DistortionFunc->SetParameter(0,scaling);

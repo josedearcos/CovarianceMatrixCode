@@ -50,7 +50,6 @@ private:
     
     NominalData* Nom;
     Prediction* Pred;
-    TRandom3* rand;
     
     Char_t optionN[10];
     std::string AnalysisString;
@@ -150,12 +149,11 @@ public:
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 CovarianceMatrix3 :: CovarianceMatrix3()
 {
-    std::cout << " the default constructor shouldn't be called" << std::endl;
+    std::cout << " the covariance matrix default constructor shouldn't be called" << std::endl;
     
     exit(EXIT_FAILURE);
     
     Nom = new NominalData(0,2);
-    rand = new TRandom3(0);
     Nom->SetToyMC(1);//For covariance matrices use Toy MC.
     Pred = new Prediction(Nom);
     Analysis = Nom->GetAnalysis();
@@ -167,9 +165,19 @@ CovarianceMatrix3 :: CovarianceMatrix3()
     {
         AnalysisString = "Gadolinium";
     }
-    Combine = Nom->GetCombineMode();
     
-    NSamples = Nom->GetNSamples();
+    Combine = Nom->GetCombineMode();
+    NReactorPeriods=Nom->GetNReactorPeriods();
+
+    if(Analysis)
+    {
+        NSamples = 1;//nH Toy MC is made event by event, with a sufficiently dense number of events the random systematics can be applied to the whole spectrum at once
+    }
+    else
+    {
+        NSamples = Nom->GetNSamples();//LBNL produces ~500 samples per covariance matrix with a different random variation for each sample
+    }
+    
     InitialEnergy = Nom->GetEmin();
     InitialVisibleEnergy = Nom->GetEVisMin();
     FinalVisibleEnergy =  Nom->GetEVisMax();
@@ -255,14 +263,31 @@ CovarianceMatrix3 :: CovarianceMatrix3()
 CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
 {
     Pred = new Prediction(Data);
-    rand = new TRandom3(0);
+
+    Data->SetToyMC(1);//For covariance matrices use Toy MC.
+
+    Analysis = Data->GetAnalysis();
+    if(Analysis)
+    {
+        AnalysisString = "Hydrogen";
+    }
+    else
+    {
+        AnalysisString = "Gadolinium";
+    }
     
     Combine = Data->GetCombineMode();
-    Analysis = Data->GetAnalysis();
-    
     NReactorPeriods=Data->GetNReactorPeriods();
+
+    if(Analysis)
+    {
+        NSamples = 1;//nH Toy MC is made event by event, with a sufficiently dense number of events the random systematics can be applied to the whole spectrum at once
+    }
+    else
+    {
+        NSamples = Data->GetNSamples();//LBNL produces ~500 samples per covariance matrix with a different random variation for each sample
+    }
     
-    NSamples = Data->GetNSamples();
     InitialEnergy = Data->GetEmin();
     InitialVisibleEnergy = Data->GetEVisMin();
     FinalVisibleEnergy =  Data->GetEVisMax();
@@ -343,7 +368,6 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
 
 CovarianceMatrix3 :: ~CovarianceMatrix3()
 {
-    delete rand;
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                                  Main function to calculate covariance matrices (Background + Systematics)
@@ -976,6 +1000,10 @@ void CovarianceMatrix3 :: SaveCovarianceMatrix(Int_t week)
             TotalMatrixAfterNormalizing->Write(Form("After Covariance Matrix%d",week));
             CovMatrix2H->Write();
         }
+    }
+    else
+    {
+        CovMatrix2H->Write();
     }
     
     delete SaveCovarianceMatrixF;

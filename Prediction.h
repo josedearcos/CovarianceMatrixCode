@@ -25,6 +25,7 @@
 #include "TArrayD.h"
 #include "TTree.h"
 
+#define Produce_Antineutrino_Spectrum_For_FirstTime
 const bool WriteROOT = 1;
 const bool ReadTxt = 0;//To use txt matrices or root files.
 const bool WriteOutput=0;//To save the covariance matrices in a .txt file.
@@ -314,8 +315,6 @@ public:
     void ProduceCovToyMCSample(Int_t,TH1D**);
     
     void SetExperiment(Int_t);
-
-    
 };
 
 Prediction :: ~Prediction()
@@ -357,7 +356,7 @@ Prediction :: Prediction()
 {
     firstNominalPrediction=0;
     firstRandomPrediction=0;
-    std::cout << " the default constructor shouldn't be called, except for Minuit?" << std::endl;
+    std::cout << " the prediction default constructor shouldn't be called, except for Minuit?" << std::endl;
     
     exit(EXIT_FAILURE);
     
@@ -461,17 +460,19 @@ Prediction :: Prediction()
         ADsEH2 = 2;
         ADsEH3 = 4;
     }
-    
+#ifndef Produce_Antineutrino_Spectrum_For_FirstTime
     if(IsotopeMatrix||ReactorPowerMatrix)
     {
+#endif
         Data->ReadChristineReactorSpectrum();
         
         if(IsotopeMatrix)
         {
             Data->ReadChristineCovMatrix();
         }
+#ifndef Produce_Antineutrino_Spectrum_For_FirstTime
     }
-    
+#endif
     UseToyMCTree = Data->GetUseToyMCTree();
     
     BkgCovDirectory = Data->GetBkgCovDirectory();
@@ -485,6 +486,7 @@ Prediction :: Prediction(NominalData* data)
 {
     firstNominalPrediction=0;
     firstRandomPrediction=0;
+    
     Data = new NominalData(0,2);
     
     Data->CopyData(data);
@@ -523,6 +525,7 @@ Prediction :: Prediction(NominalData* data)
     {
         AnalysisString = "Gadolinium";
     }
+    
     Combine = Data->GetCombineMode();
     DataSet = Data->GetDataSet();
     
@@ -589,16 +592,19 @@ Prediction :: Prediction(NominalData* data)
         ADsEH3 = 4;
     }
     
+#ifndef Produce_Antineutrino_Spectrum_For_FirstTime
     if(IsotopeMatrix||ReactorPowerMatrix)
     {
+#endif
         Data->ReadChristineReactorSpectrum();
         
         if(IsotopeMatrix)
         {
             Data->ReadChristineCovMatrix();
         }
+#ifndef Produce_Antineutrino_Spectrum_For_FirstTime
     }
-    
+#endif
     UseToyMCTree = Data->GetUseToyMCTree();
     
     BkgCovDirectory = Data->GetBkgCovDirectory();
@@ -673,6 +679,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
     OscRea= new OscillationReactor(Data);
+    
     Osc= new Oscillation(Data);
 
     if(mode)
@@ -683,9 +690,10 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     TFile CheckF("./RootOutputs/Reactor/NominalOutputs/ReactorSpectrum.root");
     TFile CheckF1(("./RootOutputs/"+AnalysisString+"/NominalOutputs/AntineutrinoSpectrum.root").c_str());
     
+#ifndef Produce_Antineutrino_Spectrum_For_FirstTime
     if((((IsotopeMatrix||ReactorPowerMatrix)&&mode==1)||((CheckF.IsZombie()||CheckF1.IsZombie())&&(mode==0))))// No need to recalculate the spectrum if it's not varied     //This has to be run once if the nominal files have not been produced beforehand
     {
-        
+#endif
         ReactorSpectrumMultiple* Reactor = new ReactorSpectrumMultiple(Data);
         
         Reactor->MultipleReactorSpectrumMain(mode);
@@ -696,8 +704,9 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
         Antineutrino->AntineutrinoSpectrumMain(mode);
         
         delete Antineutrino;
+#ifndef Produce_Antineutrino_Spectrum_For_FirstTime
     }
-    
+#endif
     //    AntineutrinoSpectrum* Antineutrino = new AntineutrinoSpectrum(Data);//This has to be run once for the nominal case
     //
     //    Antineutrino->AntineutrinoSpectrumMain();
@@ -715,6 +724,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
     std::cout << "\t Calculating Prediction" << std::endl;
+    
     if(ToyMC)//ToyMC uses reactor prediction
     {
         OscRea->OscillationFromReactorData(week,mode,CovMatrix);
@@ -1047,7 +1057,6 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
         }
     }
     
-    
     if(ToyMC)
     {
         OscRea->FreeMemory();
@@ -1084,6 +1093,7 @@ void Prediction :: SetRandomS22t12(bool randomSin22t12)
     
     if(RandomSin22t12)
     {
+        rand->SetSeed(0);
         RandomSin22t12Error = s22t12Error * rand->Gaus(0,1);
         s22t12 = ((1 + RandomSin22t12Error) * s22t12Nominal);
         std::cout << "\t \t \t \t Random Sin22theta12 is " << s22t12 << "\n";
@@ -4034,6 +4044,7 @@ void Prediction :: ApplyStatisticalFluctuation(TH1D* Histo)
 {
     for(Int_t VisibleEnergyIndex=1;VisibleEnergyIndex<=Histo->GetXaxis()->GetNbins();VisibleEnergyIndex++)
     {
+        rand->SetSeed(0);
         Histo->SetBinContent(VisibleEnergyIndex,(Double_t)(rand->PoissonD(Histo->GetBinContent(VisibleEnergyIndex)*Histo->GetXaxis()->GetBinWidth(VisibleEnergyIndex))/Histo->GetXaxis()->GetBinWidth(VisibleEnergyIndex)));
     }
 }
@@ -4352,6 +4363,7 @@ TH1D* Prediction :: GetToyMCSample(Int_t Systematic)
     
     for (Int_t i = 0; i < MaxBins; i++)
     {
+        rand->SetSeed(0);
         ranvec[i] = rand->Gaus(0,1);
     }
     

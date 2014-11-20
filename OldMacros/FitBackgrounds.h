@@ -60,8 +60,6 @@ FitBackgrounds::FitBackgrounds()
 
 FitBackgrounds::FitBackgrounds(NominalData Data)
 {
-    ran = new TRandom3();
-    
     Nbins = Data.GetNbins();
     InitialBins = Data.GetInitialBins();
     InitialEnergy = Data.GetEmin();

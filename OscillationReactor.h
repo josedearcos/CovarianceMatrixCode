@@ -9,6 +9,8 @@
 #include "TH1.h"
 #include "TMath.h"
 #include "TRandom3.h"
+#include "nHToyMC.h"
+
 //
 // Originally: Given a reactor antineutrino spectrum I output the respective spectrua for each AD after oscillation.
 // Updated: Class that is able to calculate the spectra in each AD either from Reactor Data or Near Hall Data. 5/3/13.
@@ -72,7 +74,7 @@ private:
     bool NLMatrix;
     bool ResolutionMatrix;
     bool EfficiencyMatrix;
-
+    
     //AD configuration parameters:
     Int_t NADs;
     Int_t ADsEH1;
@@ -89,10 +91,10 @@ private:
     std::vector<Double_t> FullTime;
     std::vector<Double_t> MuonEff;
     std::vector<Double_t> MultiEff;
-
+    
     std::vector<Double_t> NominalDetectorEfficiency;
     Double_t DetectorEfficiencyRelativeError;
-
+    
     Double_t BinWidth;
     Int_t TotalBins;
     
@@ -128,7 +130,7 @@ private:
     Char_t ReactorData[200];
     
     void ReadDistances(Char_t*);
-    void OscSpectrumADs();
+    void GenerateVisibleSpectrum();
     
     void PlotEH();
     void PlotRatioEH();
@@ -261,11 +263,11 @@ private:
     Double_t m_rel_eoffset_error;
     Double_t DetectorEfficiencyDelayed[MaxDetectors*MaxPeriods];
     Double_t DetectorEfficiency[MaxDetectors];
-
+    
     Double_t NominalDetectorEfficiencyDelayed;
     
     TH1D* BackgroundSpectrumH[MaxDetectors];
-
+    
     void SetBCWModel(bool);
     void SetLBNLModel(bool);
     void SetUnifiedModel(bool);
@@ -274,8 +276,11 @@ private:
     
     TH1D* VisibleHisto[MaxDetectors];
     
-    void LoadGdExternalInputs();
+    void LoadExternalInputs();
     void LoadNominalBackgrounds();
+    
+    nHToyMC* nHToy;
+    
 public:
     OscillationReactor();
     OscillationReactor(NominalData*);
@@ -288,7 +293,6 @@ public:
     void FreeMemory();
     Double_t* GetDelayedEfficiency();
     Double_t* GetEfficiency();
-
 };
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -298,7 +302,7 @@ public:
 //Default values
 OscillationReactor :: OscillationReactor()
 {
-    std::cout << " the default constructor shouldn't be called" << std::endl;
+    std::cout << " the oscillation reactor default constructor shouldn't be called" << std::endl;
     
     exit(EXIT_FAILURE);
     
@@ -366,6 +370,7 @@ OscillationReactor :: OscillationReactor()
     if(isH)
     {
         AnalysisString = "Hydrogen";
+        nHToy = new nHToyMC(Nom);//load nH Toy MC
     }
     else
     {
@@ -405,7 +410,7 @@ OscillationReactor :: OscillationReactor()
     NLMatrix = Nom->GetNLMatrix();
     ResolutionMatrix = Nom->GetResolutionMatrix();
     EfficiencyMatrix = Nom->GetEfficiencyMatrix();
-
+    
     //  IAV Error from Bryce
     IAVNominalError=Nom->GetIAVError();
     //  Non uniformity
@@ -443,7 +448,7 @@ OscillationReactor :: OscillationReactor()
     }
     
     DetectorEfficiencyRelativeError = Nom->GetDetectorEfficiencyRelativeError();
-
+    
     DetectorProtons.resize(NADs);
     FullTime.resize(NADs*Nweeks);
     MultiEff.resize(NADs*Nweeks);
@@ -468,10 +473,10 @@ OscillationReactor :: OscillationReactor()
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                                                  USEFUL CONSTRUCTOR
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-OscillationReactor :: OscillationReactor (NominalData* Data)
+OscillationReactor :: OscillationReactor(NominalData* Data)
 {
     FlagEfficiency = 1;
-
+    
     rand = new TRandom3(0);
     
     RandomPredictionDirectory = Data->GetToyMCSamplesDirectory();
@@ -533,6 +538,8 @@ OscillationReactor :: OscillationReactor (NominalData* Data)
     if(isH)
     {
         AnalysisString = "Hydrogen";
+        nHToy = new nHToyMC(Data);//load nH Toy MC
+        
     }
     else
     {
@@ -572,7 +579,7 @@ OscillationReactor :: OscillationReactor (NominalData* Data)
     NLMatrix = Data->GetNLMatrix();
     ResolutionMatrix = Data->GetResolutionMatrix();
     EfficiencyMatrix = Data->GetEfficiencyMatrix();
-
+    
     //  IAV Error from Bryce
     IAVNominalError=Data->GetIAVError();
     //  Non uniformity
@@ -623,7 +630,7 @@ OscillationReactor :: OscillationReactor (NominalData* Data)
             
         }
     }
-
+    
     NominalDetectorEfficiencyDelayed = Data->GetEnergyDelayedCutDetectorEfficiency();
     for (Int_t AD = 0; AD<NADs; AD++)
     {
@@ -631,11 +638,15 @@ OscillationReactor :: OscillationReactor (NominalData* Data)
     }
     
     DetectorEfficiencyRelativeError = Data->GetDetectorEfficiencyRelativeError();
-
+    
 }
 OscillationReactor :: ~OscillationReactor()
 {
     delete rand;
+    if(isH)
+    {
+        delete nHToy;
+    }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                                                  GETTERS AND SETTERS
@@ -678,22 +689,23 @@ void OscillationReactor :: OscillationFromReactorData(Int_t Week,bool mode,bool 
     
     ReadDistances(DistanceFileName);
     
-    LoadReactorHistograms();
+    LoadReactorHistograms();//Reactor model is the same for all the analyses
     
     LoadNominalBackgrounds();
     
-    //Don't load external predictions if the user doesn't choose a file in the nGd case, if isH the changes are done in LoadReactorHistograms
-    
-    if(isH||(!strcmp((RandomPredictionDirectory).c_str(),"")&&!strcmp((NominalPredictionDirectory).c_str(),"")))
+    //Don't load external predictions if the user doesn't choose a file in the nGd case, if he does:
+    //Use external near hall predictions:
+    if((strcmp((RandomPredictionDirectory).c_str(),"")&&strcmp((NominalPredictionDirectory).c_str(),"")))
     {
-        SetUpDetectorResponse();
-    
-        OscSpectrumADs();
+        std::cout << " Loading external inputs: " << std::endl;
+        
+        LoadExternalInputs();
     }
-    else//Use external near hall predictions
+    else//Produce the predictions inside my code:
     {
-        LoadGdExternalInputs();
+        GenerateVisibleSpectrum();
     }
+    
     
     FlagEfficiency = 1;//Not necessary since this class is created and deleted for each random prediction, but just in case...
     
@@ -739,10 +751,10 @@ void OscillationReactor:: LoadNominalBackgrounds()
     
     for (Int_t AD =0; AD<NADs; AD++)
     {
-    AccidentalsH[AD]=(TH1D*)gDirectory->Get(Form("Accidentals_AD%i",AD));
-    LiHeH[AD]=(TH1D*)gDirectory->Get(Form("LiHe_AD%i",AD));//Missing LiHe inputs so far in Hydrogen Analysis
-    FastNeutronsH[AD]=(TH1D*)gDirectory->Get(Form("FN_AD%i",AD));
-    AmCH[AD]=(TH1D*)gDirectory->Get(Form("AmC_AD%i",AD));
+        AccidentalsH[AD]=(TH1D*)gDirectory->Get(Form("Accidentals_AD%i",AD));
+        LiHeH[AD]=(TH1D*)gDirectory->Get(Form("LiHe_AD%i",AD));//Missing LiHe inputs so far in Hydrogen Analysis
+        FastNeutronsH[AD]=(TH1D*)gDirectory->Get(Form("FN_AD%i",AD));
+        AmCH[AD]=(TH1D*)gDirectory->Get(Form("AmC_AD%i",AD));
     }
     
     delete BackgroundsF;
@@ -750,20 +762,20 @@ void OscillationReactor:: LoadNominalBackgrounds()
     //Nominal background spectrum
     for (Int_t AD =0; AD<NADs; AD++)
     {
-    BackgroundSpectrumH[AD] = new TH1D(Form("Background Spectrum_%d",AD),Form("Background Spectrum_%d",AD),n_evis_bins,evis_bins);
-    BackgroundSpectrumH[AD]->Add(AccidentalsH[AD]);
-    BackgroundSpectrumH[AD]->Add(LiHeH[AD]);
-    BackgroundSpectrumH[AD]->Add(FastNeutronsH[AD]);
-    BackgroundSpectrumH[AD]->Add(AmCH[AD]);//scaled in livetime and with ad efficiencies included.
+        BackgroundSpectrumH[AD] = new TH1D(Form("Background Spectrum_%d",AD),Form("Background Spectrum_%d",AD),n_evis_bins,evis_bins);
+        BackgroundSpectrumH[AD]->Add(AccidentalsH[AD]);
+        BackgroundSpectrumH[AD]->Add(LiHeH[AD]);
+        BackgroundSpectrumH[AD]->Add(FastNeutronsH[AD]);
+        BackgroundSpectrumH[AD]->Add(AmCH[AD]);//scaled in livetime and with ad efficiencies included.
     }
 }
-void OscillationReactor :: LoadGdExternalInputs()//This only works for week = 1 (inclusive)
+void OscillationReactor :: LoadExternalInputs()//This only works for week = 1 (inclusive)
 {
-    std::cout << " Loading external nGd inputs " << std::endl;
+    std::cout << " Loading external inputs " << std::endl;
     
     for (Int_t AD =0; AD<NADs; AD++)
     {
-        //Load Yasu's predictions
+        //Load predictions: (need to format root file so there are 6/8 nominal histograms named: "h_nominal_ad%i",AD+1")
         
         TFile* LoadPredictionF;
         
@@ -782,7 +794,7 @@ void OscillationReactor :: LoadGdExternalInputs()//This only works for week = 1 
             {
                 VisibleHisto[AD]=(TH1D*)gDirectory->Get(Form("h_nominal_ad%i",AD+1));//For 6ADs (Yasu's inputs)
             }
-
+            
         }
         else//Nominal prediction
         {
@@ -796,21 +808,21 @@ void OscillationReactor :: LoadGdExternalInputs()//This only works for week = 1 
             {
                 VisibleHisto[AD]=(TH1D*)gDirectory->Get(Form("h_nominal_ad%i",AD+1));//For 6ADs (Yasu's inputs)
             }
-
+            
         }
         
         delete LoadPredictionF;
         //Already binned, shouldn't be necessary:
         
-//        VisibleHisto[AD]=(TH1D*)VisibleHisto[AD]->Rebin(n_evis_bins,Form("Oscillation Prediction AD%d, week%d",AD+1,week),evis_bins);
-
+        //        VisibleHisto[AD]=(TH1D*)VisibleHisto[AD]->Rebin(n_evis_bins,Form("Oscillation Prediction AD%d, week%d",AD+1,week),evis_bins);
+        
         VisibleHisto[AD]->Scale(ObservedEvents[AD][week]/VisibleHisto[AD]->Integral());//Here events are in full live time and AD effects and backgrounds are included!
-
+        
         //Substract Backgrounds in oscillation.h
-      //  VisibleHisto[AD]->Add(BackgroundSpectrumH[AD],-1);//backgrounds are in livetime and with AD efficiencies!
+        //  VisibleHisto[AD]->Add(BackgroundSpectrumH[AD],-1);//backgrounds are in livetime and with AD efficiencies!
         
         //CORRECT FOR EFFICIENCIES IN OSCILLATION
-
+        
     }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -866,7 +878,7 @@ Double_t OscillationReactor :: OscProb(Double_t L, Double_t E, Double_t S22t13,D
     Double_t theta13=TMath::ASin(sqrt(S22t13))*0.5;
     Double_t theta12=TMath::ASin(sqrt(s22t12))*0.5;
     Double_t dm231 = dm2ee-hierarchy*(5.21e-5+deltam2_21);
-//    std::cout << "dm231 is: " << dm231 << "calculated from dmee: " << dm2ee << std::endl;
+    //    std::cout << "dm231 is: " << dm231 << "calculated from dmee: " << dm2ee << std::endl;
     
     if(!DeltaMee)
     {
@@ -961,10 +973,12 @@ void OscillationReactor :: SetUpDetectorResponse()
     SetNLParameters(Mode);
 }
 
-void OscillationReactor :: OscSpectrumADs()
+void OscillationReactor :: GenerateVisibleSpectrum()
 {
     Char_t histnameTotal[100];//47
     Char_t histnameAD[100];//55
+    
+    std::cout << " Generating " << AnalysisString << " ToyMC predictions " << std::endl;
     
     //Oscilation probabilities calculated for all baselines
     for (Int_t AD = 0; AD <NADs; AD++)
@@ -1013,125 +1027,195 @@ void OscillationReactor :: OscSpectrumADs()
         TotalOscillatedSpectrumAD[AD]->Scale(DetectorProtons[AD]*FullTime[week+AD*Nweeks]*DetectorEfficiency[week+AD*Nweeks]);//in seconds and m^2 already calculated in CrossSection.
         
         VisibleHisto[AD] = new TH1D(Form("Visible Oscillation Prediction AD%d, week%d",AD+1,week),Form("Visible Oscillation Prediction AD%d, week%d",AD+1,week), MatrixBins,0,FinalVisibleEnergy);
-        
-        TH1D* ShiftHisto = new TH1D(Form("Shift Oscillation Prediction AD%d, week%d", AD+1,week),Form("Shift  Oscillation Prediction AD%d, week%d", AD+1,week),MatrixBins,0,FinalVisibleEnergy);
-        
-        TH1D* IAVHisto = new TH1D(Form("IAV Oscillation Prediction AD%d, week%d", AD+1,week),Form("IAV Oscillation Prediction AD%d, week%d", AD+1,week),MatrixBins,0,FinalVisibleEnergy);
-        
-        TH1D* NLHisto = new TH1D(Form("NL Oscillation Prediction AD%d, week%d", AD+1,week),Form("NL  Oscillation Prediction AD%d, week%d", AD+1,week),MatrixBins,0,FinalVisibleEnergy);
-        
-        for(Int_t TrueEnergyIndex=0; TrueEnergyIndex<TotalBins; TrueEnergyIndex++)
+    }
+    if(!isH)//Gadolinium
+    {
+        for (Int_t AD = 0; AD <NADs; AD++)
         {
-            GetOscEnergyShift(AD,TrueEnergyIndex,week);
-            GetOscIAVShift(AD,TrueEnergyIndex,week);
-            GetOscNLShift(AD,TrueEnergyIndex,week);
-            GetOscResolutionShift(AD,TrueEnergyIndex,week);
+            //nGd Toy MC based on Yasu's work (but not identical, check if they agree)
+            SetUpDetectorResponse();
             
-            for(Int_t VisibleEnergyIndex=1; VisibleEnergyIndex<=TotalBins; VisibleEnergyIndex++)
+            TH1D* ShiftHisto = new TH1D(Form("Shift Oscillation Prediction AD%d, week%d", AD+1,week),Form("Shift  Oscillation Prediction AD%d, week%d", AD+1,week),MatrixBins,0,FinalVisibleEnergy);
+            
+            TH1D* IAVHisto = new TH1D(Form("IAV Oscillation Prediction AD%d, week%d", AD+1,week),Form("IAV Oscillation Prediction AD%d, week%d", AD+1,week),MatrixBins,0,FinalVisibleEnergy);
+            
+            TH1D* NLHisto = new TH1D(Form("NL Oscillation Prediction AD%d, week%d", AD+1,week),Form("NL  Oscillation Prediction AD%d, week%d", AD+1,week),MatrixBins,0,FinalVisibleEnergy);
+            
+            for(Int_t TrueEnergyIndex=0; TrueEnergyIndex<TotalBins; TrueEnergyIndex++)
             {
-                ShiftHisto->SetBinContent(VisibleEnergyIndex, ShiftHisto->GetBinContent(VisibleEnergyIndex)+OscDeltaPositronSpectrumH[TrueEnergyIndex]->GetBinContent(VisibleEnergyIndex));
-                IAVHisto->SetBinContent(VisibleEnergyIndex, IAVHisto->GetBinContent(VisibleEnergyIndex)+OscDeltaIAVSpectrumH[TrueEnergyIndex]->GetBinContent(VisibleEnergyIndex));
-                NLHisto->SetBinContent(VisibleEnergyIndex, NLHisto->GetBinContent(VisibleEnergyIndex)+OscDeltaNLSpectrumH[TrueEnergyIndex]->GetBinContent(VisibleEnergyIndex));
-                VisibleHisto[AD]->SetBinContent(VisibleEnergyIndex, VisibleHisto[AD]->GetBinContent(VisibleEnergyIndex)+OscDeltaVisibleSpectrumH[TrueEnergyIndex]->GetBinContent(VisibleEnergyIndex));
+                GetOscEnergyShift(AD,TrueEnergyIndex,week);
+                GetOscIAVShift(AD,TrueEnergyIndex,week);
+                GetOscNLShift(AD,TrueEnergyIndex,week);
+                GetOscResolutionShift(AD,TrueEnergyIndex,week);
+                
+                for(Int_t VisibleEnergyIndex=1; VisibleEnergyIndex<=TotalBins; VisibleEnergyIndex++)
+                {
+                    ShiftHisto->SetBinContent(VisibleEnergyIndex, ShiftHisto->GetBinContent(VisibleEnergyIndex)+OscDeltaPositronSpectrumH[TrueEnergyIndex]->GetBinContent(VisibleEnergyIndex));
+                    IAVHisto->SetBinContent(VisibleEnergyIndex, IAVHisto->GetBinContent(VisibleEnergyIndex)+OscDeltaIAVSpectrumH[TrueEnergyIndex]->GetBinContent(VisibleEnergyIndex));
+                    NLHisto->SetBinContent(VisibleEnergyIndex, NLHisto->GetBinContent(VisibleEnergyIndex)+OscDeltaNLSpectrumH[TrueEnergyIndex]->GetBinContent(VisibleEnergyIndex));
+                    VisibleHisto[AD]->SetBinContent(VisibleEnergyIndex, VisibleHisto[AD]->GetBinContent(VisibleEnergyIndex)+OscDeltaVisibleSpectrumH[TrueEnergyIndex]->GetBinContent(VisibleEnergyIndex));
+                }
+                
+                delete OscDeltaPositronSpectrumH[TrueEnergyIndex];
+                delete OscDeltaIAVSpectrumH[TrueEnergyIndex];
+                delete OscDeltaNLSpectrumH[TrueEnergyIndex];
+                delete OscDeltaVisibleSpectrumH[TrueEnergyIndex];
+            }
+            if(Print)
+            {
+                TCanvas* CheckC = new TCanvas("CheckC","CheckC",1600,1600);
+                CheckC->Divide(2,2);
+                CheckC->cd(1);
+                ShiftHisto->SetStats(0);
+                ShiftHisto->SetTitle("IBD Kinematics");
+                //            ShiftHisto->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());//Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
+                
+                ShiftHisto->Draw();
+                CheckC->cd(2);
+                IAVHisto->SetStats(0);
+                IAVHisto->SetTitle("IAV correction");
+                //            IAVHisto->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());//Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
+                
+                IAVHisto->Draw();
+                
+                CheckC->cd(3);
+                NLHisto->SetStats(0);
+                NLHisto->SetTitle("Non-linearity correction");
+                //            NLHisto->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());//Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
+                
+                NLHisto->Draw();
+                CheckC->cd(4);
+                VisibleHisto[AD]->SetStats(0);
+                VisibleHisto[AD]->SetTitle("Visible energy");
+                //            VisibleHisto[AD]->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());//Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
+                VisibleHisto[AD]->Draw();
+                CheckC->Update();
+                CheckC->Print(("./Images/"+ AnalysisString+ Form("/Detector/SpectrumVisibleStepsAD%d.eps",AD+1)).c_str());
+                delete CheckC;
+                
+                TCanvas* CheckC2 = new TCanvas("CheckC","CheckC");
+                
+                TLegend *legend2=new TLegend(0.6,0.15,0.88,0.35);
+                legend2->SetTextFont(72);
+                legend2->SetTextSize(0.02);
+                legend2->SetFillColor(0);
+                ShiftHisto->SetTitle("All effects");
+                ShiftHisto->SetLineColor(1);
+                ShiftHisto->GetXaxis()->SetTitle("E_{MeV}");
+                ShiftHisto->Draw();
+                legend2->AddEntry(ShiftHisto,"Kinematics ","l");
+                
+                IAVHisto->SetLineColor(2);
+                IAVHisto->Draw("same");
+                legend2->AddEntry(ShiftHisto,"IAV ","l");
+                
+                NLHisto->SetLineColor(3);
+                NLHisto->Draw("same");
+                legend2->AddEntry(ShiftHisto,"NL ","l");
+                
+                VisibleHisto[AD]->SetLineColor(4);
+                legend2->AddEntry(VisibleHisto[AD],"Visible ","l");
+                VisibleHisto[AD]->Draw("same");
+                legend2->Draw("same");
+                CheckC2->Update();
+                
+                CheckC2->Print(("./Images/"+ AnalysisString+ Form("/Detector/AllVisibleStepsAD%d.eps",AD+1)).c_str());
+                //            VisibleHisto[AD]->Scale(VisibleHisto[AD]->Integral()/IBDEvents[AD][week]);//undo scaling
+                delete CheckC2;
+            }
+            //
+            delete ShiftHisto;
+            delete IAVHisto;
+            delete NLHisto;
+        }
+    }
+    else//Hydrogen
+    {
+        
+        //  Here generate Xiang Pan/Logan Toy MC matrix and multiply by the reactor spectrum (his Toy MC is produced from a flat antineutrino spectrum, with no oscillation/reactor information inside the prediction)
+        
+        nHToy->Toy(Mode);//Produce enu-evis matrix with nominal or varied values
+        
+        TH2D* nHPredictionMatrix[MaxDetectors];
+        
+        for(Int_t AD = 0; AD<NADs; AD++)
+        {
+            nHPredictionMatrix[AD] = nHToy->LoadnHMatrix(AD);
+            
+            
+            for(Int_t i = 1; i<=MatrixBins; i++)//visible
+            {
+                for(Int_t j = 1; j<=MatrixBins; j++)//true
+                {
+                    VisibleHisto[AD]->SetBinContent(i,nHPredictionMatrix[AD]->GetBinContent(i,j)*TotalOscillatedSpectrumAD[AD]->GetBinContent(j));
+                }
             }
             
-            delete OscDeltaPositronSpectrumH[TrueEnergyIndex];
-            delete OscDeltaIAVSpectrumH[TrueEnergyIndex];
-            delete OscDeltaNLSpectrumH[TrueEnergyIndex];
-            delete OscDeltaVisibleSpectrumH[TrueEnergyIndex];
+            //            //Load Xiang Pan's predictions (Matrix?)
+            //
+            //            TFile* nHLoadPredictionF;
+            //
+            //            if(Mode)//return random toy sample
+            //            {
+            //                nHLoadPredictionF = new TFile((RandomPredictionDirectory).c_str());
+            //
+            //                //Get Tree
+            //
+            //                //Use/load same efficiencies!!
+            //                if(EfficiencyMatrix)
+            //                {
+            //                    FlagEfficiency = 0;//So I don't change the efficiency after loading them
+            //
+            //                    //Add branches here
+            //                }
+            //            }
+            //            else//Nominal prediction
+            //            {
+            //                nHLoadPredictionF = new TFile((NominalPredictionDirectory).c_str());
+            //
+            //                //Get Tree
+            //            }
+            //
+            //            //Multiply reactor shape here,
+            //            for (Int_t AD = 0; AD<NADs; AD++)
+            //            {
+            //                //Get Predictions from Tree branches:
+            //
+            //                //            nHPredictionMatrix[AD] = T->SetBranchAddress(Form("Vis Prediction AD%d",AD+1));
+            //
+            //                if(Mode&&EfficiencyMatrix)
+            //                {
+            //                    //            DetectorEfficiencyDelayed[AD] = T->SetBranchAddress(Efficiency);
+            //                }
+            //            }
+            //
+            //            delete nHLoadPredictionF;
+            
+            
+            VisibleHisto[AD]->SetStats(1);
+            
+            VisibleHisto[AD]=(TH1D*)VisibleHisto[AD]->Rebin(n_evis_bins,Form("Oscillation Prediction AD%d, week%d",AD+1,week),evis_bins);
+            
+            //        if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depende on this scaling?
+            //        {
+            //
+            VisibleHisto[AD]->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());
+            //Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
+            //        }
+            
+            //Add backgrounds:
+            
+            //Add nominal backgrounds here, this way the predictions in the far hall will carry the background variations when they are subsctracted there
+            VisibleHisto[AD]->Add(BackgroundSpectrumH[AD]);
+            
+            if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depende on this scaling?
+            {
+                VisibleHisto[AD]->Scale(ObservedEvents[AD][week]/VisibleHisto[AD]->Integral());
+            }
+            //Then scale to expected number of events.
+            
+            delete BackgroundSpectrumH[AD];
         }
-        if(Print)
-        {
-            TCanvas* CheckC = new TCanvas("CheckC","CheckC",1600,1600);
-            CheckC->Divide(2,2);
-            CheckC->cd(1);
-            ShiftHisto->SetStats(0);
-            ShiftHisto->SetTitle("IBD Kinematics");
-//            ShiftHisto->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());//Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
-            
-            ShiftHisto->Draw();
-            CheckC->cd(2);
-            IAVHisto->SetStats(0);
-            IAVHisto->SetTitle("IAV correction");
-//            IAVHisto->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());//Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
-            
-            IAVHisto->Draw();
-            
-            CheckC->cd(3);
-            NLHisto->SetStats(0);
-            NLHisto->SetTitle("Non-linearity correction");
-//            NLHisto->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());//Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
-            
-            NLHisto->Draw();
-            CheckC->cd(4);
-            VisibleHisto[AD]->SetStats(0);
-            VisibleHisto[AD]->SetTitle("Visible energy");
-//            VisibleHisto[AD]->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());//Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
-            VisibleHisto[AD]->Draw();
-            CheckC->Update();
-            CheckC->Print(("./Images/"+ AnalysisString+ Form("/Detector/SpectrumVisibleStepsAD%d.eps",AD+1)).c_str());
-            delete CheckC;
-            
-            TCanvas* CheckC2 = new TCanvas("CheckC","CheckC");
-
-            TLegend *legend2=new TLegend(0.6,0.15,0.88,0.35);
-            legend2->SetTextFont(72);
-            legend2->SetTextSize(0.02);
-            legend2->SetFillColor(0);
-            ShiftHisto->SetTitle("All effects");
-            ShiftHisto->SetLineColor(1);
-            ShiftHisto->GetXaxis()->SetTitle("E_{MeV}");
-            ShiftHisto->Draw();
-            legend2->AddEntry(ShiftHisto,"Kinematics ","l");
-
-            IAVHisto->SetLineColor(2);
-            IAVHisto->Draw("same");
-            legend2->AddEntry(ShiftHisto,"IAV ","l");
-
-            NLHisto->SetLineColor(3);
-            NLHisto->Draw("same");
-            legend2->AddEntry(ShiftHisto,"NL ","l");
-
-            VisibleHisto[AD]->SetLineColor(4);
-            legend2->AddEntry(VisibleHisto[AD],"Visible ","l");
-            VisibleHisto[AD]->Draw("same");
-            legend2->Draw("same");
-            CheckC2->Update();
-
-            CheckC2->Print(("./Images/"+ AnalysisString+ Form("/Detector/AllVisibleStepsAD%d.eps",AD+1)).c_str());
-//            VisibleHisto[AD]->Scale(VisibleHisto[AD]->Integral()/IBDEvents[AD][week]);//undo scaling
-            delete CheckC2;
-        }
-//        
-
-        
-        VisibleHisto[AD]->SetStats(1);
-
-        VisibleHisto[AD]=(TH1D*)VisibleHisto[AD]->Rebin(n_evis_bins,Form("Oscillation Prediction AD%d, week%d",AD+1,week),evis_bins);
-        
-//        if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depende on this scaling?
-//        {
-//        
-        VisibleHisto[AD]->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());
-        //Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
-//        }
-        
-        //Add backgrounds:
-        
-        //Add nominal backgrounds here, this way the predictions in the far hall will carry the background variations when they are subsctracted there
-        VisibleHisto[AD]->Add(BackgroundSpectrumH[AD]);
-        
-        if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depende on this scaling?
-        {
-        VisibleHisto[AD]->Scale(ObservedEvents[AD][week]/VisibleHisto[AD]->Integral());
-        }
-        //Then scale to expected number of events.
-
-        delete BackgroundSpectrumH[AD];
-        
-        delete ShiftHisto;
-        delete IAVHisto;
-        delete NLHisto;
     }
 }
 
@@ -1174,54 +1258,6 @@ void OscillationReactor :: LoadReactorHistograms()
     
     delete ReactorDataF;
     
-    //  Here load and multiply Xiang Pan's input (his Toy MC is produced from a flat antineutrino spectrum, with no oscillation/reactor information inside the prediction)
-
-    if(isH)
-    {
-        std::cout << " Loading external nH inputs " << std::endl;
-        
-        TH2D* nHPredictionMatrix[MaxDetectors];
-
-        //Load Xiang Pan's predictions (Matrix?)
-        
-        TFile* nHLoadPredictionF;
-        
-        if(Mode)//return random toy sample
-        {
-            nHLoadPredictionF = new TFile((RandomPredictionDirectory).c_str());
-            
-            //Get Tree
-            
-            //Use/load same efficiencies!!
-            if(EfficiencyMatrix)
-            {
-                FlagEfficiency = 0;//So I don't change the efficiency after loading them
-
-            //Add branches here
-            }
-        }
-        else//Nominal prediction
-        {
-            nHLoadPredictionF = new TFile((NominalPredictionDirectory).c_str());
-            
-            //Get Tree
-        }
-        
-        //Multiply reactor shape here,
-        for (Int_t AD = 0; AD<NADs; AD++)
-        {
-            //Get Predictions from Tree branches:
-
-//            nHPredictionMatrix[AD] = T->SetBranchAddress(Form("Vis Prediction AD%d",AD+1));
-            
-            if(Mode&&EfficiencyMatrix)
-            {
-                //            DetectorEfficiencyDelayed[AD] = T->SetBranchAddress(Efficiency);
-            }
-        }
-        
-        delete nHLoadPredictionF;
-    }
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1452,6 +1488,7 @@ void OscillationReactor :: RandomIAVMatrix()
 {
     for (Int_t AD=0; AD<NADs; AD++)
     {
+        rand->SetSeed(0);
         IAVError[AD] = (1+IAVNominalError*rand->Gaus(0,1)); //Each AD is varied individually.
         
         for(Int_t i=0; i < MatrixBins; i++)
@@ -1483,11 +1520,11 @@ void OscillationReactor :: RandomIAVMatrix()
             }
         }
         
-//        TFile* SaveIAVMatrixF = new TFile("IAVNominalMatrix.root","recreate");
-//        
-//        NominalIAVMatrixH->Write();
-//        
-//        delete SaveIAVMatrixF;
+        //        TFile* SaveIAVMatrixF = new TFile("IAVNominalMatrix.root","recreate");
+        //
+        //        NominalIAVMatrixH->Write();
+        //
+        //        delete SaveIAVMatrixF;
         
         TCanvas* IAVC = new TCanvas("IAVC","IAVC");
         IAVC->SetLogz();
@@ -1504,6 +1541,7 @@ void OscillationReactor :: RandomIAVMatrix()
 
 void OscillationReactor :: RandomAbsoluteEnergyScaleMatrix()
 {
+    rand->SetSeed(0);
     m_abs_escale = m_abs_escale_nominal + m_abs_escale_error * rand->Gaus(0,1);
     
     std::cout << "\t \t \t Absolute scale" << m_abs_escale << std::endl;
@@ -1511,6 +1549,7 @@ void OscillationReactor :: RandomAbsoluteEnergyScaleMatrix()
 
 void OscillationReactor :: RandomAbsoluteEnergyOffsetMatrix()
 {
+    rand->SetSeed(0);
     m_abs_eoffset =  m_abs_eoffset_error * rand->Gaus(0,1);
     
     std::cout << "\t \t \t Absolute offset " << m_abs_eoffset << std::endl;
@@ -1520,6 +1559,7 @@ void OscillationReactor :: RandomRelativeEnergyOffsetMatrix()
 {
     for(Int_t AD=0;AD<NADs;AD++)
     {
+        rand->SetSeed(0);
         m_rel_eoffset[AD] =  m_rel_eoffset_error * rand->Gaus(0,1);
         std::cout << "\t \t \t Relative Offset " << m_rel_eoffset[AD] << std::endl;
     }
@@ -1538,6 +1578,7 @@ void OscillationReactor:: RandomEfficiency()
     {
         for (Int_t week = 0; week < Nweeks; week++)
         {
+            rand->SetSeed(0);
             DetectorEfficiency[week+AD*Nweeks]= (1 + DetectorEfficiencyRelativeError * rand->Gaus(0,1))
             * DetectorEfficiencyDelayed[AD]
             * NominalDetectorEfficiency[week+AD*Nweeks]/NominalDetectorEfficiencyDelayed;//I divide over the nominal detector efficiency because it is included in the NominalDetectorEfficiency magnitude.
@@ -1558,6 +1599,7 @@ void OscillationReactor :: RandomRelativeEnergyScaleMatrix()
 {
     for(Int_t AD=0;AD<NADs;AD++)
     {
+        rand->SetSeed(0);
         Double_t rel_escale_shift = m_rel_escale_error[AD] * rand->Gaus(0,1);
         m_rel_escale[AD] = m_rel_escale_nominal[AD] + rel_escale_shift;
         std::cout << "\t \t \t Relative Scale" << m_rel_escale[AD] << std::endl;
@@ -1568,10 +1610,12 @@ void OscillationReactor :: RandomRelativeEnergyScaleMatrix()
 
 void OscillationReactor :: RandomResolutionMatrix()
 {
+    rand->SetSeed(0);
     Double_t corr_bias = ResolutionError * rand->Gaus(0,1);
     
     for(Int_t AD=0;AD<NADs;AD++)
     {
+        rand->SetSeed(0);
         ResolutionBias[AD] = corr_bias + ResolutionErrorUncorrelated * rand->Gaus(0,1);
         std::cout << "\t \t \t Resolution Bias " << ResolutionBias[AD] << std::endl;
     }
@@ -1582,7 +1626,7 @@ void OscillationReactor :: Interpolation(TF1* func)
     for(Int_t VisibleEnergyIndex=0; VisibleEnergyIndex<TotalBins; VisibleEnergyIndex++)
     {
         Energy[VisibleEnergyIndex]=(func->GetX(EnergyVector[VisibleEnergyIndex]));//GetX
-
+        
         EnergyIdx[VisibleEnergyIndex]=((Int_t)(Energy[VisibleEnergyIndex]/BinWidth));
         
         //        std::cout << "IAV Energy " << IAVEnergy[VisibleEnergyIndex] << std::endl;
@@ -1610,7 +1654,7 @@ void OscillationReactor :: Interpolation(TF1* func)
 void OscillationReactor :: GetOscEnergyShift(Int_t AD, Int_t TrueEnergyIndex, Int_t week)
 {
     Double_t Limit = 1.8;
-   
+    
     PositronEnergy = EnergyVector[TrueEnergyIndex];
     
     Double_t e_nu = VisibleF->GetX(PositronEnergy);
@@ -1851,7 +1895,7 @@ void OscillationReactor :: LoadNLParameters()
                 
                 g_unified_positron_nl->Draw();
                 legend3->AddEntry(g_unified_positron_nl,"Nominal non-linearity function","l");
-
+                
                 for(Int_t i = 0; i<4; i++)
                 {
                     g_unified_positron_nl_pulls[i]->SetLineColor(i+2);
@@ -1860,7 +1904,7 @@ void OscillationReactor :: LoadNLParameters()
                 }
                 legend3->Draw("same");
                 NLCurvesC->Print(("./Images/"+ AnalysisString+ "/Detector/NonlinearityCurves.eps").c_str(),".eps");
-
+                
                 delete NLCurvesC;
             }
             delete g_unified_positron_nl;
@@ -1886,11 +1930,13 @@ void OscillationReactor :: SetNLParameters(bool mode)
                 
                 for (Int_t i = 0; i < 5; i++)
                 {
+                    rand->SetSeed(0);
                     m_bcw_elec_nl_par[i] = m_bcw_elec_nl_par_nominal[i] + m_bcw_elec_nl_par_error[i] * rand->Gaus(0,1);
                     //                    std::cout <<  m_bcw_elec_nl_par_nominal[i] << " AND " <<  m_bcw_elec_nl_par_error[i] << "AND" << rand->Gaus(0,1) << "IS" <<  m_bcw_elec_nl_par[i]<< std::endl;
                 }
                 for (Int_t AD = 0; AD < NADs; AD++)
                 {
+                    rand->SetSeed(0);
                     NLF->SetParameters(m_bcw_elec_nl_par[0],m_bcw_elec_nl_par[1],m_bcw_elec_nl_par[2], m_bcw_elec_nl_par[3], m_bcw_elec_nl_par[4], m_abs_escale * m_rel_escale[AD], m_abs_eoffset+m_rel_eoffset[AD]);
                 }
             }
@@ -1913,6 +1959,7 @@ void OscillationReactor :: SetNLParameters(bool mode)
                 std::cout << "\t \t \t Randomizing LBNL NL parameters" << std::endl;
                 for (Int_t i = 0; i < 3; i++)
                 {
+                    rand->SetSeed(0);
                     m_lbnl_nl_par[i] = m_lbnl_nl_par_nominal[i] + m_lbnl_nl_par_error[i] * rand->Gaus(0,1);//electronics
                     //                std::cout << m_lbnl_nl_par_nominal[i] << " AND " <<  m_lbnl_nl_par_error[i] << "AND" << rand->Gaus(0,1) << "IS" << m_lbnl_nl_par[i] << std::endl;
                 }
@@ -1943,6 +1990,7 @@ void OscillationReactor :: SetNLParameters(bool mode)
                 
                 for (Int_t i = 0; i < m_num_unified_nl_pars; i++)
                 {
+                    rand->SetSeed(0);
                     ranvec[i] = rand->Gaus(0,1);
                 }
                 

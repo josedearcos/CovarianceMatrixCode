@@ -477,7 +477,6 @@ void CreateEnergyMatrix :: GenerateEnergyMatrix(Double_t sin22t13, Double_t dm2_
         GetOscResolutionShift(TrueEnergyIndex,week);
     }
     
-    
     TH2D* EnergyMatrixPosH;
     TH2D* EnergyMatrixIAVH;
     TH2D* EnergyMatrixNLH;
