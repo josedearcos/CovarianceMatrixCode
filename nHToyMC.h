@@ -25,7 +25,7 @@ using namespace std;
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- Global
 
 #define FullEnergyResolution
-#define UseDelayInformation
+//#define UseDelayInformation
 //#define SaveTree // To save toy tree
 //#define LoadTree // To load eprompt tree
 ///
@@ -282,7 +282,7 @@ void nHToyMC :: Toy(bool mode)
     
     TFile *roofile_input = new TFile("./Inputs/HInputs/Data/Eprompt.root", "read");
     TTree *wtree = (TTree*)roofile_input->Get("wtree");
-    const long entries_wtree = wtree->GetEntries();
+    long entries_wtree = wtree->GetEntries();
     cout<<" ---> input entries: "<<entries_wtree<<endl;
     
     wtree->SetBranchAddress("cap_Target",   &cap_Target);
@@ -484,10 +484,57 @@ void nHToyMC :: Toy(bool mode)
     //////////////////////////////////////////////////////////////////////////
     // The etree file has to have been generated before running this code:
     //////////////////////////////////////////////////////////////////////////
+//    const long MaxEntries = 50;
+
+//#ifdef UseDelayInformation
+//    Double_t X_NG[MaxEntries];
+//    Double_t Y_NG[MaxEntries];
+//    Double_t Z_NG[MaxEntries];
+//    
+//    Double_t Edep_NG[MaxEntries];
+//    Double_t Etot_NG[MaxEntries];
+//    Double_t EdepEA_NG[MaxEntries];
+//    Double_t EtotE_NG[MaxEntries];
+//    Double_t Etot_Neutron[MaxEntries];
+//#endif
+//    Double_t NeutrinoEnergy[MaxEntries];//Is this too big? Having an array allow us to run the tree reading spectrum only once, instead of once per AD.//cap_Ev
+//    Double_t EdepE_NG[MaxEntries];
+//    Double_t EtotScint_NG[MaxEntries];
+//    
+//    
+//    Double_t X_Pos[MaxEntries];
+//    Double_t Y_Pos[MaxEntries];
+//    Double_t Z_Pos[MaxEntries];
+//    
+//    Double_t Edep_Pos[MaxEntries];
+//    Double_t Edep_PG1[MaxEntries];
+//    Double_t Edep_PG2[MaxEntries];
+//    
+//    Double_t EtotScint_Pos[MaxEntries];
+//    Double_t EtotScint_PG[MaxEntries];
+//    Double_t EtotScint_PG1[MaxEntries];
+//    Double_t EtotScint_PG2[MaxEntries];
+//    
+//    Double_t EdepE_Pos[MaxEntries];
+//    Double_t EdepE_PG1[MaxEntries];
+//    Double_t EdepE_PG2[MaxEntries];
+//    
+//    Double_t EdepAcrylic_Pos[MaxEntries];
+//    Double_t EdepEA_Pos[MaxEntries];
+//    Double_t EdepEA_PG1[MaxEntries];
+//    Double_t EdepEA_PG2[MaxEntries];
+//    
+//    Double_t EtotE_Pos[MaxEntries];
+//    Double_t EtotE_PG1[MaxEntries];
+//    Double_t EtotE_PG2[MaxEntries];
+//    
+//    Double_t Etot_Pos[MaxEntries];
+//    Double_t Etot_PG1[MaxEntries];
+//    Double_t Etot_PG2[MaxEntries];
     
     TFile *roofile_etree_read = new TFile("./Inputs/HInputs/Data/roofile_etree.root", "read");
     TTree *etree_read = (TTree*)roofile_etree_read->Get("etree");
-    const long entries_etree_read = etree_read->GetEntries();
+    long entries_etree_read = etree_read->GetEntries();
     
     etree_read->SetBranchAddress("cap_Ev",       &cap_Ev);
     etree_read->SetBranchAddress("cap_Target",   &cap_Target);
@@ -622,114 +669,67 @@ void nHToyMC :: Toy(bool mode)
     {
         apply_random = 1;//factor that is multiplied by the random error so it's added to the nominal by using:  Value = NominalValue + apply_random*gRandom3->Gauss(0,1)*1sigmaError;
     }
-    for(Int_t AD = 0; AD < NADs; AD++)
-    {
-        PredictionH[AD] = new TH1D("Pred%AD","Pred%AD", Nbins, InitialEnergy, FinalVisibleEnergy);
-    }
-    
-#ifdef UseDelayInformation
-    Double_t X_NG[entries_etree_read];
-    Double_t Y_NG[entries_etree_read];
-    Double_t Z_NG[entries_etree_read];
-    
-    Double_t Edep_NG[entries_etree_read];
-    Double_t EtotScint_NG[entries_etree_read];
-    Double_t Etot_NG[entries_etree_read];
-    Double_t EdepE_NG[entries_etree_read];
-    Double_t EdepEA_NG[entries_etree_read];
-    Double_t EtotE_NG[entries_etree_read];
-    Double_t Etot_Neutron[entries_etree_read];
-#endif
-    
-    Double_t NeutrinoEnergy[entries_etree_read];//Is this too big? Having an array allow us to run the tree reading spectrum only once, instead of once per AD.//cap_Ev
-
-    Double_t X_Pos[entries_etree_read];
-    Double_t Y_Pos[entries_etree_read];
-    Double_t Z_Pos[entries_etree_read];
-    
-    Double_t Edep_Pos[entries_etree_read];
-    Double_t Edep_PG1[entries_etree_read];
-    Double_t Edep_PG2[entries_etree_read];
-    
-    Double_t EtotScint_Pos[entries_etree_read];
-    Double_t EtotScint_PG[entries_etree_read];
-    Double_t EtotScint_PG1[entries_etree_read];
-    Double_t EtotScint_PG2[entries_etree_read];
-    
-    Double_t EdepE_Pos[entries_etree_read];
-    Double_t EdepE_PG1[entries_etree_read];
-    Double_t EdepE_PG2[entries_etree_read];
-    
-    Double_t EdepAcrylic_Pos[entries_etree_read];
-    Double_t EdepEA_Pos[entries_etree_read];
-    Double_t EdepEA_PG1[entries_etree_read];
-    Double_t EdepEA_PG2[entries_etree_read];
-    
-    Double_t EtotE_Pos[entries_etree_read];
-    Double_t EtotE_PG1[entries_etree_read];
-    Double_t EtotE_PG2[entries_etree_read];
-    
-    Double_t Etot_Pos[entries_etree_read];
-    Double_t Etot_PG1[entries_etree_read];
-    Double_t Etot_PG2[entries_etree_read];
     
     //Load tree data
-    for(long ientry=0; ientry<entries_etree_read; ientry++)
-    {
-        etree_read->GetEntry(ientry);
-        
-#ifdef UseDelayInformation
-        X_NG[ientry] = X_Ng;
-        Y_NG[ientry] = Y_Ng;
-        Z_NG[ientry] = Z_Ng;
-        
-        Edep_NG[ientry] = Edep_Ng;
-        EtotScint_NG[ientry] = EtotScint_Ng;
-        Etot_NG[ientry] = Etot_Ng;
-        EdepE_NG[ientry] = EdepE_Ng;
-        EdepEA_NG[ientry] = EdepEA_Ng;
-        EtotE_NG[ientry] = EtotE_Ng;
-        Etot_Neutron[ientry]= Etot_N;
-#endif
-        NeutrinoEnergy[ientry]=cap_Ev;
-
-        X_Pos[ientry] = X_P;
-        Y_Pos[ientry] = Y_P;
-        Z_Pos[ientry] = Z_P;
-        
-        Edep_Pos[ientry] = Edep_P;
-        Edep_PG1[ientry] = Edep_Pg1;
-        Edep_PG2[ientry] = Edep_Pg2;
-        
-        EtotScint_Pos[ientry] =EtotScint_P;
-        EtotScint_PG[ientry]=EtotScint_Pg;
-        EtotScint_PG1[ientry]=EtotScint_Pg1;
-        EtotScint_PG2[ientry]=EtotScint_Pg2;
-        
-        EdepE_Pos[ientry] = EdepE_P;
-        EdepE_PG1[ientry]=EdepE_Pg1;
-        EdepE_PG2[ientry]=EdepE_Pg2;
-        
-        EdepAcrylic_Pos[ientry]=EdepAcrylic_P;
-        EdepEA_Pos[ientry]=EdepEA_P;
-        EdepEA_PG1[ientry]=EdepEA_Pg1;
-        EdepEA_PG2[ientry]=EdepEA_Pg2;
-        
-        EtotE_Pos[ientry]=EtotE_P;
-        EtotE_PG1[ientry]=EtotE_Pg1;
-        EtotE_PG2[ientry]=EtotE_Pg2;
-        
-        Etot_Pos[ientry]=Etot_P;
-        Etot_PG1[ientry]=Etot_Pg1;
-        Etot_PG2[ientry]=Etot_Pg2;
-    }
+//    for(long ientry=0; ientry<entries_etree_read; ientry++)
+//    {
+//
+//#ifdef UseDelayInformation
+//        X_NG[ientry] = X_Ng;
+//        Y_NG[ientry] = Y_Ng;
+//        Z_NG[ientry] = Z_Ng;
+//        
+//        Edep_NG[ientry] = Edep_Ng;
+//        Etot_NG[ientry] = Etot_Ng;
+//        EdepEA_NG[ientry] = EdepEA_Ng;
+//        EtotE_NG[ientry] = EtotE_Ng;
+//        Etot_Neutron[ientry]= Etot_N;
+//#endif
+//        NeutrinoEnergy[ientry]=cap_Ev;
+//        EtotScint_NG[ientry] = EtotScint_Ng;
+//        EdepE_NG[ientry] = EdepE_Ng;
+//
+//        X_Pos[ientry] = X_P;
+//        Y_Pos[ientry] = Y_P;
+//        Z_Pos[ientry] = Z_P;
+//        
+//        Edep_Pos[ientry] = Edep_P;
+//        Edep_PG1[ientry] = Edep_Pg1;
+//        Edep_PG2[ientry] = Edep_Pg2;
+//        
+//        EtotScint_Pos[ientry] =EtotScint_P;
+//        EtotScint_PG[ientry]=EtotScint_Pg;
+//        EtotScint_PG1[ientry]=EtotScint_Pg1;
+//        EtotScint_PG2[ientry]=EtotScint_Pg2;
+//        
+//        EdepE_Pos[ientry] = EdepE_P;
+//        EdepE_PG1[ientry]=EdepE_Pg1;
+//        EdepE_PG2[ientry]=EdepE_Pg2;
+//        
+//        EdepAcrylic_Pos[ientry]=EdepAcrylic_P;
+//        EdepEA_Pos[ientry]=EdepEA_P;
+//        EdepEA_PG1[ientry]=EdepEA_Pg1;
+//        EdepEA_PG2[ientry]=EdepEA_Pg2;
+//        
+//        EtotE_Pos[ientry]=EtotE_P;
+//        EtotE_PG1[ientry]=EtotE_Pg1;
+//        EtotE_PG2[ientry]=EtotE_Pg2;
+//        
+//        Etot_Pos[ientry]=Etot_P;
+//        Etot_PG1[ientry]=Etot_Pg1;
+//        Etot_PG2[ientry]=Etot_Pg2;
+//    }
     
     //Use the loaded tree data in each AD in an independent way:
     for(Int_t AD = 0; AD<NADs;AD++)
     {
+            PredictionH[AD] = new TH1D("Pred%AD","Pred%AD", Nbins, InitialEnergy, FinalVisibleEnergy);
+        
         //Process tree
         for(long ientry=0; ientry<entries_etree_read; ientry++)
         {
+            etree_read->GetEntry(ientry);
+
             cout.precision(3);
             if(ientry%10000==0)
                 cout<<" ---> processing02 "<<ientry*100./entries_etree_read<<"%"<<endl;
@@ -808,13 +808,13 @@ void nHToyMC :: Toy(bool mode)
              */
             
             /// case04: default ? edit
-            Double_t P_Scint = EtotScint_Pos[ientry]-Edep_Pos[ientry];
-            Double_t P_totElectron = EtotE_Pos[ientry]-EdepE_Pos[ientry];
+            Double_t P_Scint = EtotScint_P-Edep_P;
+            Double_t P_totElectron = EtotE_P-EdepE_P;
             
-            Double_t Pg1_totElectron = EtotScint_PG1[ientry]-EdepE_PG1[ientry];
-            Double_t Pg2_totElectron = EtotScint_PG2[ientry]-EdepE_PG2[ientry];
+            Double_t Pg1_totElectron = EtotScint_Pg1-EdepE_Pg1;
+            Double_t Pg2_totElectron = EtotScint_Pg2-EdepE_Pg2;
             
-            Double_t Ng_totElectron = EtotScint_NG[ientry]-EdepE_NG[ientry];
+            Double_t Ng_totElectron = EtotScint_Ng-EdepE_Ng;
             
             if( P_Scint<0 )         P_Scint = 0;
             if( Pg1_totElectron<0 ) continue;
@@ -822,21 +822,21 @@ void nHToyMC :: Toy(bool mode)
             if( Ng_totElectron<0 )  continue;
             
             /// prompt
-            LY_E_P = EtotScint_Pos[ientry] * graph_electron_LY->Eval( EtotScint_Pos[ientry], 0, "s" )
+            LY_E_P = EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" )
             - (P_Scint) * graph_electron_LY->Eval( P_Scint, 0, "s" )
             - (P_totElectron) * graph_gamma_LY->Eval( P_totElectron, 0, "s" );
             
-            LY_E_Pg1 = EtotScint_PG1[ientry] * graph_gamma_LY->Eval( EtotScint_PG1[ientry], 0, "s" )
+            LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" )
             - (Pg1_totElectron) * graph_gamma_LY->Eval( Pg1_totElectron, 0, "s" );
             
-            LY_E_Pg2 = EtotScint_PG2[ientry] * graph_gamma_LY->Eval( EtotScint_PG2[ientry], 0, "s" )
+            LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" )
             - (Pg2_totElectron) * graph_gamma_LY->Eval( Pg2_totElectron, 0, "s" );
             
             LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
             
             /// delayed
 #ifdef UseDelayInformation
-            LY_Etot_Ng = EtotScint_NG[ientry] * graph_gamma_LY->Eval( EtotScint_NG[ientry], 0, "s" )
+            LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
             - (Ng_totElectron) * graph_gamma_LY->Eval( Ng_totElectron, 0, "s" );
 #endif
             ///////////////////////////// Optical NU
@@ -846,9 +846,9 @@ void nHToyMC :: Toy(bool mode)
             Double_t usr_pmt_coverage  = 0;
             
             /// prompt
-            Double_t VX_P = X_Pos[ientry];
-            Double_t VY_P = Y_Pos[ientry];
-            Double_t VZ_P = Z_Pos[ientry];
+            Double_t VX_P = X_P;
+            Double_t VY_P = Y_P;
+            Double_t VZ_P = Z_P;
             
             usr_r2 = (VX_P*VX_P+VY_P*VY_P) * 1e-6;// mm2 ---> m2
             usr_z  = VZ_P * 1e-3;// mm ---> m
@@ -866,9 +866,9 @@ void nHToyMC :: Toy(bool mode)
             /// delayed
 #ifdef UseDelayInformation
             
-            Double_t VX_Ng = X_NG[ientry];
-            Double_t VY_Ng = Y_NG[ientry];
-            Double_t VZ_Ng = Z_NG[ientry];
+            Double_t VX_Ng = X_Ng;
+            Double_t VY_Ng = Y_Ng;
+            Double_t VZ_Ng = Z_Ng;
             
             usr_r2 = (VX_Ng*VX_Ng+VY_Ng*VY_Ng) * 1e-6;// mm2 ---> m2
             usr_z  = VZ_Ng * 1e-3;// mm ---> m
@@ -951,9 +951,9 @@ void nHToyMC :: Toy(bool mode)
             ///////////////////////////// Cell
             
             //Fill histograms:
-            PredictionH[AD]->Fill(Res_Etot_Ng);
-            HighResoMatrixH[AD]->Fill(NeutrinoEnergy[ientry],Res_Etot_Ng);//Fine grid
-            MatrixH[AD]->Fill(NeutrinoEnergy[ientry],Res_Etot_Ng);//neutrino energy vs visible energy
+            PredictionH[AD]->Fill(Res_E_P_Sum);
+            HighResoMatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//Fine grid
+            MatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//neutrino energy vs visible energy
             
 #ifdef SaveTree
             toy->Fill();
