@@ -746,8 +746,18 @@ void OscillationReactor:: LoadNominalBackgrounds()
     TH1D* LiHeH[MaxDetectors];
     TH1D* FastNeutronsH[MaxDetectors];
     TH1D* AmCH[MaxDetectors];
+    std::string BackgroundS;
     
-    TFile* BackgroundsF = new TFile("./BackgroundSpectrum/GDBackground/Backgrounds.root");
+    if(isH)
+    {
+        BackgroundS = "HBackground";
+    }
+    else
+    {
+        BackgroundS = "GDBackground";
+    }
+    
+    TFile* BackgroundsF = new TFile(("./BackgroundSpectrum/"+BackgroundS+"/Backgrounds.root").c_str());
     
     for (Int_t AD =0; AD<NADs; AD++)
     {
@@ -769,6 +779,7 @@ void OscillationReactor:: LoadNominalBackgrounds()
         BackgroundSpectrumH[AD]->Add(AmCH[AD]);//scaled in livetime and with ad efficiencies included.
     }
 }
+
 void OscillationReactor :: LoadExternalInputs()//This only works for week = 1 (inclusive)
 {
     std::cout << " Loading external inputs " << std::endl;
@@ -1138,16 +1149,17 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         
         TH2D* nHPredictionMatrix[MaxDetectors];
         
+        Int_t ShiftBin = Int_t(InitialEnergy*MatrixBins/(FinalEnergy));
+        
         for(Int_t AD = 0; AD<NADs; AD++)
         {
             nHPredictionMatrix[AD] = nHToy->LoadnHMatrix(AD);
             
-            
-            for(Int_t i = 1; i<=MatrixBins; i++)//visible
+            for(Int_t i = 1; i<=MatrixBins; i++)//visible, 240 bins
             {
-                for(Int_t j = 1; j<=MatrixBins; j++)//true
+                for(Int_t j = 1; j<=Nbins; j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
                 {
-                    VisibleHisto[AD]->SetBinContent(i,nHPredictionMatrix[AD]->GetBinContent(i,j)*TotalOscillatedSpectrumAD[AD]->GetBinContent(j));
+                    VisibleHisto[AD]->SetBinContent(i,nHPredictionMatrix[AD]->GetBinContent(i,j+ShiftBin)*TotalOscillatedSpectrumAD[AD]->GetBinContent(j));
                 }
             }
             
@@ -1191,31 +1203,34 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             //
             //            delete nHLoadPredictionF;
             
-            
-            VisibleHisto[AD]->SetStats(1);
-            
-            VisibleHisto[AD]=(TH1D*)VisibleHisto[AD]->Rebin(n_evis_bins,Form("Oscillation Prediction AD%d, week%d",AD+1,week),evis_bins);
-            
-            //        if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depende on this scaling?
-            //        {
-            //
-            VisibleHisto[AD]->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());
-            //Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
-            //        }
-            
-            //Add backgrounds:
-            
-            //Add nominal backgrounds here, this way the predictions in the far hall will carry the background variations when they are subsctracted there
-            VisibleHisto[AD]->Add(BackgroundSpectrumH[AD]);
-            
-            if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depende on this scaling?
-            {
-                VisibleHisto[AD]->Scale(ObservedEvents[AD][week]/VisibleHisto[AD]->Integral());
-            }
-            //Then scale to expected number of events.
-            
-            delete BackgroundSpectrumH[AD];
         }
+    }
+    
+    for (Int_t AD = 0; AD <NADs; AD++)
+    {
+        VisibleHisto[AD]->SetStats(1);
+        
+        VisibleHisto[AD]=(TH1D*)VisibleHisto[AD]->Rebin(n_evis_bins,Form("Oscillation Prediction AD%d, week%d",AD+1,week),evis_bins);
+        
+        //        if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depende on this scaling?
+        //        {
+        //
+        VisibleHisto[AD]->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());
+        //Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
+        //        }
+        
+        //Add backgrounds:
+        
+        //Add nominal backgrounds here, this way the predictions in the far hall will carry the background variations when they are subsctracted there
+        VisibleHisto[AD]->Add(BackgroundSpectrumH[AD]);
+        
+        if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depende on this scaling?
+        {
+            VisibleHisto[AD]->Scale(ObservedEvents[AD][week]/VisibleHisto[AD]->Integral());
+        }
+        //Then scale to expected number of events.
+        
+        delete BackgroundSpectrumH[AD];
     }
 }
 

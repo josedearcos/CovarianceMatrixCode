@@ -101,9 +101,11 @@ private:
     Int_t  RootCellToVisCell(Int_t RootCell);
     TH1D* PredictionH[MaxDetectors];
     TH2D* HighResoMatrixH[MaxDetectors];
+    TH2D* TransMatrixH[MaxDetectors];
     TH2D* MatrixH[MaxDetectors];
 public:
     nHToyMC(NominalData*);//constructor
+    ~nHToyMC();//destructor
     void Toy(bool);//main
     TH2D* LoadnHMatrix(Int_t);
     void GeneratenHResponseMatrix();
@@ -180,8 +182,26 @@ nHToyMC :: nHToyMC(NominalData* Data)
     NADs = Data->GetADs();
     for(Int_t AD = 0; AD < NADs; AD++)
     {
-        HighResoMatrixH[AD] = new TH2D(Form("Fine_nHResponseMatrix_AD%d",AD+1),Form("Fine_nHResponseMatrix_AD%d",AD+1),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);
-        MatrixH[AD] = new TH2D(Form("nHResponseMatrix_AD%d",AD+1),Form("nHResponseMatrix_AD%d",AD+1),n_etrue_bins,enu_bins,n_evis_bins,evis_bins);
+        HighResoMatrixH[AD] = new TH2D(Form("Fine_nHResponseMatrix_AD%d",AD+1),Form("Fine_nHResponseMatrix_AD%d",AD+1),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from true to visible
+      
+        MatrixH[AD] = new TH2D(Form("nHResponseMatrix_AD%d",AD+1),Form("nHResponseMatrix_AD%d",AD+1),n_evis_bins,evis_bins,n_etrue_bins,enu_bins);
+        
+        TransMatrixH[AD] = new TH2D(Form("nHTransResponseMatrix_AD%d",AD+1),Form("nHTransResponseMatrix_AD%d",AD+1),n_etrue_bins,enu_bins,n_evis_bins,evis_bins);//from visible to true
+        
+        PredictionH[AD] = new TH1D("Pred%AD","Pred%AD", Nbins, InitialEnergy, FinalVisibleEnergy);
+    }
+    
+    
+}
+
+nHToyMC :: ~nHToyMC()
+{
+    for(Int_t AD = 0; AD < NADs; AD++)
+    {
+        delete PredictionH[AD];
+        delete HighResoMatrixH[AD];
+        delete MatrixH[AD];
+        delete TransMatrixH[AD];
     }
 }
 ///
@@ -723,7 +743,6 @@ void nHToyMC :: Toy(bool mode)
     //Use the loaded tree data in each AD in an independent way:
     for(Int_t AD = 0; AD<NADs;AD++)
     {
-            PredictionH[AD] = new TH1D("Pred%AD","Pred%AD", Nbins, InitialEnergy, FinalVisibleEnergy);
         
         //Process tree
         for(long ientry=0; ientry<entries_etree_read; ientry++)
@@ -954,12 +973,62 @@ void nHToyMC :: Toy(bool mode)
             PredictionH[AD]->Fill(Res_E_P_Sum);
             HighResoMatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//Fine grid
             MatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//neutrino energy vs visible energy
-            
+            TransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev);
 #ifdef SaveTree
             toy->Fill();
 #endif
         }//events
     }//ADs
+    
+    
+    Double_t Norma[n_etrue_bins];//true->vis
+    Double_t NormaTrans[n_evis_bins];//vis->true
+    
+    //Normalize the Matrix
+    for(Int_t AD = 0; AD<NADs;AD++)
+    {
+        for(Int_t i=0;i<n_etrue_bins;i++)
+        {
+            Norma[i]=0;
+            
+            for(Int_t j=0;j<n_evis_bins;j++)
+            {
+                Norma[i] = Norma[i]+MatrixH[AD]->GetBinContent(j+1,i+1);// true->vis
+            }
+        }
+
+        for(Int_t i=0;i<n_evis_bins;i++)
+        {
+            NormaTrans[i]=0;
+            for(Int_t j=0;j<n_etrue_bins;j++)
+            {
+                NormaTrans[i] = NormaTrans[i]+TransMatrixH[AD]->GetBinContent(j+1,i+1);// vis->true
+            }
+        }
+        
+        for (Int_t i = 0; i < n_etrue_bins; i++)
+        {
+            for (Int_t j = 0; j < n_evis_bins; j++)
+            {
+                if(Norma[i]!=0)
+                {
+                    MatrixH[AD]->SetBinContent(j+1,i+1,MatrixH[AD]->GetBinContent(j+1,i+1)/Norma[i]);//true->vis
+                }
+            }
+        }
+        
+        for (Int_t i = 0; i < n_evis_bins; i++)
+        {
+            for (Int_t j = 0; j < n_etrue_bins; j++)
+            {
+                if(NormaTrans[i]!=0)
+                {
+                    TransMatrixH[AD]->SetBinContent(j+1,i+1,TransMatrixH[AD]->GetBinContent(j+1,i+1)/NormaTrans[i]);
+                }
+            }
+        }
+    }
+    
     if(Print)
     {
         TCanvas* FineMatrixC = new TCanvas("F","F");
@@ -970,6 +1039,10 @@ void nHToyMC :: Toy(bool mode)
         
         TCanvas* PredictionC = new TCanvas("P","P");
         PredictionC->Divide(NADs/2,2);
+        
+        TCanvas* TransC = new TCanvas("T","T");
+        TransC->Divide(NADs/2,2);
+        
         for(Int_t i = 0; i<NADs;i++)
         {
             FineMatrixC->cd(i+1);
@@ -978,21 +1051,30 @@ void nHToyMC :: Toy(bool mode)
             MatrixH[i]->Draw("colz");
             PredictionC->cd(i+1);
             PredictionH[i]->Draw();
+            TransC->cd(i+1);
+            TransMatrixH[i]->Draw();
         }
         FineMatrixC->Print("./Images/FineHydrogenResponseMatrix.eps");
         MatrixC->Print("./Images/HydrogenResponseMatrix.eps");
         PredictionC->Print("./Images/HydrogenPrediction.eps");
+        TransC->Print("./Images/TransposeHydrogenMatrix.eps");
         delete MatrixC;
         delete FineMatrixC;
         delete PredictionC;
+        delete TransC;
     }
     
     if(mode==0)
     {
         TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root","recreate");
         
-        MatrixH[0]->Write("EnuEvis");//Save one of the matrices.
+        for(Int_t AD = 0; AD<NADs; AD++)
+        {
+            HighResoMatrixH[AD]->Write(Form("EvisEnu%d",AD+1));//Save the matrices.
+        }
         
+        TransMatrixH[0]->Write("EnuEvis");
+
         delete SaveMatrix;
         
     }
@@ -1043,5 +1125,5 @@ void nHToyMC :: func_initialization()
 
 TH2D* nHToyMC :: LoadnHMatrix(Int_t AD)
 {
-    return MatrixH[AD];
+    return HighResoMatrixH[AD];
 }

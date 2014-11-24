@@ -1260,11 +1260,6 @@ void Oscillation :: ApplyResponseMatrix()
             TransEnergyMatrix = (TH2D*)gDirectory->Get("EnuEvis");
         
         delete TransEnergyMatrixDataF;
-        
-        //Rebin here to match the binning
-        
-//        TransEnergyMatrix->Rebin();
-        
     }
     else
     {
@@ -1272,6 +1267,10 @@ void Oscillation :: ApplyResponseMatrix()
             TransEnergyMatrix = (TH2D*)gDirectory->Get("EnuEvis");
         delete TransEnergyMatrixDataF;
     }
+    
+    //If other binnings are used we should include a Rebin method here to match the binning
+    
+    //        TransEnergyMatrix->Rebin();
     
     VisibleBins = n_evis_bins;//For real data rebinned in LBNL binning
     
@@ -1838,8 +1837,8 @@ void Oscillation :: LoadNominalBackgrounds()
     else
     {
         sprintf(BackgroundFile, "./BackgroundSpectrum/GDBackground/Backgrounds.root");
-        
     }
+    
     TFile* BackgroundsF = new TFile(BackgroundFile);
     
     for (Int_t AD =0; AD<NADs; AD++)
