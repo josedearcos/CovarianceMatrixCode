@@ -68,3 +68,4 @@
 ./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root 0 0.092
 ./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.00810848 0.09
 ./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.00812166 0.09
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.00820281 0.09

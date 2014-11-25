@@ -92,7 +92,8 @@ private:
     ///
     TH1D *h_Ev_normal;
     TRandom3 *gRandom3;
-    
+    TRandom3 *RandomSys;
+
     ///
     TF1 *roofunc_EnergyResolution;
     
@@ -102,6 +103,7 @@ private:
     TH1D* PredictionH[MaxDetectors];
     TH2D* HighResoMatrixH[MaxDetectors];
     TH2D* TransMatrixH[MaxDetectors];
+    TH2D* HighResoTransMatrixH[MaxDetectors];
     TH2D* MatrixH[MaxDetectors];
 public:
     nHToyMC(NominalData*);//constructor
@@ -184,14 +186,14 @@ nHToyMC :: nHToyMC(NominalData* Data)
     {
         HighResoMatrixH[AD] = new TH2D(Form("Fine_nHResponseMatrix_AD%d",AD+1),Form("Fine_nHResponseMatrix_AD%d",AD+1),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from true to visible
       
-        MatrixH[AD] = new TH2D(Form("nHResponseMatrix_AD%d",AD+1),Form("nHResponseMatrix_AD%d",AD+1),n_evis_bins,evis_bins,n_etrue_bins,enu_bins);
+        MatrixH[AD] = new TH2D(Form("nHResponseMatrix_AD%d",AD+1),Form("nHResponseMatrix_AD%d",AD+1),n_etrue_bins,enu_bins,n_evis_bins,evis_bins);//from true to visible
         
-        TransMatrixH[AD] = new TH2D(Form("nHTransResponseMatrix_AD%d",AD+1),Form("nHTransResponseMatrix_AD%d",AD+1),n_etrue_bins,enu_bins,n_evis_bins,evis_bins);//from visible to true
+        TransMatrixH[AD] = new TH2D(Form("nHTransResponseMatrix_AD%d",AD+1),Form("nHTransResponseMatrix_AD%d",AD+1),n_evis_bins,evis_bins,n_etrue_bins,enu_bins);//from visible to true
+        
+        HighResoTransMatrixH[AD] = new TH2D(Form("Fine_nHTransResponseMatrix_AD%d",AD+1),Form("Fine_nHTransResponseMatrix_AD%d",AD+1),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from visible to true
         
         PredictionH[AD] = new TH1D("Pred%AD","Pred%AD", Nbins, InitialEnergy, FinalVisibleEnergy);
     }
-    
-    
 }
 
 nHToyMC :: ~nHToyMC()
@@ -679,17 +681,6 @@ void nHToyMC :: Toy(bool mode)
     
     Double_t GausRelative[MaxDetectors],GausIAV[MaxDetectors],GausNL[MaxDetectors],GausReso[MaxDetectors],GausEff[MaxDetectors];
     
-    Int_t apply_random;
-    
-    if(mode==0)//Nominal values
-    {
-        apply_random = 0;//factor that is multiplied by the random error so it's not added to the nominal value
-    }
-    else//vary systematic for each entry.
-    {
-        apply_random = 1;//factor that is multiplied by the random error so it's added to the nominal by using:  Value = NominalValue + apply_random*gRandom3->Gauss(0,1)*1sigmaError;
-    }
-    
     //Load tree data
 //    for(long ientry=0; ientry<entries_etree_read; ientry++)
 //    {
@@ -743,6 +734,7 @@ void nHToyMC :: Toy(bool mode)
     //Use the loaded tree data in each AD in an independent way:
     for(Int_t AD = 0; AD<NADs;AD++)
     {
+        seed_generator = 1;//this way all matrices will be random but have a common nominal spectrum
         
         //Process tree
         for(long ientry=0; ientry<entries_etree_read; ientry++)
@@ -763,11 +755,27 @@ void nHToyMC :: Toy(bool mode)
             }
             
             //each event has a different systematic error:
-            GausRelative[AD] = gRandom3->Gaus(0,1);
-            GausIAV[AD]= gRandom3->Gaus(0,1);
-            GausNL[AD]= gRandom3->Gaus(0,1);
-            GausReso[AD]= gRandom3->Gaus(0,1);
-            GausEff[AD]= gRandom3->Gaus(0,1);
+            
+            if(mode==0)//Nominal values
+            {
+                GausRelative[AD] = 0;
+                GausIAV[AD]= 0;
+                GausNL[AD]= 0;
+                GausReso[AD]=0;
+                GausEff[AD]= 0;
+            }
+            else//vary systematic for each entry.
+            {
+                GausRelative[AD] = RandomSys->Gaus(0,1);
+                GausIAV[AD]= RandomSys->Gaus(0,1);
+                GausNL[AD]= RandomSys->Gaus(0,1);
+                GausReso[AD]= RandomSys->Gaus(0,1);
+                GausEff[AD]= RandomSys->Gaus(0,1);
+                
+                //factor that is multiplied by the random error so it's added to the nominal by using:  Value = NominalValue + gRandom3->Gauss(0,1)*1sigmaError;
+            }
+            
+
             //to check the random numbers are properly generated:
             //            std::cout << " AD: " << AD << " Gaus RELATIVE: " << GausRelative[AD] << " , Gaus IAV: " << GausIAV[AD] << " , Gaus NL: " << GausNL[AD] << " , Gaus RESO: " << GausReso[AD] << " , Gaus EFF: " << GausEff[AD] << std::endl;
             
@@ -974,6 +982,8 @@ void nHToyMC :: Toy(bool mode)
             HighResoMatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//Fine grid
             MatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//neutrino energy vs visible energy
             TransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev);
+            HighResoTransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev);//Fine grid
+
 #ifdef SaveTree
             toy->Fill();
 #endif
@@ -982,27 +992,32 @@ void nHToyMC :: Toy(bool mode)
     
     
     Double_t Norma[n_etrue_bins];//true->vis
+    Double_t HighResoNorma[n_etrue_bins];//true->vis
     Double_t NormaTrans[n_evis_bins];//vis->true
-    
+    Double_t HighResoNormaTrans[n_evis_bins];//vis->true
     //Normalize the Matrix
     for(Int_t AD = 0; AD<NADs;AD++)
     {
         for(Int_t i=0;i<n_etrue_bins;i++)
         {
             Norma[i]=0;
-            
+            HighResoNorma[i]=0;
             for(Int_t j=0;j<n_evis_bins;j++)
             {
-                Norma[i] = Norma[i]+MatrixH[AD]->GetBinContent(j+1,i+1);// true->vis
+                HighResoNorma[i] = HighResoNorma[i]+HighResoMatrixH[AD]->GetBinContent(i+1,j+1);// true->vis
+                Norma[i] = Norma[i]+MatrixH[AD]->GetBinContent(i+1,j+1);// true->vis
             }
         }
 
         for(Int_t i=0;i<n_evis_bins;i++)
         {
             NormaTrans[i]=0;
+            HighResoNormaTrans[i]=0;
+
             for(Int_t j=0;j<n_etrue_bins;j++)
             {
-                NormaTrans[i] = NormaTrans[i]+TransMatrixH[AD]->GetBinContent(j+1,i+1);// vis->true
+                HighResoNormaTrans[i] = HighResoNormaTrans[i]+HighResoTransMatrixH[AD]->GetBinContent(i+1,j+1);// vis->true
+                NormaTrans[i] = NormaTrans[i]+TransMatrixH[AD]->GetBinContent(i+1,j+1);// vis->true
             }
         }
         
@@ -1012,7 +1027,11 @@ void nHToyMC :: Toy(bool mode)
             {
                 if(Norma[i]!=0)
                 {
-                    MatrixH[AD]->SetBinContent(j+1,i+1,MatrixH[AD]->GetBinContent(j+1,i+1)/Norma[i]);//true->vis
+                    MatrixH[AD]->SetBinContent(i+1,j+1,MatrixH[AD]->GetBinContent(i+1,j+1)/Norma[i]);//true->vis
+                }
+                if(HighResoNorma[i]!=0)
+                {
+                    HighResoMatrixH[AD]->SetBinContent(i+1,j+1,HighResoMatrixH[AD]->GetBinContent(i+1,j+1)/HighResoNorma[i]);//true->vis
                 }
             }
         }
@@ -1023,7 +1042,11 @@ void nHToyMC :: Toy(bool mode)
             {
                 if(NormaTrans[i]!=0)
                 {
-                    TransMatrixH[AD]->SetBinContent(j+1,i+1,TransMatrixH[AD]->GetBinContent(j+1,i+1)/NormaTrans[i]);
+                    TransMatrixH[AD]->SetBinContent(i+1,j+1,TransMatrixH[AD]->GetBinContent(i+1,j+1)/NormaTrans[i]);
+                }
+                if(HighResoNormaTrans[i]!=0)
+                {
+                    HighResoTransMatrixH[AD]->SetBinContent(i+1,j+1,HighResoTransMatrixH[AD]->GetBinContent(i+1,j+1)/HighResoNormaTrans[i]);
                 }
             }
         }
@@ -1119,6 +1142,7 @@ void nHToyMC :: func_initialization()
     
     ///
     gRandom3 = new TRandom3();
+    RandomSys = new TRandom3(0);
     /// energy resolution
     roofunc_EnergyResolution = new TF1("roofunc_EnergyResolution", this,&nHToyMC::func_EnergyResolution, 0,20, 1,"nHToyMC","func_EnergyResolution");
 }

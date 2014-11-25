@@ -1162,48 +1162,22 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                     VisibleHisto[AD]->SetBinContent(i,nHPredictionMatrix[AD]->GetBinContent(i,j+ShiftBin)*TotalOscillatedSpectrumAD[AD]->GetBinContent(j));
                 }
             }
-            
-            //            //Load Xiang Pan's predictions (Matrix?)
-            //
-            //            TFile* nHLoadPredictionF;
-            //
-            //            if(Mode)//return random toy sample
-            //            {
-            //                nHLoadPredictionF = new TFile((RandomPredictionDirectory).c_str());
-            //
-            //                //Get Tree
-            //
-            //                //Use/load same efficiencies!!
-            //                if(EfficiencyMatrix)
-            //                {
-            //                    FlagEfficiency = 0;//So I don't change the efficiency after loading them
-            //
-            //                    //Add branches here
-            //                }
-            //            }
-            //            else//Nominal prediction
-            //            {
-            //                nHLoadPredictionF = new TFile((NominalPredictionDirectory).c_str());
-            //
-            //                //Get Tree
-            //            }
-            //
-            //            //Multiply reactor shape here,
-            //            for (Int_t AD = 0; AD<NADs; AD++)
-            //            {
-            //                //Get Predictions from Tree branches:
-            //
-            //                //            nHPredictionMatrix[AD] = T->SetBranchAddress(Form("Vis Prediction AD%d",AD+1));
-            //
-            //                if(Mode&&EfficiencyMatrix)
-            //                {
-            //                    //            DetectorEfficiencyDelayed[AD] = T->SetBranchAddress(Efficiency);
-            //                }
-            //            }
-            //
-            //            delete nHLoadPredictionF;
-            
         }
+    }
+    
+    if(Print)
+    {
+        TCanvas* PredictionC = new TCanvas("PredictionC","PredictionC");
+        PredictionC->Divide(NADs/2,2);
+        
+        for(Int_t AD = 0; AD<NADs; AD++)
+        {
+            PredictionC->cd(AD+1);
+            VisibleHisto[AD]->Draw();
+        }
+        
+        PredictionC->Print(("./Images/"+AnalysisString+"/OscillationReactorPredictionWithoutBackgrounds.eps").c_str());
+        delete PredictionC;
     }
     
     for (Int_t AD = 0; AD <NADs; AD++)

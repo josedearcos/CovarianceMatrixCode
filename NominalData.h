@@ -658,7 +658,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     dmee_start = dm2_ee - 0.001;
     dmee_end = dm2_ee + 0.001;
     
-    //For Hydrogen and 6 ADs: from http://dayabay.ihep.ac.cn/DocDB/0085/008556/016/Main-version2.pdf
+    //For Hydrogen and 6 ADs: from http://dayabay.ihep.ac.cn/DocDB/0085/008556/020/Main-version3.pdf
     
     if(this->GetAnalysis())
     {
@@ -667,96 +667,93 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
             //p12b values
             if(Nweeks==1)
             {
-                ObservedEvents[0]=101362;
-                ObservedEvents[1]=102605;
-                ObservedEvents[2]=92960;
-                ObservedEvents[3]=13965;
-                ObservedEvents[4]=13894;
-                ObservedEvents[5]=13731;
+                ObservedEvents[0]=74136;
+                ObservedEvents[1]=74783;
+                ObservedEvents[2]=69083;
+                ObservedEvents[3]=20218;
+                ObservedEvents[4]=20366;
+                ObservedEvents[5]=21527;
                 
-                FullTime[0] = 127.55;// Days;
-                FullTime[1] = 127.55;// Days;
-                FullTime[2] = 127.38;// Days;
-                FullTime[3] = 126.27;// Days;
-                FullTime[4] = 126.27;// Days;
-                FullTime[5] = 126.27;// Days;
+                FullTime[0] = 190.9954;// Days;
+                FullTime[1] = 190.9954;// Days;
+                FullTime[2] = 189.6464 ;// Days;
+                FullTime[3] = 189.7857;// Days;
+                FullTime[4] = 189.7857;// Days;
+                FullTime[5] = 189.7857;// Days;
                 
-                MultiEff[0]= 0.97555;
-                MultiEff[1]= 0.97589;
-                MultiEff[2]= 0.97709;
-                MultiEff[3]= 0.97577;
-                MultiEff[4]= 0.97547;
-                MultiEff[5]= 0.97532;
+                MultiEff[0]= 0.9836;
+                MultiEff[1]= 0.9837;
+                MultiEff[2]= 0.9842;
+                MultiEff[3]= 0.9832;
+                MultiEff[4]= 0.9827;
+                MultiEff[5]= 0.9827;
                 
-                MuonEff[0]= 0.8146;
-                MuonEff[1]= 0.8114;
-                MuonEff[2]= 0.8467;
-                MuonEff[3]= 0.9808;
-                MuonEff[4]= 0.98017;
-                MuonEff[5]= 0.98026;
+                MuonEff[0]= 0.7946;
+                MuonEff[1]= 0.7912;
+                MuonEff[2]= 0.8338;
+                MuonEff[3]= 0.9815;
+                MuonEff[4]= 0.9815;
+                MuonEff[5]= 0.9812;
                 
-                std::cout << "Change all as absolute uncertainties, otherwise this won't work!!!" << std::endl;
+                //Hydrogen data here, taken from the εμεm corrected data and dividing by that coefficient:
+
+                AccidentalError[0]=0.10160843525865;
+                AccidentalError[1]=0.101182017951218;
+                AccidentalError[2]=0.0902700154097309;
+                AccidentalError[3]=0.057902182109611;
+                AccidentalError[4]=0.0578725809910863;
+                AccidentalError[5]=0.0674940890483319;
                 
-           //     exit(EXIT_FAILURE);
+                FastNeutronError[0]=0.211032903998735;
+                FastNeutronError[1]=0.210147268052529;
+                FastNeutronError[2]=0.2379845860802;
+                FastNeutronError[3]=0.0386014547397407;
+                FastNeutronError[4]=0.0385817206607242;
+                FastNeutronError[5]=0.0385680508847611;
+            
+                LiHeError[0]=1.07861262043798;
+                LiHeError[1]=1.07408603671293;
+                LiHeError[2]=0.878081058985565;
+                LiHeError[3]=0.125454727904157;
+                LiHeError[4]=0.125390592147354;
+                LiHeError[5]=0.125346165375473;
                 
-                AccidentalError[0]=0.002;//Relative uncertainty AD1 Fix this?
-                AccidentalError[1]=0.002;//Relative uncertainty AD2
-                AccidentalError[2]=0.002;//Relative uncertainty AD3
-                AccidentalError[3]=0.002;//Relative uncertainty AD4
-                AccidentalError[4]=0.002;//Relative uncertainty AD5
-                AccidentalError[5]=0.002;//Relative uncertainty AD5
+                AmCError[0]=0.0390801674071732;
+                AmCError[1]=0.0311329286003747;
+                AmCError[2]=0.0328254601489931;
+                AmCError[3]=0.0289510910548055;
+                AmCError[4]=0.0289362904955431;
+                AmCError[5]=0.0289260381635708;
                 
-                FastNeutronError[0]=0.53;//Relative uncertainty EH1
-                FastNeutronError[1]=0.53;//Relative uncertainty EH1
-                FastNeutronError[2]=0.52;//Relative uncertainty EH2
-                FastNeutronError[3]=0.67;//Relative uncertainty EH3
-                FastNeutronError[4]=0.67;//Relative uncertainty EH3
-                FastNeutronError[5]=0.67;//Relative uncertainty EH3
+                //Hydrogen data here, taken from the εμεm corrected data and dividing by that coefficient:
+            
+                AccidentalRate[0]=50.778238638208;// per day
+                AccidentalRate[1]=49.8577452650692;
+                AccidentalRate[2]=47.2842616574847;
+                AccidentalRate[3]=59.9340203187068;
+                AccidentalRate[4]=61.7855296790011;
+                AccidentalRate[5]=65.7609082243815;
                 
-                LiHeError[0]=0.23;//Relative uncertainty EH1
-                LiHeError[1]=0.23;//Relative uncertainty EH1
-                LiHeError[2]=0.5;//Relative uncertainty EH2
-                LiHeError[3]=0.18;//Relative uncertainty EH3
-                LiHeError[4]=0.18;//Relative uncertainty EH3
-                LiHeError[5]=0.18;//Relative uncertainty EH3
+                FastNeutronRate[0]=1.63355099761984;// per day
+                FastNeutronRate[1]=1.62669551936958;
+                FastNeutronRate[2]=1.12427201010301;
+                FastNeutronRate[3]=0.0965036368493517;
+                FastNeutronRate[4]=0.0964543016518104;
+                FastNeutronRate[5]=0.0964201272119027;
                 
-                AmCError[0]=0.3;//Relative uncertainty EH1
-                AmCError[1]=0.3;//Relative uncertainty EH1
-                AmCError[2]=0.3;//Relative uncertainty EH2
-                AmCError[3]=0.25;//Relative uncertainty EH3
-                AmCError[4]=0.25;//Relative uncertainty EH3
-                AmCError[5]=0.25;//Relative uncertainty EH3
+                LiHeRate[0]=2.14940920739452;// per day
+                LiHeRate[1]=2.14038884127576;
+                LiHeRate[2]=1.75616211797113;
+                LiHeRate[3]=0.250909455808314;
+                LiHeRate[4]=0.250781184294707;
+                LiHeRate[5]=0.250692330750947;
                 
-                
-                //rates are for gd, need to put Hydrogen data here:
-                
-                AccidentalRate[0]=9.5508;// per day
-                AccidentalRate[1]=9.3657;
-                AccidentalRate[2]=7.441;
-                AccidentalRate[3]=2.9645;
-                AccidentalRate[4]=2.9238;
-                AccidentalRate[5]=2.8741;
-                
-                FastNeutronRate[0]=0.92;// per day
-                FastNeutronRate[1]=0.92;
-                FastNeutronRate[2]=0.62;
-                FastNeutronRate[3]=0.04;
-                FastNeutronRate[4]=0.04;
-                FastNeutronRate[5]=0.04;
-                
-                LiHeRate[0]=2.4;// per day
-                LiHeRate[1]=2.4;
-                LiHeRate[2]=1.2;
-                LiHeRate[3]=0.22;
-                LiHeRate[4]=0.22;
-                LiHeRate[5]=0.22;
-                
-                AmCRate[0] = 0.26;//per day
-                AmCRate[1] = 0.26;
-                AmCRate[2] = 0.26;
-                AmCRate[3] = 0.26;
-                AmCRate[4] = 0.26;
-                AmCRate[5] = 0.26;
+                AmCRate[0] = 0.0703443013329117;//per day
+                AmCRate[1] = 0.070049089350843;
+                AmCRate[2] = 0.0738572853352344;
+                AmCRate[3] = 0.057902182109611;
+                AmCRate[4] = 0.0578725809910863;
+                AmCRate[5] = 0.0578520763271416;
             }
             else
             {
