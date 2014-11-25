@@ -1066,25 +1066,39 @@ void nHToyMC :: Toy(bool mode)
         TCanvas* TransC = new TCanvas("T","T");
         TransC->Divide(NADs/2,2);
         
+        TCanvas* FineTransC = new TCanvas("FT","FT");
+        FineTransC->Divide(NADs/2,2);
+        
         for(Int_t i = 0; i<NADs;i++)
         {
-            FineMatrixC->cd(i+1);
-            HighResoMatrixH[i]->Draw("colz");
-            MatrixC->cd(i+1);
-            MatrixH[i]->Draw("colz");
             PredictionC->cd(i+1);
             PredictionH[i]->Draw();
+            
+            MatrixC->cd(i+1);
+            MatrixH[i]->Draw("colz");
+            
+            FineMatrixC->cd(i+1);
+            HighResoMatrixH[i]->Draw("colz");
+  
             TransC->cd(i+1);
-            TransMatrixH[i]->Draw();
+            TransMatrixH[i]->Draw("colz");
+            
+            FineTransC->cd(i+1);
+            HighResoTransMatrixH[i]->Draw("colz");
+
         }
+        
         FineMatrixC->Print("./Images/FineHydrogenResponseMatrix.eps");
         MatrixC->Print("./Images/HydrogenResponseMatrix.eps");
         PredictionC->Print("./Images/HydrogenPrediction.eps");
         TransC->Print("./Images/TransposeHydrogenMatrix.eps");
+        FineTransC->Print("./Images/FineTransposeHydrogenMatrix.eps");
+
         delete MatrixC;
         delete FineMatrixC;
         delete PredictionC;
         delete TransC;
+        delete FineTransC;
     }
     
     if(mode==0)
@@ -1101,6 +1115,7 @@ void nHToyMC :: Toy(bool mode)
         delete SaveMatrix;
         
     }
+    
 #ifdef SaveTree
     toy->Write();
     roofile_toy->Close();
