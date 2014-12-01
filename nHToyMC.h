@@ -995,6 +995,45 @@ void nHToyMC :: Toy(bool mode)
         }//events
     }//ADs
     
+    if(Print)
+    {
+        TCanvas* NNFineMatrixC = new TCanvas("NNF","NNF");
+        NNFineMatrixC->Divide(NADs/2,2);
+        
+        TCanvas* NNMatrixC = new TCanvas("NNM","NNM");
+        NNMatrixC->Divide(NADs/2,2);
+        
+        TCanvas* NNTransC = new TCanvas("NNT","NNT");
+        NNTransC->Divide(NADs/2,2);
+        
+        TCanvas* NNFineTransC = new TCanvas("NNFT","NNFT");
+        NNFineTransC->Divide(NADs/2,2);
+        
+        for(Int_t i = 0; i<NADs;i++)
+        {
+            NNMatrixC->cd(i+1);
+            MatrixH[i]->Draw("colz");
+            
+            NNFineMatrixC->cd(i+1);
+            HighResoMatrixH[i]->Draw("colz");
+            
+            NNTransC->cd(i+1);
+            TransMatrixH[i]->Draw("colz");
+            
+            NNFineTransC->cd(i+1);
+            HighResoTransMatrixH[i]->Draw("colz");
+        }
+        
+        NNFineMatrixC->Print("./Images/NoNormFineHydrogenResponseMatrix.eps");
+        NNMatrixC->Print("./Images/NoNormHydrogenResponseMatrix.eps");
+        NNTransC->Print("./Images/NoNormTransposeHydrogenMatrix.eps");
+        NNFineTransC->Print("./Images/NoNormFineTransposeHydrogenMatrix.eps");
+        
+        delete NNMatrixC;
+        delete NNFineMatrixC;
+        delete NNTransC;
+        delete NNFineTransC;
+    }
     
     Double_t Norma[n_etrue_bins];//true->vis
     Double_t HighResoNorma[MatrixBins];//true->vis
