@@ -30,6 +30,7 @@ private:
     TH1D* AccidentalsH[MaxDetectors];
     TH1D* AmCH;
     TH1D* BackgroundsH[BGNDs];
+    TH1D* TrueBackgroundsH[MaxDetectors];
     TH1D* RebinBackgroundsH[BGNDs];
     
     TH1D* FinalAccidentalsH[MaxDetectors][MaxPeriods];
@@ -49,10 +50,13 @@ private:
     //Binning parameters:
     bool LinearBinning;
     Int_t n_evis_bins;
+    Int_t n_etrue_bins;
     Double_t InitialEnergy;
     Double_t InitialVisibleEnergy;
     Double_t FinalVisibleEnergy;
     Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
+    Double_t enu_bins[MaxNbins+1];
+    
     void FitAmc();
     void FitFastNeutrons();
     void PrintBackgrounds();
@@ -103,16 +107,24 @@ FitBackgrounds2 :: FitBackgrounds2()
     if(LinearBinning)
     {
         n_evis_bins = Nom->GetNbins();
-        
+        n_etrue_bins = Nom->GetNbins();
         for (Int_t i = 0; i <= n_evis_bins; i++)
         {
             evis_bins[i] = 0.2 * i + 0.7;
+            enu_bins[i] = 0.2 * i + InitialEnergy;
         }
     }
     //  Non-linear binning
     else
     {
         n_evis_bins=37;
+        n_etrue_bins=39;
+        
+        for (Int_t i = 0; i <= n_etrue_bins; i++)
+        {
+            enu_bins[i] = 0.2 * i + InitialEnergy;
+        }
+        
         evis_bins[0] = 0.7;
         for (Int_t i = 0; i < n_evis_bins-1; i++)
         {
@@ -160,6 +172,8 @@ FitBackgrounds2 :: FitBackgrounds2(NominalData* Data)
     }
     
     n_evis_bins = Data->GetNbins();
+    n_etrue_bins = Data->GetNbins();
+
     InitialEnergy = Data->GetEmin();
     InitialVisibleEnergy =Data->GetEVisMin();
     FinalVisibleEnergy = Data->GetEVisMax();
@@ -168,15 +182,24 @@ FitBackgrounds2 :: FitBackgrounds2(NominalData* Data)
     //Linear binning
     if(LinearBinning)
     {
+        
         for (Int_t i = 0; i <= n_evis_bins; i++)
         {
             evis_bins[i] = 0.2 * i + 0.7;
+            enu_bins[i] = 0.2 * i + InitialEnergy;
         }
     }
     //Non-linear binning
     else
     {
         n_evis_bins=37;
+        n_etrue_bins=39;
+
+        for (Int_t i = 0; i <= n_etrue_bins; i++)
+        {
+            enu_bins[i] = 0.2 * i + InitialEnergy;
+        }
+        
         evis_bins[0] = 0.7;
         for (Int_t i = 0; i < n_evis_bins-1; i++)
         {
@@ -222,14 +245,14 @@ void FitBackgrounds2 :: ReadHBackgrounds()
             AccidentalsH[AD]=(TH1D*)gDirectory->Get(Form("h1dAccBkg22_%i",j-1));
             j++;
         }
-        BackgroundsH[AD]=(TH1D*)AccidentalsH[AD]->Clone(Form("Accidentals_AD%i",AD+1));
+        TrueBackgroundsH[AD]=(TH1D*)AccidentalsH[AD]->Clone(Form("Accidentals_AD%i",AD+1));
         
-        BackgroundsH[AD]->Reset();
+        TrueBackgroundsH[AD]->Reset();
         
 //         cout<<"NPoints "<<AccidentalsH[AD]->GetXaxis()->GetNbins();
         for (Int_t pts=1; pts <= AccidentalsH[AD]->GetXaxis()->GetNbins(); pts++)
         {
-            BackgroundsH[AD]->SetBinContent(pts,AccidentalsH[AD]->GetBinContent(pts));
+            TrueBackgroundsH[AD]->SetBinContent(pts,AccidentalsH[AD]->GetBinContent(pts));
         }
         AccidentalsF->Close();
     }
@@ -241,19 +264,63 @@ void FitBackgrounds2 :: ReadHBackgrounds()
     
     //9Li8He missing
     
-    BackgroundsH[NADs]=(TH1D*)BackgroundsH[NADs+1]->Clone("Fake LIHE");;//Need to implement this
+    TrueBackgroundsH[NADs]=(TH1D*)TrueBackgroundsH[NADs+1]->Clone("Fake LIHE");;//Need to implement this
     
-    TCanvas* CheckAccidentalsC = new TCanvas("","");
-    CheckAccidentalsC->Divide(3,3);
+    TCanvas* TrueBGNDC = new TCanvas("","");
+    TrueBGNDC->Divide(3,3);
     
     for(Int_t AD = 0; AD < NADs+3; AD++)
     {
-        CheckAccidentalsC->cd(AD+1);
+        TrueBGNDC->cd(AD+1);
+        // AccidentalsH[AD]->Draw();
+        TrueBackgroundsH[AD]->Draw();
+    }
+    TrueBGNDC->Print("./Images/BackgroundVariations/TrueHydrogenBackgrounds.eps");
+    
+    delete TrueBGNDC;
+    
+    //rebin in true energy
+    for(Int_t AD = 0; AD < NADs+3; AD++)
+    {
+        TrueBackgroundsH[AD] = (TH1D*)TrueBackgroundsH[AD]->Rebin(n_etrue_bins,Form("True_Backgrounds_%i",AD),enu_bins);
+    }
+    
+    TH2D* NominalResponseMatrix;
+    
+    // multiply by nominal true->vis matrix doesn't work,
+//    TFile* ResponseF = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root");
+//
+//        NominalResponseMatrix = (TH2D*)ResponseF->Get(Form("EvisEnu%d",1));
+//    
+//    delete ResponseF;
+//
+//    for(Int_t AD = 0; AD < NADs+3; AD++)
+//    {
+//        BackgroundsH[AD] = new TH1D(Form("Background%d",AD+1),Form("Background%d",AD+1),n_evis_bins,evis_bins);
+//        
+//        for(Int_t i = 1; i<n_etrue_bins;i++)
+//        {
+//            for(Int_t j = 1; j<n_evis_bins;j++)
+//            {
+//                    BackgroundsH[AD]->SetBinContent(j,BackgroundsH[AD]->GetBinContent(j)+TrueBackgroundsH[AD]->GetBinContent(i)*NominalResponseMatrix->GetBinContent(i,j));
+//            }
+//        }
+//    }
+//    
+//    delete NominalResponseMatrix;
+
+    TCanvas* VisibleBGNDC = new TCanvas("","");
+    VisibleBGNDC->Divide(3,3);
+    
+    for(Int_t AD = 0; AD < NADs+3; AD++)
+    {
+        VisibleBGNDC->cd(AD+1);
         // AccidentalsH[AD]->Draw();
         BackgroundsH[AD]->Draw();
     }
-    CheckAccidentalsC->Print("./Images/BackgroundVariations/HydrogenBackgrounds.eps");
-    delete CheckAccidentalsC;
+    VisibleBGNDC->Print("./Images/BackgroundVariations/VisibleHydrogenBackgrounds.eps");
+    
+    delete VisibleBGNDC;
 }
 
 void FitBackgrounds2 :: ReadGdBackgrounds()
@@ -500,11 +567,11 @@ void FitBackgrounds2::FitFastNeutrons()
     
     Double_t TotalAverage = (AveragePol0 + AveragePol1)/2;
     
-    BackgroundsH[NADs+1] = new TH1D("FN","FN",n_evis_bins,evis_bins);//60 so the bins are 0.2
+    TrueBackgroundsH[NADs+1] = new TH1D("FN","FN",n_etrue_bins,enu_bins);//60 so the bins are 0.2 (not valid anymore, now using true binning)
     
-    for(Int_t i=1;i<=n_evis_bins;i++)
+    for(Int_t i=1;i<=n_etrue_bins;i++)
     {
-        BackgroundsH[NADs+1]->SetBinContent(i,TotalAverage);
+        TrueBackgroundsH[NADs+1]->SetBinContent(i,TotalAverage);
     }
     
     delete FastNeutronH;
@@ -518,8 +585,8 @@ void FitBackgrounds2 :: FitAmc()
     AmCH=(TH1D*)gDirectory->Get("hist_Bkg_StrongAmC");
     AmCF1->Close();
     
-    BackgroundsH[NADs+2]=(TH1D*)AmCH->Clone();
-    BackgroundsH[NADs+2]->Reset();
+    TrueBackgroundsH[NADs+2]=(TH1D*)AmCH->Clone();
+    TrueBackgroundsH[NADs+2]->Reset();
     
     for(Int_t i=1;i<=AmCH->GetXaxis()->GetNbins();i++)
     {
@@ -543,13 +610,13 @@ void FitBackgrounds2 :: FitAmc()
     //Should I fit this with or without errors? (CHECK) (Original histogram (errors+content) vs only GetBinContent)???? What about negative bins?
     ///////////////////////////////////////////////////
     
-    BackgroundsH[NADs+2]->Add(HAmCFunc);
+    TrueBackgroundsH[NADs+2]->Add(HAmCFunc);
     
-    Double_t IntegralExponential = BackgroundsH[NADs+2]->Integral();//  Check that this works correctly, otherwise write explicitly limits in terms of the bins (InitialVisibleEnergy/binwidth, Final...)
+    Double_t IntegralExponential = TrueBackgroundsH[NADs+2]->Integral();//  Check that this works correctly, otherwise write explicitly limits in terms of the bins (InitialVisibleEnergy/binwidth, Final...)
     //    cout << IntegralExponential <<"\n";
     
     //Normalize histogram with respect to integral of the original graph, I can use data once I have it and normalize it to the expected number of AmC events.
-    BackgroundsH[NADs+2]->Scale(IntegralOriginal/IntegralExponential);
+    TrueBackgroundsH[NADs+2]->Scale(IntegralOriginal/IntegralExponential);
     // BackgroundsH[NADs]->Draw("same");
     //cout << IntegralOriginal/IntegralExponential <<"\n";
     delete AmCH;

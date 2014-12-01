@@ -1039,6 +1039,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         
         VisibleHisto[AD] = new TH1D(Form("Visible Oscillation Prediction AD%d, week%d",AD+1,week),Form("Visible Oscillation Prediction AD%d, week%d",AD+1,week), MatrixBins,0,FinalVisibleEnergy);
     }
+    
     if(!isH)//Gadolinium
     {
         for (Int_t AD = 0; AD <NADs; AD++)
@@ -1153,14 +1154,19 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         
         for(Int_t AD = 0; AD<NADs; AD++)
         {
-            nHPredictionMatrix[AD] = nHToy->LoadnHMatrix(AD);
+            nHPredictionMatrix[AD] = (TH2D*)nHToy->LoadnHMatrix(AD);
             
             for(Int_t i = 1; i<=MatrixBins; i++)//visible, 240 bins
             {
                 for(Int_t j = 1; j<=Nbins; j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
                 {
-                    VisibleHisto[AD]->SetBinContent(i,nHPredictionMatrix[AD]->GetBinContent(i,j+ShiftBin)*TotalOscillatedSpectrumAD[AD]->GetBinContent(j));
+                    VisibleHisto[AD]->SetBinContent(i,VisibleHisto[AD]->GetBinContent(i)+nHPredictionMatrix[AD]->GetBinContent(j+ShiftBin,i)*TotalOscillatedSpectrumAD[AD]->GetBinContent(j));
+                    
+                    std::cout << "Visible bin: " << i << " , true bin: " << j << " - Matrix: " << nHPredictionMatrix[AD]->GetBinContent(j+ShiftBin,i) << " - True Spectrum Bin: " << TotalOscillatedSpectrumAD[AD]->GetBinContent(j) << std::endl;
                 }
+                
+                std::cout << "Visible bin: " << i  << " - Visible Spectrum Bin: " << VisibleHisto[AD]->GetBinContent(i) << std::endl;
+
             }
         }
     }
