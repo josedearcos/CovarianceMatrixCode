@@ -1040,6 +1040,21 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         VisibleHisto[AD] = new TH1D(Form("Visible Oscillation Prediction AD%d, week%d",AD+1,week),Form("Visible Oscillation Prediction AD%d, week%d",AD+1,week), MatrixBins,0,FinalVisibleEnergy);
     }
     
+    if(Print)
+    {
+        TCanvas* AntineutrinoSpectrumC = new TCanvas("AntineutrinoSpectrumC","AntineutrinoSpectrumC");
+        
+        AntineutrinoSpectrumC->Divide(NADs/2,2);
+        
+        for (Int_t AD = 0; AD <NADs; AD++)
+        {
+            AntineutrinoSpectrumC->cd(AD+1);
+            
+            TotalOscillatedSpectrumAD[AD]->Draw();
+        }
+        AntineutrinoSpectrumC->Print("./Images/ReactorSpectrumOscillatedInADs.eps");
+        delete AntineutrinoSpectrumC;
+    }
     if(!isH)//Gadolinium
     {
         for (Int_t AD = 0; AD <NADs; AD++)

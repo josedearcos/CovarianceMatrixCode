@@ -26,14 +26,19 @@ using namespace std;
 
 #define FullEnergyResolution
 //#define UseDelayInformation
-//#define SaveTree // To save toy tree
-//#define LoadTree // To load eprompt tree
+#define SaveTree // To save toy tree
+#define LoadTree // To load eprompt tree
+//#define ReactorShapeinToy //To produce the toy with the reactor shape included
 ///
 TString roostr;
 
 ///
-const Double_t DeltaM = 1.80433; // Mneutron+Mpositron-Mproton
-const Double_t EnergyScale = 0.982; // data_centercell/toy_centercell = 0.982 for nH gamma
+const Double_t DeltaM = 1.80433; //( (Mn+Me)^2-Mp^2 ) / (2Mp) =
+// = ( (939.565378+0.510998928)^2 - 938.272046^2 ) / (2*938.272046)
+//1.80433;
+
+//const double EnergyScale = 0.982;  // data_centercell/toy_centercell = 0.982 for nH gamma toy non-uniformity and AdSimple data
+const double EnergyScale = 1.023;  // data_centercell/toy_centercell = 1.02 when using same non-uniformity in both data and toy
 
 class nHToyMC
 {
@@ -60,6 +65,9 @@ private:
     
     //AD configuration parameters:
     Int_t NADs;
+    
+    /// select whether nGd or nH IBD analysis - nGd events are currently rejected in the code.  Time cuts are not currently applied.
+    Int_t analysis;  // 0==special cuts, 1==hydrogen, 64==gadolinium
     
     /// vetex region
     Int_t    R2_binnum  ;                      // ---> set option: divide the volume to sub-regions
@@ -90,7 +98,9 @@ private:
     TH2D *hist_map_pmt_coverage;
     
     ///
+#ifdef ReactorShapeinToy
     TH1D *h_Ev_normal;
+#endif
     TRandom3 *gRandom3;
     TRandom3 *RandomSys;
 
@@ -117,6 +127,9 @@ public:
 // constructor:
 nHToyMC :: nHToyMC(NominalData* Data)
 {
+    /// select whether nGd or nH IBD analysis - nGd events are currently rejected in the code.  Time cuts are not currently applied.
+    analysis = 0;  // 0==special cuts, 1==hydrogen, 64==gadolinium
+
     R2_binnum = 10;                      // ---> set option: divide the volume to sub-regions
     R2_lower  = 0;// m2                  // ---> set option
     R2_upper  = 4;// m2                  // ---> set option
@@ -395,7 +408,7 @@ void nHToyMC :: Toy(bool mode)
         
         cout.precision(3);
         if(ientry%10000==0)
-            cout<<" ---> processing00 "<<ientry*100./entries_wtree<<"%"<<endl;
+            cout<<" ---> processing MC spectrum "<<ientry*100./entries_wtree<<"%"<<endl;
         
         //////
         
@@ -433,9 +446,14 @@ void nHToyMC :: Toy(bool mode)
         cap_Ev = Etot_P +Etot_N + DeltaM;
         
         h_Ev_toyMC_input->Fill(cap_Ev);
+#ifndef ReactorShapeinToy
+        etree->Fill();//To fill a flat spectrum to produce a response matrix with nearly equal statistics in every column and about 3 times more events in total
+#endif
     }
     
-    /////////
+    ///////// Uncomment to include reactor shape in the toy:
+    
+#ifdef ReactorShapeinToy
     
     Double_t max_h_Ev_toyMC_input = h_Ev_toyMC_input->GetBinContent( h_Ev_toyMC_input->GetMaximumBin() );
     Double_t max_h_Ev_normal = h_Ev_normal->GetBinContent( h_Ev_normal->GetMaximumBin() );
@@ -447,7 +465,7 @@ void nHToyMC :: Toy(bool mode)
         
         cout.precision(3);
         if(ientry%10000==0)
-            cout<<" ---> processing01 "<<ientry*100./entries_wtree<<"%"<<endl;
+            cout<<" ---> processing reactor shape spectrum "<<ientry*100./entries_wtree<<"%"<<endl;
         
         //////
         
@@ -502,6 +520,7 @@ void nHToyMC :: Toy(bool mode)
         
         etree->Fill();
     }
+#endif
     etree->Write();
     roofile_etree->Close();
     
@@ -675,12 +694,14 @@ void nHToyMC :: Toy(bool mode)
     toy->Branch("FEE_E_P_Sum",   &FEE_E_P_Sum,   "FEE_E_P_Sum/D");
     toy->Branch("Scale_E_P_Sum", &Scale_E_P_Sum, "Scale_E_P_Sum/D");
     toy->Branch("Res_E_P_Sum",   &Res_E_P_Sum,   "Res_E_P_Sum/D");
-    
+#ifdef UseDelayInformation
     toy->Branch("LY_Etot_Ng",    &LY_Etot_Ng,    "LY_Etot_Ng/D");
     toy->Branch("Opt_Etot_Ng",   &Opt_Etot_Ng,   "Opt_Etot_Ng/D");
     toy->Branch("FEE_Etot_Ng",   &FEE_Etot_Ng,   "FEE_Etot_Ng/D");
     toy->Branch("Scale_Etot_Ng", &Scale_Etot_Ng, "Scale_Etot_Ng/D");
     toy->Branch("Res_Etot_Ng",   &Res_Etot_Ng,   "Res_Etot_Ng/D");
+#endif
+    
 #endif
     
     Double_t GausRelative[MaxDetectors],GausIAV[MaxDetectors],GausNL[MaxDetectors],GausReso[MaxDetectors],GausEff[MaxDetectors];
@@ -747,7 +768,7 @@ void nHToyMC :: Toy(bool mode)
 
             cout.precision(3);
             if(ientry%10000==0)
-                cout<<" ---> processing02 "<<ientry*100./entries_etree_read<<"%"<<endl;
+                cout<<" ---> processing response matrix in AD" << AD << " " <<ientry*100./entries_etree_read<<"%"<<endl;
             
             Int_t seed_rand = 0;
             if( ientry%100==0 )
@@ -1156,8 +1177,8 @@ void nHToyMC :: Toy(bool mode)
 
         }
         
-        PredictionC->Print("./Images/TrueHydrogenPrediction.eps");
-        VisPredictionC->Print("./Images/VisibleHydrogenPrediction.eps");
+        PredictionC->Print("./Images/ToyMCTrueHydrogenPrediction.eps");
+        VisPredictionC->Print("./Images/ToyMCVisibleHydrogenPrediction.eps");
         FineMatrixC->Print("./Images/FineHydrogenResponseMatrix.eps");
         MatrixC->Print("./Images/HydrogenResponseMatrix.eps");
         TransC->Print("./Images/TransposeHydrogenMatrix.eps");
@@ -1209,9 +1230,10 @@ void nHToyMC :: func_initialization()
     hist_findbin = new TH2D("hist_findbin","", R2_binnum,R2_lower,R2_upper, Z_binnum,Z_lower,Z_upper);
     
     ////// ~/WORK/jixp/hapy/usr_job/work_mc_Ep/Production/process/plot_obj.cc
+#ifdef ReactorShapeinToy
     TFile *file_h_Ev = new TFile("./Inputs/HInputs/Data/file_h_Ev.root", "read");
     h_Ev_normal = (TH1D*)file_h_Ev->Get("h_Ev");
-    
+#endif
     ////// NL
     TFile* file_IHEP_NL_models = new TFile("./Inputs/HInputs/Data/IHEP_NL_models/Model1.root", "read");
     graph_electron_LY = (TGraph*)file_IHEP_NL_models->Get("electronScint");// positron = electron + gamma1 + gamma2
