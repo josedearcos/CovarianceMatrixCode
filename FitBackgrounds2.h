@@ -46,9 +46,7 @@ private:
     Double_t ScaleAmC[MaxDetectors][MaxPeriods];
     
     //Binning parameters:
-    bool LinearBinning;
     Int_t n_evis_bins;
-    Double_t InitialEnergy;
     Double_t InitialVisibleEnergy;
     Double_t FinalVisibleEnergy;
     Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
@@ -93,32 +91,14 @@ FitBackgrounds2 :: FitBackgrounds2()
     }
     
     //  Binning variables
-    InitialEnergy = Nom->GetEmin();
     InitialVisibleEnergy = Nom->GetEVisMin();
     FinalVisibleEnergy =  Nom->GetEVisMax();
     
-    LinearBinning = Nom->GetBinning();
+    n_evis_bins = Nom->GetVisibleBins();
     
-    //  Linear binning
-    if(LinearBinning)
+    for (Int_t i = 0; i <= n_evis_bins; i++)
     {
-        n_evis_bins = Nom->GetNbins();
-        for (Int_t i = 0; i <= n_evis_bins; i++)
-        {
-            evis_bins[i] = 0.2 * i + 0.7;
-        }
-    }
-    //  Non-linear binning
-    else
-    {
-        n_evis_bins=37;
-        
-        evis_bins[0] = 0.7;
-        for (Int_t i = 0; i < n_evis_bins-1; i++)
-        {
-            evis_bins[i+1] = 0.2 * i + 1.0;
-        }
-        evis_bins[n_evis_bins] = FinalVisibleEnergy;
+        evis_bins[i] = Nom->GetVisibleBinningArray(i);
     }
     
     for (Int_t AD = 0; AD<NADs; AD++)
@@ -159,33 +139,16 @@ FitBackgrounds2 :: FitBackgrounds2(NominalData* Data)
         ADsEH3 = 4;
     }
     
-    n_evis_bins = Data->GetNbins();
-
-    InitialEnergy = Data->GetEmin();
+    n_evis_bins = Data->GetVisibleBins();
+    
+    for (Int_t i = 0; i <= n_evis_bins; i++)
+    {
+        evis_bins[i] = Data->GetVisibleBinningArray(i);
+    }
+    
     InitialVisibleEnergy =Data->GetEVisMin();
     FinalVisibleEnergy = Data->GetEVisMax();
-    LinearBinning = Data->GetBinning();
     
-    //Linear binning
-    if(LinearBinning)
-    {
-        for (Int_t i = 0; i <= n_evis_bins; i++)
-        {
-            evis_bins[i] = 0.2 * i + 0.7;
-        }
-    }
-    //Non-linear binning
-    else
-    {
-        n_evis_bins=37;
-        
-        evis_bins[0] = 0.7;
-        for (Int_t i = 0; i < n_evis_bins-1; i++)
-        {
-            evis_bins[i+1] = 0.2*i + 1.0;
-        }
-        evis_bins[n_evis_bins] = FinalVisibleEnergy;
-    }
     
     for (Int_t AD = 0; AD<NADs; AD++)
     {
@@ -316,7 +279,7 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
     
     TFile* BackgroundsF3 = TFile::Open(("./BackgroundSpectrum/"+SaveString+"/amc_spectrum.root").c_str());
     GdAmCFunc=(TF1*)gDirectory->Get("expo");
-    GdAmCFunc->SetRange(0.7,FinalVisibleEnergy);
+    GdAmCFunc->SetRange(InitialVisibleEnergy,FinalVisibleEnergy);//InitialVisibleEnergy = 0.7 before
     GdAmCFunc->SetName("AmCFunc");
     BackgroundsH[NADs+2]=(TH1D*)gDirectory->Get("h_toy");
     BackgroundsH[NADs+2]->Reset();

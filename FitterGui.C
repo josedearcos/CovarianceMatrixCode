@@ -3744,8 +3744,6 @@ void FitterGui:: ChoosePlotSpectrumVariations()
         }
     }
     
-    
-    
     VCanvas->Update();
     VCanvas->Print(("./Images/"+AnalysisString+Form("/Variations/SpectrumCombine%d",CombineMode)+VarString+".eps").c_str(),".eps");
     
@@ -4439,38 +4437,19 @@ void FitterGui::GenerateToyMC()
     FinalEnergy = VData->GetEmax();
     InitialVisibleEnergy = VData->GetEVisMin();
     FinalVisibleEnergy = VData->GetEVisMax();
-    //  Linear binning
-    if(Binning)
+    
+    n_evis_bins = NData->GetVisibleBins();
+
+    for (Int_t i = 0; i <= n_evis_bins; i++)
     {
-        n_evis_bins = NData->GetNbins();
-        n_etrue_bins = NData->GetNbins();
-        
-        n_evis_bins = VData->GetNbins();
-        n_etrue_bins = VData->GetNbins();
-        
-        for (Int_t i = 0; i <= n_evis_bins; i++)
-        {
-            evis_bins[i] = 0.2 * i + 0.7;
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
+        evis_bins[i] = NData->GetVisibleBinningArray(i);
     }
-    //  Non-linear binning
-    else
+    
+    n_etrue_bins = NData->GetTrueBins();
+    
+    for (Int_t i = 0; i <= n_etrue_bins; i++)
     {
-        n_evis_bins=37;
-        n_etrue_bins=39;
-        
-        for (Int_t i = 0; i <= n_etrue_bins; i++)
-        {
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-        
-        evis_bins[0] = 0.7;
-        for (Int_t i = 0; i < n_evis_bins-1; i++)
-        {
-            evis_bins[i+1] = 0.2 * i + 1.0;
-        }
-        evis_bins[n_evis_bins] = FinalVisibleEnergy;
+        enu_bins[i] = NData->GetTrueBinningArray(i);
     }
     
     Int_t MaxNearCombine,MaxFarCombine;

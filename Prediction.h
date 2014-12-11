@@ -142,25 +142,13 @@ private:
     bool analysis;
     
     //Binning parameters:
-    bool LinearBinning;
     Int_t n_evis_bins;
-    Int_t n_etrue_bins;
-    
-    Int_t LimitTrue;
-    Int_t LimitVis;
-    
-    Double_t InitialEnergy;
-    Double_t FinalEnergy;
-    Double_t InitialVisibleEnergy;
-    Double_t FinalVisibleEnergy;
-    
+    Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
+
     Int_t Nweeks;
-    Double_t BinWidth;
     Int_t TotalBins;
     
     TH1D* FluxHisto[MaxDetectors*NReactors*MaxPeriods];
-    Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
-    Double_t enu_bins[MaxNbins+1]; // 39 bins between 1.8 and 9.6 MeV +1 for the 9.6 limit.
     
     //Histograms
     TH1D* PredictionVisH[MaxFarDetectors][MaxNearDetectors];//  Prediction with no alterations, nominal backgrounds may be added. Vis Binning (after detector response is applied)
@@ -409,45 +397,13 @@ Prediction :: Prediction()
     
     Nweeks = Data->GetWeeks();
     
-    InitialEnergy = Data->GetEmin();
-    FinalEnergy = Data->GetEmax();
-    InitialVisibleEnergy = Data->GetEVisMin();
-    FinalVisibleEnergy = Data->GetEVisMax();
-    
     TotalBins = MatrixBins;
-    BinWidth=(FinalVisibleEnergy-InitialVisibleEnergy)/TotalBins;
     
-    LinearBinning = Data->GetBinning();
+    n_evis_bins = Data->GetVisibleBins();
     
-    //  Linear binning
-    if(LinearBinning)
+    for (Int_t i = 0; i <= n_evis_bins; i++)
     {
-        n_evis_bins = Data->GetNbins();
-        n_etrue_bins = Data->GetNbins();
-        
-        for (Int_t i = 0; i <= n_evis_bins; i++)
-        {
-            evis_bins[i] = 0.2 * i + 0.7;
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-    }
-    //  Non-linear binning
-    else
-    {
-        n_evis_bins=37;
-        n_etrue_bins=39;
-        
-        for (Int_t i = 0; i <= n_etrue_bins; i++)
-        {
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-        
-        evis_bins[0] = 0.7;
-        for (Int_t i = 0; i < n_evis_bins-1; i++)
-        {
-            evis_bins[i+1] = 0.2 * i + 1.0;
-        }
-        evis_bins[n_evis_bins] = FinalVisibleEnergy;
+        evis_bins[i] = Data->GetVisibleBinningArray(i);
     }
     
     NADs = Data->GetADs();
@@ -455,11 +411,12 @@ Prediction :: Prediction()
     ADsEH2 = 1;
     ADsEH3 = 3;
     
-    if(NADs == 8)//    ADs can only be 6 or 8
+    if(NADs == 8)// ADs can only be 6 or 8
     {
         ADsEH2 = 2;
         ADsEH3 = 4;
     }
+    
 #ifndef Produce_Antineutrino_Spectrum_For_FirstTime
     if(IsotopeMatrix||ReactorPowerMatrix)
     {
@@ -539,46 +496,14 @@ Prediction :: Prediction(NominalData* data)
     RandomReactorPower = 0;
     
     Nweeks = Data->GetWeeks();
-    
-    InitialEnergy = Data->GetEmin();
-    FinalEnergy = Data->GetEmax();
-    InitialVisibleEnergy = Data->GetEVisMin();
-    FinalVisibleEnergy = Data->GetEVisMax();
-    
+
     TotalBins = MatrixBins;
-    BinWidth=(FinalVisibleEnergy-InitialVisibleEnergy)/TotalBins;
     
-    LinearBinning = Data->GetBinning();
+    n_evis_bins = Data->GetVisibleBins();
     
-    //  Linear binning
-    if(LinearBinning)
+    for (Int_t i = 0; i <= n_evis_bins; i++)
     {
-        n_evis_bins = Data->GetNbins();
-        n_etrue_bins = Data->GetNbins();
-        
-        for (Int_t i = 0; i <= n_evis_bins; i++)
-        {
-            evis_bins[i] = 0.2 * i + 0.7;
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-    }
-    //  Non-linear binning
-    else
-    {
-        n_evis_bins=37;
-        n_etrue_bins=39;
-        
-        for (Int_t i = 0; i <= n_etrue_bins; i++)
-        {
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-        
-        evis_bins[0] = 0.7;
-        for (Int_t i = 0; i < n_evis_bins-1; i++)
-        {
-            evis_bins[i+1] = 0.2 * i + 1.0;
-        }
-        evis_bins[n_evis_bins] = FinalVisibleEnergy;
+        evis_bins[i] = Data->GetVisibleBinningArray(i);
     }
     
     NADs = Data->GetADs();

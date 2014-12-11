@@ -26,8 +26,8 @@ using namespace std;
 
 #define FullEnergyResolution
 //#define UseDelayInformation
-#define SaveTree // To save toy tree
-#define LoadTree // To load eprompt tree
+//#define SaveTree // To save toy tree
+//#define LoadTree // To load eprompt tree
 //#define ReactorShapeinToy //To produce the toy with the reactor shape included
 ///
 TString roostr;
@@ -38,6 +38,7 @@ const Double_t DeltaM = 1.80433; //( (Mn+Me)^2-Mp^2 ) / (2Mp) =
 //1.80433;
 
 //const double EnergyScale = 0.982;  // data_centercell/toy_centercell = 0.982 for nH gamma toy non-uniformity and AdSimple data
+
 const double EnergyScale = 1.023;  // data_centercell/toy_centercell = 1.02 when using same non-uniformity in both data and toy
 
 class nHToyMC
@@ -49,7 +50,6 @@ private:
     Double_t FinalEnergy;
     Double_t InitialVisibleEnergy;
     Double_t FinalVisibleEnergy;
-    bool LinearBinning;
     Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
     Double_t enu_bins[MaxNbins+1]; // 39 bins between 1.8 and 9.6 MeV +1 for the 9.6 limit.
     
@@ -110,7 +110,7 @@ private:
     Double_t func_EnergyResolution(double*,double*);
     void func_initialization();
     Int_t  RootCellToVisCell(Int_t RootCell);
-    TH1D* PredictionH[MaxDetectors];
+    TH1D* TruePredictionH[MaxDetectors];
     TH1D* VisiblePredictionH[MaxDetectors];
     TH2D* TransMatrixH[MaxDetectors];
     TH2D* HighResoTransMatrixH[MaxDetectors];
@@ -153,37 +153,18 @@ nHToyMC :: nHToyMC(NominalData* Data)
     InitialVisibleEnergy = Data->GetEVisMin();
     FinalVisibleEnergy = Data->GetEVisMax();
     
-    LinearBinning = Data->GetBinning();
+    n_evis_bins = Data->GetVisibleBins();
     
-    //  Linear binning
-    if(LinearBinning)
+    for (Int_t i = 0; i <= n_evis_bins; i++)
     {
-        n_evis_bins = Data->GetNbins();
-        n_etrue_bins = Data->GetNbins();
-        
-        for (Int_t i = 0; i <= n_evis_bins; i++)
-        {
-            evis_bins[i] = 0.2 * i + 0.7;
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
+        evis_bins[i] = Data->GetVisibleBinningArray(i);
     }
-    //  Non-linear binning
-    else
+    
+    n_etrue_bins = Data->GetTrueBins();
+    
+    for (Int_t i = 0; i <= n_etrue_bins; i++)
     {
-        n_evis_bins=37;
-        n_etrue_bins=39;
-        
-        for (Int_t i = 0; i <= n_etrue_bins; i++)
-        {
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-        
-        evis_bins[0] = 0.7;
-        for (Int_t i = 0; i < n_evis_bins-1; i++)
-        {
-            evis_bins[i+1] = 0.2 * i + 1.0;
-        }
-        evis_bins[n_evis_bins] = FinalVisibleEnergy;
+        enu_bins[i] = Data->GetTrueBinningArray(i);
     }
     
     RelativeEnergyScaleMatrix = Data->GetRelativeEnergyScaleMatrix();
@@ -206,7 +187,7 @@ nHToyMC :: nHToyMC(NominalData* Data)
         
         HighResoTransMatrixH[AD] = new TH2D(Form("Fine_nHTransResponseMatrix_AD%d",AD+1),Form("Fine_nHTransResponseMatrix_AD%d",AD+1),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from visible to true
         
-        PredictionH[AD] = new TH1D(Form("PredAD%d",AD),Form("PredAD%d",AD), Nbins, InitialEnergy, FinalEnergy);
+        TruePredictionH[AD] = new TH1D(Form("PredAD%d",AD),Form("PredAD%d",AD), Nbins, InitialEnergy, FinalEnergy);
         
         VisiblePredictionH[AD] = new TH1D(Form("VisPredAD%d",AD),Form("VisPredAD%d",AD), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
     }
@@ -216,7 +197,7 @@ nHToyMC :: ~nHToyMC()
 {
     for(Int_t AD = 0; AD < NADs; AD++)
     {
-        delete PredictionH[AD];
+        delete TruePredictionH[AD];
         delete HighResoMatrixH[AD];
         delete MatrixH[AD];
         delete TransMatrixH[AD];
@@ -1003,7 +984,7 @@ void nHToyMC :: Toy(bool mode)
             ///////////////////////////// Cell
             
             //Fill histograms:
-            PredictionH[AD]->Fill(cap_Ev);
+            TruePredictionH[AD]->Fill(cap_Ev);
             VisiblePredictionH[AD]->Fill(Res_E_P_Sum);
             HighResoMatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//Fine grid
             MatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//neutrino energy vs visible energy
@@ -1158,7 +1139,7 @@ void nHToyMC :: Toy(bool mode)
         for(Int_t i = 0; i<NADs;i++)
         {
             PredictionC->cd(i+1);
-            PredictionH[i]->Draw();
+            TruePredictionH[i]->Draw();
             
             VisPredictionC->cd(i+1);
             VisiblePredictionH[i]->Draw();
@@ -1253,7 +1234,7 @@ void nHToyMC :: func_initialization()
     gRandom3 = new TRandom3();
     RandomSys = new TRandom3(0);
     /// energy resolution
-    roofunc_EnergyResolution = new TF1("roofunc_EnergyResolution", this,&nHToyMC::func_EnergyResolution, 0,20, 1,"nHToyMC","func_EnergyResolution");
+    roofunc_EnergyResolution = new TF1("roofunc_EnergyResolution", this, &nHToyMC::func_EnergyResolution, 0,20, 1,"nHToyMC","func_EnergyResolution");
 }
 
 TH2D* nHToyMC :: LoadnHMatrix(Int_t AD)

@@ -19,6 +19,9 @@ const bool DeltaMee = 0;//Use Δm^2ee instead of Δm32 and Δm31 values
 
 const bool ADSimple = 1;
 
+const bool LBNLBinning = 1;
+const bool LoganBinning = 0;
+
 const Int_t MaxExperiments = 1000;
 const Int_t MaxPeriods = 32;
 const Int_t MaxDetectors = 8;
@@ -27,7 +30,9 @@ const Int_t NHalls = 3;
 const Int_t NReactors=6;
 const Int_t MaxNearDetectors =4;
 const Int_t MaxFarDetectors =4;
-const Int_t MaxNbins=51;
+//const Int_t MaxNbins=51;
+const Int_t MaxNbins=240;//temporally to match logan's binning
+
 const Int_t MatrixBins = 240;
 const Int_t MaxNearADs =4;
 const Int_t MaxFarADs =4;
@@ -168,6 +173,13 @@ private:
 
 public:
     
+    //binning variables
+    Int_t n_evis_bins;
+    Int_t n_etrue_bins;
+    
+    Double_t evis_bins[MatrixBins+1];//+1 because these arrays contain binning limits
+    Double_t enu_bins[MatrixBins+1];
+    
     bool TurnOnBudget;
     bool TurnOffBudget;
     
@@ -241,7 +253,6 @@ public:
     
     void SetNSamples(Int_t);
     void SetNSteps(Int_t);
-    void SetNbins(Int_t);
     void SetEmin(Double_t);
     void SetEmax(Double_t);
     void SetEVisMin(Double_t);
@@ -317,6 +328,11 @@ public:
     void SetNReactorPeriods(Int_t);
     
     //getters
+    Double_t GetTrueBinningArray(Int_t);
+    Double_t GetVisibleBinningArray(Int_t);
+    Int_t GetTrueBins();
+    Int_t GetVisibleBins();
+
     Int_t GetDataSet();
 
     bool GetBCWModel();
@@ -432,7 +448,6 @@ public:
     Double_t GetFullTime(Int_t,Int_t);
     Int_t GetCombineMode();
     Int_t GetWeeks();
-    Int_t GetNbins();
     Double_t GetEmin();
     Double_t GetEmax();
     Double_t GetEVisMin();
@@ -440,6 +455,7 @@ public:
     Int_t GetADs();
     bool GetAnalysis();
     bool GetBinning();
+    void CalculateBinning();
     //IAV thickness error
     Double_t GetIAVError();
     // Background relative errors
@@ -513,7 +529,6 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     EfficiencyBudget=0;
     
     ToyMC=0;//Data is default;
-    LinearBinning=0;
     Nweeks = 1;
     NReactorPeriods=20;
     NADs = 6;
@@ -554,12 +569,13 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
 
     NSamples = 500;
     NSteps = 101;
-    NBins = 51;
+    
     Emin = 1.8;
     Emax = 12;
-    EVisMin = 0;
     EVisMax = 12;
-
+    LinearBinning=0;
+    CalculateBinning();//default
+    
     //Nominal isotope fraction errors:
     for(Int_t i=0;i<NIsotopes;i++)
     {
@@ -1041,7 +1057,11 @@ void NominalData :: CopyData(NominalData * data)
      Emax = data->Emax;
      EVisMin = data->EVisMin;
      EVisMax = data->EVisMax;
-    
+     n_etrue_bins = data->n_etrue_bins;
+     n_evis_bins = data->n_evis_bins;
+     std::copy(std::begin(data->enu_bins), std::end(data->enu_bins), std::begin(enu_bins));
+     std::copy(std::begin(data->evis_bins), std::end(data->evis_bins), std::begin(evis_bins));
+
     //Reactor
      binWidth = data->binWidth;
      std::copy(std::begin(data->m_dNdE_nom), std::end(data->m_dNdE_nom), std::begin(m_dNdE_nom));
@@ -1103,7 +1123,7 @@ void NominalData :: CopyData(NominalData * data)
     
      StatisticalFluctuation = data->StatisticalFluctuation;
      UseToyMCTree = data->UseToyMCTree;
-
+    
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                                              Analysis, Binning and Model controllers
@@ -1609,11 +1629,6 @@ void NominalData :: SetBinning(bool linearBinning)
     LinearBinning=linearBinning;
 }
 
-void NominalData :: SetNbins(Int_t nbins)
-{
-    NBins = nbins;
-}
-
 void NominalData :: SetEmin(Double_t emin)
 {
     Emin = emin;
@@ -1637,11 +1652,6 @@ void NominalData :: SetEVisMax(Double_t evismax)
 bool  NominalData :: GetBinning()
 {
     return LinearBinning;
-}
-
-Int_t NominalData :: GetNbins()
-{
-    return NBins;
 }
 
 Double_t NominalData :: GetEmin()
@@ -2465,4 +2475,79 @@ void NominalData :: SetNReactorPeriods(Int_t reactorperiods)
     NReactorPeriods = reactorperiods;
 }
 
+void NominalData :: CalculateBinning()
+{
+    
+    //Gadolinium:
 
+    if(LinearBinning)//  Linear binning
+    {
+        if(isH)//Hydrogen analysis linear binning
+        {
+            n_evis_bins=42;//match visible cuts
+            n_etrue_bins=39;//match reactor data, this might be different when using IHEP reactor model for P14
+           
+            EVisMin = 1.5;//1.5 lower visible energy cut for Hydrogen Analysis
+
+            if(LoganBinning)//To test our different spectra
+            {
+                EVisMin = 0;//1.5 for Hydrogen Analysis
+                n_evis_bins = 240;
+            }
+        }
+        else//Linear binning for Gadolinium Analysis
+        {
+            n_evis_bins = 60;//0.2 steps from 0 to 12
+            n_etrue_bins=39;//match reactor flux data for P12E
+            EVisMin = 0;//show all spectrum
+        }
+        
+        Double_t TrueBinWidth = (Emax - Emin)/n_etrue_bins;//if n_etrue_bins = 51 and Emin = 1.8, 0.2
+        Double_t VisBinWidth = (EVisMax - EVisMin)/n_evis_bins;//if 240 and Emin = 0 it is 0.05
+
+        //Linear binning
+        for (Int_t i = 0; i <= n_evis_bins; i++)
+        {
+            evis_bins[i] = VisBinWidth * i + EVisMin;
+            enu_bins[i] = TrueBinWidth * i + Emin;
+        }
+    }
+    else
+    {
+        if(!isH)// LBNL Non-linear binning for Gadolinium Analysis
+        {
+            n_evis_bins=37;
+            n_etrue_bins=39;
+            
+            for (Int_t i = 0; i <= n_etrue_bins; i++)
+            {
+                enu_bins[i] = 0.2 * i + Emin;
+            }
+            
+            evis_bins[0] = 0.7;
+            
+            for (Int_t i = 0; i < n_evis_bins-1; i++)
+            {
+                evis_bins[i+1] = 0.2 * i + 1.0;
+            }
+            evis_bins[n_evis_bins] = 12;
+        }
+    }
+}
+
+Double_t NominalData :: GetTrueBinningArray(Int_t true_index)
+{
+    return enu_bins[true_index];
+}
+Double_t NominalData :: GetVisibleBinningArray(Int_t vis_index)
+{
+    return evis_bins[vis_index];
+}
+Int_t NominalData :: GetTrueBins()
+{
+    return n_etrue_bins;
+}
+Int_t NominalData :: GetVisibleBins()
+{
+    return n_evis_bins;
+}

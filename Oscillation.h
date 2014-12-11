@@ -104,7 +104,6 @@ private:
     bool Analysis;
     std::string AnalysisString;
     Int_t DataSet;
-    bool LinearBinning;
     Int_t n_evis_bins;
     Int_t n_etrue_bins;
     Double_t InitialEnergy;
@@ -287,38 +286,21 @@ Oscillation :: Oscillation()
     InitialEnergy = Nom->GetEmin();
     InitialVisibleEnergy = Nom->GetEVisMin();
     FinalVisibleEnergy = Nom->GetEVisMax();
-    LinearBinning = Nom->GetBinning();
+   
+    n_evis_bins = Nom->GetVisibleBins();
     
-    //  Linear binning
-    if(LinearBinning)
+    for (Int_t i = 0; i <= n_evis_bins; i++)
     {
-        n_evis_bins = Nom->GetNbins();
-        n_etrue_bins = Nom->GetNbins();
-        
-        for (Int_t i = 0; i <= n_evis_bins; i++)
-        {
-            evis_bins[i] = 0.2 * i + 0.7;
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
+        evis_bins[i] = Nom->GetVisibleBinningArray(i);
     }
-    //  Non-linear binning
-    else
+    
+    n_etrue_bins = Nom->GetTrueBins();
+    
+    for (Int_t i = 0; i <= n_etrue_bins; i++)
     {
-        n_evis_bins=37;
-        n_etrue_bins=39;
-        
-        for (Int_t i = 0; i <= n_etrue_bins; i++)
-        {
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-        
-        evis_bins[0] = 0.7;
-        for (Int_t i = 0; i < n_evis_bins-1; i++)
-        {
-            evis_bins[i+1] = 0.2 * i + 1.0;
-        }
-        evis_bins[n_evis_bins] = FinalVisibleEnergy;
+        enu_bins[i] = Nom->GetTrueBinningArray(i);
     }
+    
     IsotopeMatrix = Nom->GetIsotopeMatrix();
     ReactorPowerMatrix = Nom->GetReactorPowerMatrix();
     Sin22t12Matrix = Nom->GetSin22t12Matrix();
@@ -415,38 +397,20 @@ Oscillation :: Oscillation(NominalData* OData)
     InitialEnergy = OData->GetEmin();
     InitialVisibleEnergy = OData->GetEVisMin();
     FinalVisibleEnergy = OData->GetEVisMax();
-    LinearBinning = OData->GetBinning();
+    n_evis_bins = OData->GetVisibleBins();
     
-    //  Linear binning
-    if(LinearBinning)
+    for (Int_t i = 0; i <= n_evis_bins; i++)
     {
-        n_evis_bins = OData->GetNbins();
-        n_etrue_bins = OData->GetNbins();
-        
-        for (Int_t i = 0; i <= n_evis_bins; i++)
-        {
-            evis_bins[i] = 0.2 * i + 0.7;
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
+        evis_bins[i] = OData->GetVisibleBinningArray(i);
     }
-    //  Non-linear binning
-    else
+    
+    n_etrue_bins = OData->GetTrueBins();
+    
+    for (Int_t i = 0; i <= n_etrue_bins; i++)
     {
-        n_evis_bins=37;
-        n_etrue_bins=39;
-        
-        for (Int_t i = 0; i <= n_etrue_bins; i++)
-        {
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-        
-        evis_bins[0] = 0.7;
-        for (Int_t i = 0; i < n_evis_bins-1; i++)
-        {
-            evis_bins[i+1] = 0.2 * i + 1.0;
-        }
-        evis_bins[n_evis_bins] = FinalVisibleEnergy;
+        enu_bins[i] = OData->GetTrueBinningArray(i);
     }
+    
     IsotopeMatrix = OData->GetIsotopeMatrix();
     ReactorPowerMatrix = OData->GetReactorPowerMatrix();
     Sin22t12Matrix = OData->GetSin22t12Matrix();

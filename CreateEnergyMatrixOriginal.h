@@ -337,7 +337,8 @@ public:
 
 CreateEnergyMatrix :: CreateEnergyMatrix(NominalData* data)
 {
-    Data = (NominalData*)data;
+    Data = new NominalData(0,2);
+    Data->CopyData(data);
     
     analysis = Data->GetAnalysis();
     
@@ -361,37 +362,18 @@ CreateEnergyMatrix :: CreateEnergyMatrix(NominalData* data)
 
     BinWidth=(FinalVisibleEnergy-InitialVisibleEnergy)/MatrixBins;
     
-    LinearBinning = Data->GetBinning();
+    n_evis_bins = Data->GetVisibleBins();
     
-    //  Linear binning
-    if(LinearBinning)
+    for (Int_t i = 0; i <= n_evis_bins; i++)
     {
-        n_evis_bins = Data->GetNbins();
-        n_etrue_bins = Data->GetNbins();
-        
-        for (Int_t i = 0; i <= n_evis_bins; i++)
-        {
-            evis_bins[i] = 0.2 * i + 0.7;
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
+        evis_bins[i] = Data->GetVisibleBinningArray(i);
     }
-    //  Non-linear binning
-    else
+    
+    n_etrue_bins = Data->GetTrueBins();
+    
+    for (Int_t i = 0; i <= n_etrue_bins; i++)
     {
-        n_evis_bins=37;
-        n_etrue_bins=39;
-        
-        for (Int_t i = 0; i <= n_etrue_bins; i++)
-        {
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-        
-        evis_bins[0] = 0.7;
-        for (Int_t i = 0; i < n_evis_bins-1; i++)
-        {
-            evis_bins[i+1] = 0.2 * i + 1.0;
-        }
-        evis_bins[n_evis_bins] = FinalVisibleEnergy;
+        enu_bins[i] = Data->GetTrueBinningArray(i);
     }
     
     NADs = Data->GetADs();

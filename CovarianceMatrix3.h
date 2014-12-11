@@ -99,16 +99,8 @@ private:
     Int_t MaxFar;
     Int_t MaxBins;
     
-    bool LinearBinning;
-    Int_t n_evis_bins;
-    Int_t n_etrue_bins;
-    Double_t InitialEnergy;
-    Double_t InitialVisibleEnergy;
-    Double_t FinalVisibleEnergy;
-    Double_t BinWidth;
-    
+    Int_t n_evis_bins;    
     Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
-    Double_t enu_bins[MaxNbins+1]; // 39 bins between 1.8 and 9.6 MeV +1 for the 9.6 limit.
     
     //Histograms
     TH1D* PredictionVisH[MaxNearDetectors][MaxFarDetectors];//  Prediction from near data with no alterations, nominal backgrounds may be added. Vis Binning (after detector response is applied)
@@ -178,10 +170,6 @@ CovarianceMatrix3 :: CovarianceMatrix3()
         NSamples = Nom->GetNSamples();//LBNL produces ~500 samples per covariance matrix with a different random variation for each sample
     }
     
-    InitialEnergy = Nom->GetEmin();
-    InitialVisibleEnergy = Nom->GetEVisMin();
-    FinalVisibleEnergy =  Nom->GetEVisMax();
-    
     Sin22t13 = Nom->GetSin22t13();
     Dm2_31 = Nom->GetDm231();
     
@@ -217,37 +205,11 @@ CovarianceMatrix3 :: CovarianceMatrix3()
         ADsEH3 = 4;
     }
     
-    LinearBinning = Nom->GetBinning();
+    n_evis_bins = Nom->GetVisibleBins();
     
-    //  Linear binning
-    if(LinearBinning)
+    for (Int_t i = 0; i <= n_evis_bins; i++)
     {
-        n_evis_bins = Nom->GetNbins();
-        n_etrue_bins = Nom->GetNbins();
-        
-        for (Int_t i = 0; i <= n_evis_bins; i++)
-        {
-            evis_bins[i] = 0.2 * i + 0.7;
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-    }
-    //  Non-linear binning
-    else
-    {
-        n_evis_bins=37;
-        n_etrue_bins=39;
-        
-        for (Int_t i = 0; i <= n_etrue_bins; i++)
-        {
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-        
-        evis_bins[0] = 0.7;
-        for (Int_t i = 0; i < n_evis_bins-1; i++)
-        {
-            evis_bins[i+1] = 0.2 * i + 1.0;
-        }
-        evis_bins[n_evis_bins] = FinalVisibleEnergy;
+        evis_bins[i] = Nom->GetVisibleBinningArray(i);
     }
     
     MaxBins = 9*n_evis_bins;
@@ -288,10 +250,6 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
         NSamples = Data->GetNSamples();//LBNL produces ~500 samples per covariance matrix with a different random variation for each sample
     }
     
-    InitialEnergy = Data->GetEmin();
-    InitialVisibleEnergy = Data->GetEVisMin();
-    FinalVisibleEnergy =  Data->GetEVisMax();
-    
     Sin22t13 = Data->GetSin22t13();
     Dm2_31 = Data->GetDm231();
     
@@ -327,37 +285,11 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
         ADsEH3 = 4;
     }
     
-    LinearBinning = Data->GetBinning();
+    n_evis_bins = Data->GetVisibleBins();
     
-    //  Linear binning
-    if(LinearBinning)
+    for (Int_t i = 0; i <= n_evis_bins; i++)
     {
-        n_evis_bins = Data->GetNbins();
-        n_etrue_bins = Data->GetNbins();
-        
-        for (Int_t i = 0; i <= n_evis_bins; i++)
-        {
-            evis_bins[i] = 0.2 * i + 0.7;
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-    }
-    //  Non-linear binning
-    else
-    {
-        n_evis_bins=37;
-        n_etrue_bins=39;
-        
-        for (Int_t i = 0; i <= n_etrue_bins; i++)
-        {
-            enu_bins[i] = 0.2 * i + InitialEnergy;
-        }
-        
-        evis_bins[0] = 0.7;
-        for (Int_t i = 0; i < n_evis_bins-1; i++)
-        {
-            evis_bins[i+1] = 0.2 * i + 1.0;
-        }
-        evis_bins[n_evis_bins] = FinalVisibleEnergy;
+        evis_bins[i] = Data->GetVisibleBinningArray(i);
     }
     
     MaxBins = 9*n_evis_bins;
