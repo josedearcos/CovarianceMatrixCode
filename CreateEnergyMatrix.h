@@ -67,7 +67,6 @@ private:
     
     bool analysis;
     //Binning parameters:
-    bool LinearBinning;
     
     Int_t LimitTrue;
     Int_t LimitVis;
@@ -243,13 +242,13 @@ public:
     void SetLBNLModel(bool);
     void SetUnifiedModel(bool);
     
-    void  GenerateEnergyMatrix(Double_t, Double_t, Int_t);
-    void  GenerateLBNLEnergyMatrix(Double_t, Double_t, Int_t);
+    void GenerateEnergyMatrix(Double_t, Double_t, Int_t);
+    void GenerateLBNLEnergyMatrix(Double_t, Double_t, Int_t);
     
-    void  GetOscEnergyShift(Int_t,Int_t);
-    void  GetOscIAVShift(Int_t,Int_t);
-    void  GetOscNLShift(Int_t,Int_t);
-    void  GetOscResolutionShift(Int_t,Int_t);
+    void GetOscEnergyShift(Int_t,Int_t);
+    void GetOscIAVShift(Int_t,Int_t);
+    void GetOscNLShift(Int_t,Int_t);
+    void GetOscResolutionShift(Int_t,Int_t);
     void updatePositronTrue(Double_t,Double_t);
     void LoadADSpectrum();
 };
@@ -365,6 +364,7 @@ CreateEnergyMatrix :: CreateEnergyMatrix(NominalData* data)
     {
         AnalysisString = "Gadolinium";
     }
+    
     BCW = Data->GetBCWModel();
     LBNL = Data->GetLBNLModel();
     Unified = Data->GetUnifiedModel();
@@ -398,6 +398,8 @@ CreateEnergyMatrix :: CreateEnergyMatrix(NominalData* data)
     {
         enu_bins[i] = Data->GetTrueBinningArray(i);
     }
+    
+    std::cout << "Response matrix binning: True bins: " << n_etrue_bins << " - Visible bins: " << n_evis_bins << std::endl;
     
     NADs = Data->GetADs();
     ADsEH1 = 2;

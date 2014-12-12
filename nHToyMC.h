@@ -207,7 +207,7 @@ nHToyMC :: ~nHToyMC()
 ///
 Double_t nHToyMC :: func_EnergyResolution(Double_t *x, Double_t *par)// from Logan
 {
-    
+
 #ifdef FullEnergyResolution
     Double_t E = x[0];
     Double_t R = par[0];
@@ -960,6 +960,9 @@ void nHToyMC :: Toy(bool mode)
             
             roofunc_EnergyResolution->SetParameter( 0, R_average );
             energy_sigma = roofunc_EnergyResolution->Eval( Scale_E_P_Sum );
+            
+            energy_sigma = (ResoF->Eval(Scale_E_P_Sum) + ResolutionBias[AD]);//Sigma = FReso(Energy) * Energy
+
             Res_E_P_Sum = gRandom3->Gaus( Scale_E_P_Sum, energy_sigma );
             
             /// delayed

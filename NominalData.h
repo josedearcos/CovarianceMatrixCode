@@ -19,8 +19,7 @@ const bool DeltaMee = 0;//Use Δm^2ee instead of Δm32 and Δm31 values
 
 const bool ADSimple = 1;
 
-const bool LBNLBinning = 1;
-const bool LoganBinning = 0;
+const bool LoganBinning = 1;
 
 const Int_t MaxExperiments = 1000;
 const Int_t MaxPeriods = 32;
@@ -571,7 +570,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     NSteps = 101;
     
     Emin = 1.8;
-    Emax = 12;
+    Emax = 9.6;
     EVisMax = 12;
     LinearBinning=0;
     CalculateBinning();//default
@@ -1627,26 +1626,31 @@ void NominalData :: SetStatisticalFluctuation(bool statisticalfluctuation)
 void NominalData :: SetBinning(bool linearBinning)
 {
     LinearBinning=linearBinning;
+    CalculateBinning();
 }
 
 void NominalData :: SetEmin(Double_t emin)
 {
     Emin = emin;
+    CalculateBinning();
 }
 
 void NominalData :: SetEmax(Double_t emax)
 {
     Emax = emax;
+    CalculateBinning();
 }
 
 void NominalData :: SetEVisMin(Double_t evismin)
 {
     EVisMin = evismin;
+    CalculateBinning();
 }
 
 void NominalData :: SetEVisMax(Double_t evismax)
 {
     EVisMax = evismax;
+    CalculateBinning();
 }
 
 bool  NominalData :: GetBinning()
@@ -2477,6 +2481,7 @@ void NominalData :: SetNReactorPeriods(Int_t reactorperiods)
 
 void NominalData :: CalculateBinning()
 {
+    std::cout << " Recalculating binning " << std::endl;
     
     //Gadolinium:
 
@@ -2511,6 +2516,10 @@ void NominalData :: CalculateBinning()
             evis_bins[i] = VisBinWidth * i + EVisMin;
             enu_bins[i] = TrueBinWidth * i + Emin;
         }
+        
+        std::cout << " True bin width " << TrueBinWidth << std::endl;
+        std::cout << " Vis bin width " << VisBinWidth << std::endl;
+
     }
     else
     {
@@ -2533,6 +2542,9 @@ void NominalData :: CalculateBinning()
             evis_bins[n_evis_bins] = 12;
         }
     }
+    
+    std::cout << " n_evis_bins " << n_evis_bins << std::endl;
+    std::cout << "  n_etrue_bins " << n_etrue_bins << std::endl;
 }
 
 Double_t NominalData :: GetTrueBinningArray(Int_t true_index)

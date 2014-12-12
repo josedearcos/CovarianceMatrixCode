@@ -146,7 +146,7 @@ FitBackgrounds2 :: FitBackgrounds2(NominalData* Data)
         evis_bins[i] = Data->GetVisibleBinningArray(i);
     }
     
-    InitialVisibleEnergy =Data->GetEVisMin();
+    InitialVisibleEnergy = Data->GetEVisMin();
     FinalVisibleEnergy = Data->GetEVisMax();
     
     
@@ -187,16 +187,31 @@ void FitBackgrounds2 :: ReadHBackgrounds()
             AccidentalsH[AD]=(TH1D*)gDirectory->Get(Form("h1dAccBkg22_%i",j-1));
             j++;
         }
-        BackgroundsH[AD]=(TH1D*)AccidentalsH[AD]->Clone(Form("Accidentals_AD%i",AD+1));
         
-        BackgroundsH[AD]->Reset();
-        
-//         cout<<"NPoints "<<AccidentalsH[AD]->GetXaxis()->GetNbins();
-        for (Int_t pts=1; pts <= AccidentalsH[AD]->GetXaxis()->GetNbins(); pts++)
+        if(LoganBinning)//240 but accidentals files have 120, need to interpolate!
         {
-            BackgroundsH[AD]->SetBinContent(pts,AccidentalsH[AD]->GetBinContent(pts));
+            BackgroundsH[AD] = new TH1D(Form("Accidentals_AD%i",AD+1),Form("Accidentals_AD%i",AD+1),n_evis_bins,evis_bins);
+            
+            BackgroundsH[AD]->Reset();
+            
+            //         cout<<"NPoints "<<AccidentalsH[AD]->GetXaxis()->GetNbins();
+            for (Int_t visbin = 1; visbin <= n_evis_bins; visbin++)
+            {
+                BackgroundsH[AD]->SetBinContent(visbin,AccidentalsH[AD]->Interpolate(BackgroundsH[AD]->GetXaxis()->GetBinCenter(visbin)));
+                
+//                std::cout << "Vis Bin: " << visbin << " - Center Bin: " << BackgroundsH[AD]->GetXaxis()->GetBinCenter(visbin) << std::endl;
+//                std::cout << "interpolation value: " << AccidentalsH[AD]->Interpolate(BackgroundsH[AD]->GetXaxis()->GetBinCenter(visbin)) << std::endl;
+//                std::cout << "evis_bins: " << evis_bins[visbin] << std::endl;
+
+            }
+            
+        }
+        else
+        {
+            BackgroundsH[AD]=(TH1D*)AccidentalsH[AD]->Clone(Form("Accidentals_AD%i",AD+1));
         }
         AccidentalsF->Close();
+
     }
     
     
@@ -481,21 +496,45 @@ void FitBackgrounds2::FitFastNeutrons()
 void FitBackgrounds2 :: FitAmc()
 {
     TFile* AmCF1 = TFile::Open(("./BackgroundSpectrum/"+SaveString+"/Bkg_StrongAmC.root").c_str());
-    AmCH=(TH1D*)gDirectory->Get("hist_Bkg_StrongAmC");
+    TH1D* OriginalAmCH=(TH1D*)gDirectory->Get("hist_Bkg_StrongAmC");
     AmCF1->Close();
+    
+    if(LoganBinning)
+    {
+        AmCH = new TH1D("hist_Bkg_StrongAmC","hist_Bkg_StrongAmC",n_evis_bins,evis_bins);
+        
+        for(Int_t i=1;i<=n_evis_bins;i++)
+        {
+            AmCH->SetBinContent(i,(OriginalAmCH->Interpolate(OriginalAmCH->GetXaxis()->GetBinCenter(i))));
+
+            if((AmCH->GetBinContent(i))<0)
+            {
+                AmCH->SetBinContent(i,-1*AmCH->GetBinContent(i)); //Invert negative bins??
+                //                          OR
+                // AmCH->SetBinContent(i,0);//Set negative bins to 0?
+            }
+        }
+    }
+    else
+    {
+        AmCH = (TH1D*)OriginalAmCH->Clone();
+        
+        for(Int_t i=1;i<=AmCH->GetXaxis()->GetNbins();i++)
+        {
+            if((AmCH->GetBinContent(i))<0)
+            {
+                AmCH->SetBinContent(i,-1*(AmCH->GetBinContent(i))); //Invert negative bins??
+                //                          OR
+                // AmCH->SetBinContent(i,0);//Set negative bins to 0?
+            }
+        }
+    }
+    
+    delete OriginalAmCH;
     
     BackgroundsH[NADs+2]=(TH1D*)AmCH->Clone();
     BackgroundsH[NADs+2]->Reset();
     
-    for(Int_t i=1;i<=AmCH->GetXaxis()->GetNbins();i++)
-    {
-        if((AmCH->GetBinContent(i))<0)
-        {
-            AmCH->SetBinContent(i,-1*(AmCH->GetBinContent(i))); //Invert negative bins??
-            //                          OR
-            // AmCH->SetBinContent(i,0);//Set negative bins to 0?
-        }
-    }
     //    I need to study what are the implications. Right now I'm not applying any correction to the original histogram.
     
     Double_t IntegralOriginal = AmCH->Integral();
@@ -535,7 +574,10 @@ void FitBackgrounds2::PrintBackgrounds()
                 AccidentalC->cd(AD+1);
                 FinalAccidentalsH[AD][week]->SetStats(0);
                 FinalAccidentalsH[AD][week]->SetTitle(Form("Accidentals AD%d",AD+1));
-                FinalAccidentalsH[AD][week]->GetXaxis()->SetRange(1,36);
+                if(!LoganBinning)
+                {
+                    FinalAccidentalsH[AD][week]->GetXaxis()->SetRange(1,n_evis_bins-1);
+                }
                 FinalAccidentalsH[AD][week]->Draw("HIST");
                 AccidentalC->Modified();
             }
@@ -554,7 +596,10 @@ void FitBackgrounds2::PrintBackgrounds()
                 LiHeC->cd(AD+1);
                 FinalLiHeH[AD][week]->SetStats(0);
                 FinalLiHeH[AD][week]->SetTitle(Form("Li He AD%d",AD+1));
-                FinalLiHeH[AD][week]->GetXaxis()->SetRange(1,36);
+                if(!LoganBinning)
+                {
+                    FinalLiHeH[AD][week]->GetXaxis()->SetRange(1,n_evis_bins-1);
+                }
                 FinalLiHeH[AD][week]->Draw("HIST");
                 LiHeC->Modified();
             }
@@ -573,7 +618,10 @@ void FitBackgrounds2::PrintBackgrounds()
                 FastC->cd(AD+1);
                 FinalFastNeutronsH[AD][week]->SetStats(0);
                 FinalFastNeutronsH[AD][week]->SetTitle(Form("Fast Neutrons AD%d",AD+1));
-                FinalFastNeutronsH[AD][week]->GetXaxis()->SetRange(1,36);
+                if(!LoganBinning)
+                {
+                    FinalFastNeutronsH[AD][week]->GetXaxis()->SetRange(1,n_evis_bins-1);
+                }
                 FinalFastNeutronsH[AD][week]->Draw("HIST");
                 FastC->Modified();
             }
@@ -592,7 +640,10 @@ void FitBackgrounds2::PrintBackgrounds()
                 AmCC->cd(AD+1);
                 FinalAmCH[AD][week]->SetStats(0);
                 FinalAmCH[AD][week]->SetTitle(Form("AmC AD%d",AD+1));
-                FinalAmCH[AD][week]->GetXaxis()->SetRange(1,36);
+                if(!LoganBinning)
+                {
+                    FinalAmCH[AD][week]->GetXaxis()->SetRange(1,n_evis_bins-1);
+                }
                 FinalAmCH[AD][week]->Draw("HIST");
                 AmCC->Modified();
             }

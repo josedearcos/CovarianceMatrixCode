@@ -94,9 +94,6 @@ private:
     Int_t ADsEH2;
     Int_t ADsEH3;
     
-    //Binning parameters:
-    Int_t TotalPoints; //Nbins of the loaded near hall data. For the fitter to work it should be the same than Nbins but I can use this varialble to rebin to Nbins if they are different. TO DO
-    
     //For the weekly reactor inputs
     Int_t Nweeks;
     Int_t NReactorPeriods;
@@ -104,6 +101,7 @@ private:
     bool Analysis;
     std::string AnalysisString;
     Int_t DataSet;
+    //Binning parameters:
     Int_t n_evis_bins;
     Int_t n_etrue_bins;
     Double_t InitialEnergy;
@@ -753,19 +751,19 @@ void Oscillation :: CalculateFluxFraction()
     
     Char_t filenameFraction[100];
     
-    Norma.resize(TotalPoints*(ADsEH1+ADsEH2));
+    Norma.resize(n_etrue_bins*(ADsEH1+ADsEH2));
     OscillationFunction.resize((ADsEH1+ADsEH2)*NReactors);
-    FluxFraction.resize(TotalPoints*(ADsEH1+ADsEH2)*NReactors);
+    FluxFraction.resize(n_etrue_bins*(ADsEH1+ADsEH2)*NReactors);
     FluxFractionH.resize(NReactors*(ADsEH1+ADsEH2));
     
     for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
     {
         for (Int_t k = 0; k<NReactors; k++)
         {
-            OscillationFunction[near*NReactors+k] = new TH1D(Form("OscProbFromReactor%itoNear%i",k,near),Form("OscProbFromReactor%itoNear%i",k,near),TotalPoints,InitialEnergy,FinalVisibleEnergy);
+            OscillationFunction[near*NReactors+k] = new TH1D(Form("OscProbFromReactor%itoNear%i",k,near),Form("OscProbFromReactor%itoNear%i",k,near),n_etrue_bins,InitialEnergy,FinalVisibleEnergy);
         }
         
-        for(Int_t pts=0;pts<TotalPoints;pts++)
+        for(Int_t pts=0;pts<n_etrue_bins;pts++)
         {
             Norma[near+pts*(ADsEH1+ADsEH2)]=0.0;
             Energy = TrueADSpectrumH[near][0]->GetXaxis()->GetBinCenter(pts+1);
@@ -787,7 +785,7 @@ void Oscillation :: CalculateFluxFraction()
             FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->Reset();
             FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->SetTitle(filenameFraction);
             
-            for(Int_t pts=0;pts<TotalPoints;pts++)
+            for(Int_t pts=0;pts<n_etrue_bins;pts++)
             {
                 Energy = TrueADSpectrumH[near][0]->GetXaxis()->GetBinCenter(pts+1);
                 
@@ -851,7 +849,7 @@ void Oscillation :: NearSpectrumFraction()
                 NearSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)][j] = (TH1D*)TrueADSpectrumH[near][j]->Clone(filenameFrac);
                 NearSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)][j]->SetTitle(filenameFrac);
                 
-                for(Int_t pts=0;pts<TotalPoints;pts++)
+                for(Int_t pts=0;pts<n_etrue_bins;pts++)
                 {
                     Double_t SpectrumScaled = (TrueADSpectrumH[near][j]->GetBinContent(pts+1))*FluxFraction[near+reactor*(ADsEH1+ADsEH2)+pts*(ADsEH1+ADsEH2)*NReactors];
                     //                        std::cout <<"BINCONTENT" <<ADSpectrumH[near][j]->GetBinContent(pts+1) << std::endl;
@@ -875,7 +873,7 @@ void Oscillation :: GetExtrapolation()
     
     Char_t filenameExtrapolation[100];
     
-    Extrapolation.resize(TotalPoints*ADsEH3*NReactors*(ADsEH1+ADsEH2));
+    Extrapolation.resize(n_etrue_bins*ADsEH3*NReactors*(ADsEH1+ADsEH2));
     ExtrapolationH.resize(ADsEH3*NReactors*(ADsEH1+ADsEH2));
     
     for (Int_t far = 0; far<(ADsEH3); far++)//far
@@ -896,7 +894,7 @@ void Oscillation :: GetExtrapolation()
                 ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors] = (TH1D*)TrueADSpectrumH[0][0]->Clone(filenameExtrapolation);
                 ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->SetTitle(filenameExtrapolation);
                 
-                for(Int_t pts=0;pts<TotalPoints;pts++)
+                for(Int_t pts=0;pts<n_etrue_bins;pts++)
                 {
                     Energy = TrueADSpectrumH[near][0]->GetXaxis()->GetBinCenter(pts+1);
                     
@@ -954,7 +952,7 @@ void Oscillation :: FarSpectrumPrediction()
                     FarHallSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors][j] = (TH1D*)TrueADSpectrumH[near][j]->Clone(filenameFraction);
                     FarHallSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors][j]->Reset();
                     
-                    for(Int_t pts=0;pts<TotalPoints;pts++)
+                    for(Int_t pts=0;pts<n_etrue_bins;pts++)
                     {
                         Double_t FarValue = NearSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)][j]->GetBinContent(pts+1)*Extrapolation[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors+pts*(ADsEH1+ADsEH2)*NReactors*ADsEH3];
                         
@@ -1237,8 +1235,6 @@ void Oscillation :: ApplyResponseMatrix()
     //        TransEnergyMatrix->Rebin();
     
     VisibleBins = n_evis_bins;//For real data rebinned in LBNL binning
-    
-    TotalPoints = ADSpectrumVisH[0]->GetXaxis()->GetNbins();
     
     for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
     {

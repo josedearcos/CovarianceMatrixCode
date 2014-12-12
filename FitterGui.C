@@ -1893,7 +1893,7 @@ void FitterGui::DoCombine()
 void FitterGui::DoBinning()
 {
     Binning = BinningBox->GetSelected();
-    std::cout << "BINNING MODE : " << CombineMode << " ( 0 is LBNL binning, 1 is linear binning )" << std::endl;
+    std::cout << "BINNING MODE : " << Binning << " ( 0 is LBNL binning, 1 is linear binning )" << std::endl;
     
 }
 
@@ -3760,6 +3760,10 @@ void FitterGui::ChoosePlotCov()
     
     Double_t sen22t13 = Data->GetSin22t13();
     Double_t dm2_ee = Data->GetDm2ee();
+    Data->SetBinning(Binning);
+
+    Double_t bins = Data->GetVisibleBins();
+
     delete Data;
     string FitterCovS;
     
@@ -3880,6 +3884,7 @@ void FitterGui::ChoosePlotCov()
     {
         CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/CovarianceMatricesRoot/",CombineMode)+CovString+".root").c_str());
         Char_t File[30];
+      
         if(CovariancePlotBox->GetSelected()<8)//Background
         {
             sprintf(File,"Covariance Matrix%d",Period-1);
@@ -3891,29 +3896,7 @@ void FitterGui::ChoosePlotCov()
         
         CovMatrix2H = (TH2D*)CovF->Get(File);
         
-        //        if(Print)
-        //        {
-        //            TH1D* DiagonalCov = new TH1D(("sigma "+CovString).c_str(),("sigma "+CovString).c_str(),CovMatrix2H->GetXaxis()->GetNbins(),0,CovMatrix2H->GetXaxis()->GetNbins());
-        //
-        //            for(Int_t i = 0; i < CovMatrix2H->GetXaxis()->GetNbins(); i++)
-        //            {
-        //                DiagonalCov->SetBinContent(i+1,CovMatrix2H->GetBinContent(i+1,i+1));//Diagonal of the covariance matrix = sigma
-        //            }
-        //
-        //            TCanvas* sigmaC = new TCanvas("sigma","sigma");
-        //
-        //            DiagonalCov->Draw();
-        //
-        //            sigmaC->Print((Form("./Images/Sigma_Combine%d_",CombineMode)+CovString+".eps").c_str(),".eps");
-        //
-        //            delete sigmaC;
-        //
-        //            delete DiagonalCov;
-        //        }
-        
         delete CovF;
-        
-        delete CovMatrix2H;
     }
     
     if(PlotCovariance)
@@ -3930,12 +3913,12 @@ void FitterGui::ChoosePlotCov()
     TPad* centerpad = new TPad("upperPad", "upperPad", 0,0,1,1);
     centerpad->Draw();
     centerpad->cd();
-    
+
     CovMatrix2H->SetStats(kFALSE);
     if(PlotCovariance&&CombineMode!=0)
     {
-        CovMatrix2H->GetYaxis()->SetRange(2,36);
-        CovMatrix2H->GetXaxis()->SetRange(2,36);
+        CovMatrix2H->GetYaxis()->SetRange(1,bins);
+        CovMatrix2H->GetXaxis()->SetRange(1,bins);
     }
     
     CovMatrix2H->Draw("colz");
@@ -3970,6 +3953,8 @@ void FitterGui::ChoosePlotCov()
     
     delete CovF;
     
+    delete CovMatrix2H;
+
 }
 //
 //void FitterGui::ChoosePlotCorr()
@@ -4234,7 +4219,85 @@ void FitterGui::RunResponseMatrix()
     NominalData* Data = new NominalData(Analysis,DataSet);
     Double_t sin22t13 = Data->GetSin22t13();
     Double_t deltaM = Data->GetDm2ee();
-    delete Data;
+    
+//    Data->SetToyMCSamplesDirectory(ToyMCSampleDirectory);
+//    Data->SetPredictionDirectory(NominalPredictionsDirectory);
+//    Data->SetResponseDirectory(ResponseMatrixDirectory);
+//    Data->SetBkgCovDirectory(BkgCovarianceMatrixDirectory);
+//    Data->SetSysCovDirectory(SysCovarianceMatrixDirectory);
+//    Data->SetNSamples(NSamples);// 500 in the final version.
+//    
+//    Data->SetToyMC(1);//  1 for Toy MC, 0 for data. To produce covariance matrices we use ToyMC.
+//    
+//    Data->SetCombineMode(CombineMode); //0 is 9x9, 1 is 1x1 and 2 is 2x2
+//    Data->SetUseToyMCTree(UseToyMCTree);
+    Data->SetBinning(Binning);//  0 for LBNL binning or 1 for Linear binning
+    Data->SetWeeks(Period);
+    Data->SetNReactorPeriods(NReactorPeriods);
+  
+    if(Data->GetAnalysis())//   Hydrogen data
+    {
+        switch (DataSet)
+        {
+            case 0://  Simple reactor model used as input data
+                std::cout << "\t Loading simple reactor model" << std::endl;
+                break;
+            case 1://   P12E
+                if(1==Data->GetWeeks())
+                {
+                    std::cout << "\t Loading nH P12E Data" << std::endl;
+                    Data->LoadMainData("./Inputs/HInputs/P12E_Inclusive.txt");
+                }
+                else
+                {
+                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN H ANALYSIS YET " << std::endl;
+                    exit(EXIT_FAILURE);
+                    Data->LoadMainData(Form("./Inputs/HInputs/P12E_%d.txt",NReactorPeriods));
+                }
+                break;
+            case 2:// LBNL
+                std::cout << "\t \t \t NEED TO ADD LOADMAIN DATA FOR H ANALYSIS" << std::endl;
+                break;
+            default:
+                break;
+        }
+    }
+    else//  Gd data
+    {
+        switch (DataSet)
+        {
+            case 0://  Simple reactor model used as input data
+                std::cout << "\t Loading simple reactor model" << std::endl;
+                break;
+            case 1://   P12E
+                if(1==Data->GetWeeks())
+                {
+                    std::cout << "\t Loading Gd P12E Data" << std::endl;
+                    //                    Data->LoadMainData("./Inputs/GdInputs/P12E_Inclusive.txt");
+                }
+                else
+                {
+                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN Gd ANALYSIS YET " << std::endl;
+                    exit(EXIT_FAILURE);
+                    Data->LoadMainData(Form("./Inputs/GdInputs/P12E_%d.txt",NReactorPeriods));
+                }
+                break;
+            case 2:// LBNL
+                if(1==Data->GetWeeks())
+                {
+                    std::cout << "\t Loading LBNL Gd Data" << std::endl;
+                    //                    Data->LoadMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
+                }
+                else
+                {
+                    std::cout << "\t Loading weekly LBNL Gd Data" << std::endl;
+                    Data->LoadMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
+                }
+                break;
+            default:
+                break;
+        }
+    }
     
     CreateEnergyMatrix* GenMatrix = new CreateEnergyMatrix(Data);
     
@@ -4242,6 +4305,8 @@ void FitterGui::RunResponseMatrix()
     
     delete GenMatrix;
     
+    delete Data;
+
     std::cout << " Finished Generating Response Matrix for sin22t13 :" << sin22t13 << " and deltaM : " << deltaM << std::endl;
 }
 
