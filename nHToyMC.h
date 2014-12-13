@@ -23,7 +23,7 @@ using namespace std;
 #include "TCanvas.h"
 
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- Global
-#define ReDoNominal
+//#define ReDoNominal // if you change binning use this to remake the nominal matrix
 #define FullEnergyResolution
 //#define UseDelayInformation
 //#define SaveTree // To save toy tree
