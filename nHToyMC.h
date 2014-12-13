@@ -23,7 +23,7 @@ using namespace std;
 #include "TCanvas.h"
 
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- Global
-
+#define ReDoNominal
 #define FullEnergyResolution
 //#define UseDelayInformation
 //#define SaveTree // To save toy tree
@@ -44,6 +44,8 @@ const double EnergyScale = 1.023;  // data_centercell/toy_centercell = 1.02 when
 class nHToyMC
 {
 private:
+    Double_t GausRelative,GausIAV,GausNL,GausReso,GausResoCorr,GausEff;
+    Double_t ResolutionError,ResolutionErrorUncorrelated;
     
     //Binning parameters:
     Double_t InitialEnergy;
@@ -167,6 +169,7 @@ nHToyMC :: nHToyMC(NominalData* Data)
         enu_bins[i] = Data->GetTrueBinningArray(i);
     }
     
+    //Systematic matrix selection:
     RelativeEnergyScaleMatrix = Data->GetRelativeEnergyScaleMatrix();
     //    RelativeEnergyOffsetMatrix = Data->GetRelativeEnergyOffsetMatrix();
     //    AbsoluteEnergyScaleMatrix = Data->GetAbsoluteEnergyScaleMatrix();
@@ -175,6 +178,10 @@ nHToyMC :: nHToyMC(NominalData* Data)
     NLMatrix = Data->GetNLMatrix();
     ResolutionMatrix = Data->GetResolutionMatrix();
     EfficiencyMatrix = Data->GetEfficiencyMatrix();
+    
+    //Errors in parameters:
+    ResolutionError = Data->GetResolutionError();
+    ResolutionErrorUncorrelated = Data->GetResoUncorrelatedError();
     
     NADs = Data->GetADs();
     for(Int_t AD = 0; AD < NADs; AD++)
@@ -207,12 +214,18 @@ nHToyMC :: ~nHToyMC()
 ///
 Double_t nHToyMC :: func_EnergyResolution(Double_t *x, Double_t *par)// from Logan
 {
-
+    
+    Double_t ResolutionBias;
+    
+    Double_t corr_bias = ResolutionError * GausResoCorr;
+    
+    ResolutionBias = corr_bias + ResolutionErrorUncorrelated * GausReso;
+    
 #ifdef FullEnergyResolution
     Double_t E = x[0];
     Double_t R = par[0];
-    Double_t res = 7.5/sqrt(E) + 0.9 + 0.865*(R-0.98);
-    res = E*res*0.01;
+    Double_t res = (7.5/sqrt(E) + 0.9 + 0.865*(R-0.98))*0.01+ResolutionBias;
+    res = E*res;
 #else
     Double_t P0 = 0.1127;
     Double_t P1 = 0.0192;
@@ -258,7 +271,10 @@ Int_t nHToyMC :: RootCellToVisCell(Int_t RootCell)
 
 void nHToyMC :: Toy(bool mode)
 {
-    
+#ifndef ReDoNominal
+    if(mode==0)
+    {
+#endif
     func_initialization();
 
     Double_t cap_Ev;             // neutrino energy
@@ -685,7 +701,6 @@ void nHToyMC :: Toy(bool mode)
     
 #endif
     
-    Double_t GausRelative[MaxDetectors],GausIAV[MaxDetectors],GausNL[MaxDetectors],GausReso[MaxDetectors],GausEff[MaxDetectors];
     
     //Load tree data
 //    for(long ientry=0; ientry<entries_etree_read; ientry++)
@@ -764,23 +779,34 @@ void nHToyMC :: Toy(bool mode)
             
             if(mode==0)//Nominal values
             {
-                GausRelative[AD] = 0;
-                GausIAV[AD]= 0;
-                GausNL[AD]= 0;
-                GausReso[AD]=0;
-                GausEff[AD]= 0;
+                GausRelative = 0;
+                GausIAV= 0;
+                GausNL= 0;
+                GausReso=0;
+                GausResoCorr=0;
+                GausEff= 0;
             }
-            else//vary systematic for each entry.
+            else//vary systematic for each entry and for each AD (uncorrelated)
             {
-                GausRelative[AD] = RandomSys->Gaus(0,1);
-                GausIAV[AD]= RandomSys->Gaus(0,1);
-                GausNL[AD]= RandomSys->Gaus(0,1);
-                GausReso[AD]= RandomSys->Gaus(0,1);
-                GausEff[AD]= RandomSys->Gaus(0,1);
+                GausRelative = RandomSys->Gaus(0,1);
+                GausIAV= RandomSys->Gaus(0,1);
+                GausNL= RandomSys->Gaus(0,1);
+                GausReso= RandomSys->Gaus(0,1);
+                
+                if(AD==0)//use the same one for all ADs. (correlated)
+                {
+                    GausResoCorr = RandomSys->Gaus(0,1);
+                }
+                
+                GausEff= RandomSys->Gaus(0,1);
                 
                 //factor that is multiplied by the random error so it's added to the nominal by using:  Value = NominalValue + gRandom3->Gauss(0,1)*1sigmaError;
             }
-            
+            if(ientry%1000000==0)//show only a few
+            {
+            std::cout << "gaus reso correlated should be the same for different ads and same event: " << GausResoCorr << "ad: " << AD << " - event: " << ientry <<  std::endl;
+            std::cout << "gaus reso uncorrelated should be different for different ads and same event" << GausReso << "ad: " << AD << " - event: " << ientry <<  std::endl;
+            }
 
             //to check the random numbers are properly generated:
             //            std::cout << " AD: " << AD << " Gaus RELATIVE: " << GausRelative[AD] << " , Gaus IAV: " << GausIAV[AD] << " , Gaus NL: " << GausNL[AD] << " , Gaus RESO: " << GausReso[AD] << " , Gaus EFF: " << GausEff[AD] << std::endl;
@@ -960,9 +986,7 @@ void nHToyMC :: Toy(bool mode)
             
             roofunc_EnergyResolution->SetParameter( 0, R_average );
             energy_sigma = roofunc_EnergyResolution->Eval( Scale_E_P_Sum );
-            
-            energy_sigma = (ResoF->Eval(Scale_E_P_Sum) + ResolutionBias[AD]);//Sigma = FReso(Energy) * Energy
-
+        
             Res_E_P_Sum = gRandom3->Gaus( Scale_E_P_Sum, energy_sigma );
             
             /// delayed
@@ -1192,12 +1216,29 @@ void nHToyMC :: Toy(bool mode)
         delete SaveMatrix;
         
     }
+    else
+    {
+        TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root","recreate");
+        
+        for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+        {
+            HighResoMatrixH[AD]->Write(Form("FineEvisEnu%d",AD+1));//Save the matrices.
+            MatrixH[AD]->Write(Form("EvisEnu%d",AD+1));//Save the matrices.
+        }
+        
+        TransMatrixH[0]->Write("EnuEvis");//All ADs are "identical", only need 1
+        
+        delete SaveMatrix;
+    }
     
 #ifdef SaveTree
     toy->Write();
     roofile_toy->Close();
 #endif
     
+#ifndef ReDoNominal
+}
+#endif
 }
 
 void nHToyMC :: GeneratenHResponseMatrix()

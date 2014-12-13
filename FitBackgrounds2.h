@@ -506,7 +506,7 @@ void FitBackgrounds2 :: FitAmc()
         for(Int_t i=1;i<=n_evis_bins;i++)
         {
             AmCH->SetBinContent(i,(OriginalAmCH->Interpolate(OriginalAmCH->GetXaxis()->GetBinCenter(i))));
-
+            std::cout << AmCH->GetBinContent(i) << std::endl;
             if((AmCH->GetBinContent(i))<0)
             {
                 AmCH->SetBinContent(i,-1*AmCH->GetBinContent(i)); //Invert negative bins??

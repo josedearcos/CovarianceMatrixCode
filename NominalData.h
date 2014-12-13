@@ -19,7 +19,7 @@ const bool DeltaMee = 0;//Use Δm^2ee instead of Δm32 and Δm31 values
 
 const bool ADSimple = 1;
 
-const bool LoganBinning = 1;
+const bool LoganBinning = 0;
 
 const Int_t MaxExperiments = 1000;
 const Int_t MaxPeriods = 32;
@@ -633,10 +633,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     EnergyPerFissionError[2]=0.002857;
     EnergyPerFissionError[3]=0.003043;
     
-    //Resolution errors
-    ResolutionError=0.002;//Due to parameter uncertainty
-    ResolutionErrorUncorrelated=0.002;//Due to energy scale difference between detectors
-    
+
     //Energy Scale
     m_abs_escale =1;
     m_abs_escale_error = 0.01;
@@ -673,8 +670,22 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     dmee_start = dm2_ee - 0.001;
     dmee_end = dm2_ee + 0.001;
     
-    //For Hydrogen and 6 ADs: from http://dayabay.ihep.ac.cn/DocDB/0085/008556/020/Main-version3.pdf
+    //For Hydrogen and 6 ADs:
+    if(this->GetAnalysis())
+    {
+        //Resolution errors
+        ResolutionError=0.02;//Due to parameter uncertainty
+        ResolutionErrorUncorrelated=0.02;//Due to energy scale difference between detectors
+    }
+    else//Gadolinium and 6ADs:
+    {
+        //Resolution errors
+        ResolutionError=0.002;//Due to parameter uncertainty
+        ResolutionErrorUncorrelated=0.002;//Due to energy scale difference between detectors
+        
+    }
     
+    //For Hydrogen and 6 ADs: from http://dayabay.ihep.ac.cn/DocDB/0085/008556/020/Main-version3.pdf
     if(this->GetAnalysis())
     {
         if(DataSet==2)
@@ -812,6 +823,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
 //                CombCorrBgEvts[idet]=weightedbg*1./livsum;
 //                CombCorrEvtsSpec[idet]->Scale(1./livsum);
 //                CombCorrBgEvtsSpec[idet]->Scale(1./livsum);
+                
             }
         }
     }
@@ -2503,7 +2515,7 @@ void NominalData :: CalculateBinning()
         else//Linear binning for Gadolinium Analysis
         {
             n_evis_bins = 60;//0.2 steps from 0 to 12
-            n_etrue_bins=39;//match reactor flux data for P12E
+            n_etrue_bins = 39;//match reactor flux data for P12E
             EVisMin = 0;//show all spectrum
         }
         

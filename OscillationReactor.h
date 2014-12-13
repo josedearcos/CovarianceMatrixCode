@@ -43,6 +43,7 @@ private:
     NominalData* Nom;
     TRandom3* rand;
     bool isH;
+    Int_t DataSet;
     Int_t week;
     bool CovMatrix;
     std::string AnalysisString;
@@ -306,6 +307,9 @@ OscillationReactor :: OscillationReactor()
     FlagEfficiency = 1;
     
     Nom = new NominalData(0,2);
+    
+    DataSet = Nom->GetDataSet();
+
     rand = new TRandom3(0);
     
     RandomPredictionDirectory = Nom->GetToyMCSamplesDirectory();
@@ -448,6 +452,8 @@ OscillationReactor :: OscillationReactor()
 OscillationReactor :: OscillationReactor(NominalData* Data)
 {
     FlagEfficiency = 1;
+    
+    DataSet = Data->GetDataSet();
     
     rand = new TRandom3(0);
     
@@ -1124,10 +1130,10 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 {
                     VisibleHisto[AD]->SetBinContent(i,VisibleHisto[AD]->GetBinContent(i)+nHPredictionMatrix[AD]->GetBinContent(j+ShiftBin,i)*TotalOscillatedSpectrumAD[AD]->GetBinContent(j));
                     
-                    std::cout << "Visible bin: " << i << " , true bin: " << j << " - Matrix: " << nHPredictionMatrix[AD]->GetBinContent(j+ShiftBin,i) << " - True Spectrum Bin: " << TotalOscillatedSpectrumAD[AD]->GetBinContent(j) << std::endl;
+                    //std::cout << "Visible bin: " << i << " , true bin: " << j << " - Matrix: " << nHPredictionMatrix[AD]->GetBinContent(j+ShiftBin,i) << " - True Spectrum Bin: " << TotalOscillatedSpectrumAD[AD]->GetBinContent(j) << std::endl;
                 }
                 
-                std::cout << "Visible bin: " << i  << " - Visible Spectrum Bin: " << VisibleHisto[AD]->GetBinContent(i) << std::endl;
+                //std::cout << "Visible bin: " << i  << " - Visible Spectrum Bin: " << VisibleHisto[AD]->GetBinContent(i) << std::endl;
 
             }
         }
@@ -2007,9 +2013,19 @@ void OscillationReactor :: SetNLParameters(bool mode)
 
 void OscillationReactor :: LoadIavCorrection()// From Bryce Littlejohn's results. //I don't use different IAV matrix for each AD since the analysis it's been done for just 1 of them, assume identical ADs.
 {
-    TFile* f = new TFile("./IavDistortion/IAVDistortion.root");
-    TH2D* Correction = (TH2D*)f->Get("Correction");
     
+    TFile* f;
+    TH2D* Correction;
+    if(DataSet==2)//P12
+    {
+        f = new TFile("./IavDistortion/IAVDistortion.root");//Bryce
+        Correction = (TH2D*)f->Get("Correction");
+    }
+    else//P14
+    {
+        f = new TFile("./IavDistortion/iavMatrix_P14A.root");//Update by Soeren
+        Correction = (TH2D*)f->Get("Correction_LS");
+    }
     std::cout << "\t \t \t Reading IAV correction file" << std::endl;
     
     for(Int_t i=0;i<TotalBins;i++)

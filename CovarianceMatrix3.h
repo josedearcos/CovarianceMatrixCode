@@ -800,26 +800,6 @@ void CovarianceMatrix3 :: GenerateCovarianceMatrix(Int_t week,Int_t samples)
         
         delete CopyCov2H;
     }
-    
-    if(Print)
-    {
-        TH1D* DiagonalCov = new TH1D(("sigma "+CovString).c_str(),("sigma "+CovString).c_str(),Cov2H->GetXaxis()->GetNbins(),0,Cov2H->GetXaxis()->GetNbins());
-        
-        for(Int_t i = 0; i < Cov2H->GetXaxis()->GetNbins(); i++)
-        {
-            DiagonalCov->SetBinContent(i+1,Cov2H->GetBinContent(i+1,i+1));//Diagonal of the covariance matrix = sigma
-        }
-        
-        TCanvas* sigmaC = new TCanvas("sigmaC","sigmaC");
-        
-        DiagonalCov->Draw();
-        
-        sigmaC->Print((Form("./Images/Sigma_Combine%d_",Combine)+CovString+".eps").c_str(),".eps");
-        
-        delete sigmaC;
-        
-        delete DiagonalCov;
-    }
 
     //    NormalizeCov(Cov2H);
     //    Cov2H->Draw("colz");
@@ -956,6 +936,26 @@ void CovarianceMatrix3 :: SaveCovarianceMatrix(Int_t week)
     }
     
     delete SaveCovarianceMatrixF;
+    
+    if(Print)
+    {
+        TH1D* DiagonalCov = new TH1D(("sigma "+CovString).c_str(),("sigma "+CovString).c_str(),Cov2H->GetXaxis()->GetNbins(),0,CovMatrix2H->GetXaxis()->GetNbins());
+        
+        for(Int_t i = 0; i < Cov2H->GetXaxis()->GetNbins(); i++)
+        {
+            DiagonalCov->SetBinContent(i+1,CovMatrix2H->GetBinContent(i+1,i+1));//Diagonal of the covariance matrix = sigma
+        }
+        
+        TCanvas* sigmaC = new TCanvas("sigmaC","sigmaC");
+        
+        DiagonalCov->Draw();
+        
+        sigmaC->Print((Form("./Images/Sigma_Combine%d_",Combine)+CovString+".eps").c_str(),".eps");
+        
+        delete sigmaC;
+        
+        delete DiagonalCov;
+    }
     
     if(Print)
     {
