@@ -19,7 +19,7 @@ const bool DeltaMee = 0;//Use Δm^2ee instead of Δm32 and Δm31 values
 
 const bool ADSimple = 1;
 
-const bool LoganBinning = 0;
+const bool LoganBinning = 1;
 
 const Int_t MaxExperiments = 1000;
 const Int_t MaxPeriods = 32;

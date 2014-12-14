@@ -104,6 +104,8 @@ private:
     TH1D *h_Ev_normal;
 #endif
     TRandom3 *gRandom3;
+    TRandom3 *RandomSysUncorr;
+    TRandom3 *RandomSysCorr;
     
     ///
     TF1 *roofunc_EnergyResolution;
@@ -312,7 +314,8 @@ void nHToyMC :: Toy(bool mode)
         Double_t EtotE_Pg2;
         
         Int_t seed_generator = 1;
-        
+        Int_t seed_generator_corr = 1;
+        Int_t seed_generator_uncorr = 1;
 #ifdef LoadTree
         
         ////////////
@@ -505,6 +508,7 @@ void nHToyMC :: Toy(bool mode)
             Double_t prob = h_Ev_normal->GetBinContent(ibin);
             
             Int_t seed_rand = 0;
+            
             if( ientry%100==0 )
             {
                 seed_generator += 1;
@@ -753,11 +757,14 @@ void nHToyMC :: Toy(bool mode)
         //        Etot_PG2[ientry]=Etot_Pg2;
         //    }
         
+        seed_generator_uncorr = 32769;//for uncorrelated systematics
+        
         //Use the loaded tree data in each AD in an independent way:
         for(Int_t AD = 0; AD<NADs;AD++)
         {
             seed_generator = 1;//this way all matrices will be random but have a common nominal spectrum
-            
+            seed_generator_corr = 16385;// for correlated systematics, chose maxseed/4 to make it different to 'seed_generator' as a precaution so I don't use the same random numbers
+
             //Process tree
             for(long ientry=0; ientry<entries_etree_read; ientry++)
             {
@@ -768,12 +775,27 @@ void nHToyMC :: Toy(bool mode)
                     cout<<" ---> processing response matrix in AD" << AD << " " <<ientry*100./entries_etree_read<<"%"<<endl;
                 
                 Int_t seed_rand = 0;
+                Int_t seed_corr =0;
+                Int_t seed_uncorr = 0;
+                
+          
                 if( ientry%100==0 )
                 {
                     seed_generator += 1;
-                    seed_rand = 2 *seed_generator +1;
+                    seed_generator_corr +=1;
+                    seed_generator_uncorr+=1;
                     
+                    seed_rand = 2 *seed_generator +1;
+                    seed_corr = 2 *seed_generator_corr +1;
+                    seed_uncorr = 2 *seed_generator_uncorr +1;
+//
+//                    std::cout << "uncorrelated seed: " << seed_generator_uncorr << "- AD: " << AD << "- entry: " << ientry << std::endl;
+//                    std::cout << "correlated seed: " << seed_generator_corr << "- AD: " << AD << "- entry: " << ientry << std::endl;
+
                     gRandom3->SetSeed(seed_rand);
+                    RandomSysUncorr->SetSeed(seed_uncorr);
+                    RandomSysCorr->SetSeed(seed_corr);
+
                 }
                 
                 //each event has a different systematic error:
@@ -789,17 +811,14 @@ void nHToyMC :: Toy(bool mode)
                 }
                 else//vary systematic for each entry and for each AD (uncorrelated)
                 {
-                    GausRelative = gRandom3->Gaus(0,1);
-                    GausIAV= gRandom3->Gaus(0,1);
-                    GausNL= gRandom3->Gaus(0,1);
-                    GausReso= gRandom3->Gaus(0,1);
-                    GausEff= gRandom3->Gaus(0,1);
+                    GausRelative = RandomSysUncorr->Gaus(0,1);
+                    GausIAV= RandomSysUncorr->Gaus(0,1);
+                    GausNL= RandomSysUncorr->Gaus(0,1);
+                    GausReso= RandomSysUncorr->Gaus(0,1);
+                    GausEff= RandomSysUncorr->Gaus(0,1);
                     
-                    if(AD==0)//use the same one for all ADs. (correlated)
-                    {
-                        GausResoCorr = gRandom3->Gaus(0,1);
-                    }
-                    
+                    GausResoCorr = RandomSysCorr->Gaus(0,1);
+
                     //factor that is multiplied by the random error so it's added to the nominal by using:  Value = NominalValue + gRandom3->Gauss(0,1)*1sigmaError;
                 }
                 if(ientry%1000000==0)//show only a few
@@ -1023,6 +1042,13 @@ void nHToyMC :: Toy(bool mode)
 #endif
             }//events
         }//ADs
+        
+        if(mode!=0)
+        {
+            delete gRandom3;
+            delete RandomSysUncorr;
+            delete RandomSysCorr;
+        }
         
         if(Print)
         {
@@ -1272,6 +1298,9 @@ void nHToyMC :: func_initialization()
     
     ///
     gRandom3 = new TRandom3();
+    RandomSysUncorr = new TRandom3();
+    RandomSysCorr = new TRandom3();
+    
     /// energy resolution
     roofunc_EnergyResolution = new TF1("roofunc_EnergyResolution", this, &nHToyMC::func_EnergyResolution, 0,20, 1,"nHToyMC","func_EnergyResolution");
 }

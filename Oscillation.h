@@ -766,14 +766,15 @@ void Oscillation :: CalculateFluxFraction()
         for(Int_t pts=0;pts<n_etrue_bins;pts++)
         {
             Norma[near+pts*(ADsEH1+ADsEH2)]=0.0;
-            Energy = TrueADSpectrumH[near][0]->GetXaxis()->GetBinCenter(pts+1);
             
-            for (Int_t k = 0; k<NReactors; k++)
+            Energy = TrueADSpectrumH[0][0]->GetXaxis()->GetBinCenter(pts+1);
+            
+            for (Int_t reactor = 0; reactor<NReactors; reactor++)
             {
-                Norma[near+pts*(ADsEH1+ADsEH2)] = Norma[near+pts*(ADsEH1+ADsEH2)] + ((FluxH[k][near][week]->GetBinContent(pts+1)*OscProb(ADdistances[near*NReactors+k],Energy,s22t13,dm2ee)/(ADdistances[near*NReactors+k]*ADdistances[near*NReactors+k])));//  Σ Over Cores of all fractions
+                Norma[near+pts*(ADsEH1+ADsEH2)] = Norma[near+pts*(ADsEH1+ADsEH2)] + ((FluxH[reactor][near][week]->GetBinContent(pts+1)*OscProb(ADdistances[near*NReactors+reactor],Energy,s22t13,dm2ee)/(ADdistances[near*NReactors+reactor]*ADdistances[near*NReactors+reactor])));//  Σ Over Cores of all fractions
                 //            std::cout <<  Norma[near+pts*(ADsEH1+ADsEH2)] << "NORMA" << std::endl;
                 
-                OscillationFunction[near*NReactors+k]->SetBinContent(pts+1,OscProb(ADdistances[near*NReactors+k],Energy,s22t13,dm2ee));
+                OscillationFunction[near*NReactors+reactor]->SetBinContent(pts+1,OscProb(ADdistances[near*NReactors+reactor],Energy,s22t13,dm2ee));
             }
         }
         
@@ -787,7 +788,7 @@ void Oscillation :: CalculateFluxFraction()
             
             for(Int_t pts=0;pts<n_etrue_bins;pts++)
             {
-                Energy = TrueADSpectrumH[near][0]->GetXaxis()->GetBinCenter(pts+1);
+                Energy = TrueADSpectrumH[0][0]->GetXaxis()->GetBinCenter(pts+1);
                 
                 if(Norma[near+pts*(ADsEH1+ADsEH2)]!=0.0)
                 {
@@ -819,7 +820,7 @@ void Oscillation :: NearSpectrumFraction()
     Char_t filenameNear[100];
     Char_t filenameFrac[100];
     
-    for(Int_t j = 0; j < VisibleBins; j ++)
+    for(Int_t j = 0; j < VisibleBins; j++)
     {
         for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
         {
@@ -866,6 +867,17 @@ void Oscillation :: NearSpectrumFraction()
     }
     
     delete NearSpectrumF;
+    
+//    if(Print)
+//    {
+//        for(Int_t j = 0; j < VisibleBins; j++)
+//        {
+//            for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
+//            {
+//                NearSpectrumH[near][j]->Draw();
+//            }
+//        }
+//    }
 }
 void Oscillation :: GetExtrapolation()
 {
@@ -1230,7 +1242,7 @@ void Oscillation :: ApplyResponseMatrix()
         delete TransEnergyMatrixDataF;
     }
     
-    //If other binnings are used we should include a Rebin method here to match the binning
+    //If other binnings are used we should include a Rebin method here to match the binning, or recalculate the matrix before running this.
     
     //        TransEnergyMatrix->Rebin();
     
@@ -1262,6 +1274,16 @@ void Oscillation :: ApplyResponseMatrix()
                 TrueADSpectrumH[near][j]->SetBinContent(i+1,TrueADSpectrumH[near][j]->GetBinContent(i+1)+TransEnergyMatrix->GetBinContent(i+1,j+1)*ADSpectrumVisH[near]->GetBinContent(j+1));
             }
         }
+    }
+    if(TrueADSpectrumH[0][0]->GetXaxis()->GetNbins()!=TransEnergyMatrix->GetYaxis()->GetNbins())
+    {
+        std::cout << "Binning disagreement between true spectrum and respone matrix" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    if(ADSpectrumVisH[0]->GetXaxis()->GetNbins()!=TransEnergyMatrix->GetXaxis()->GetNbins())
+    {
+        std::cout << "Binning disagreement between vis spectrum and respone matrix" << std::endl;
+        exit(EXIT_FAILURE);
     }
     delete TransEnergyMatrix;
 }
@@ -1388,27 +1410,24 @@ void Oscillation :: GenerateFluxHisto()
     {
         for(Int_t week=0;week<NReactorPeriods;week++)
         {
-        TCanvas* WeeklyFluxC = new TCanvas("WeeklyFluxC","WeeklyFluxC");
-        
-        WeeklyFluxC->Divide(NReactors,NADs);
-        
-        for(Int_t AD=0;AD<NADs;AD++)
-        {
-            for(Int_t reactor=0;reactor<NReactors;reactor++)
+            TCanvas* WeeklyFluxC = new TCanvas("WeeklyFluxC","WeeklyFluxC");
+            
+            WeeklyFluxC->Divide(NReactors,NADs);
+            
+            for(Int_t AD=0;AD<NADs;AD++)
             {
-                WeeklyFluxC->cd(reactor+AD*NReactors+1);
-                FluxH[reactor][AD][week]->Draw();
+                for(Int_t reactor=0;reactor<NReactors;reactor++)
+                {
+                    WeeklyFluxC->cd(reactor+AD*NReactors+1);
+                    FluxH[reactor][AD][week]->Draw();
+                }
             }
+            
+            WeeklyFluxC->Print(Form("./Images/Reactor/Weekly%dFluxes.eps",week));
+            
+            delete WeeklyFluxC;
         }
         
-        WeeklyFluxC->Print(Form("./Images/Reactor/Weekly%dFluxes.eps",week));
-        
-        delete WeeklyFluxC;
-        }
-    }
-    
-    if(Print)
-    {
         TCanvas* FluxC = new TCanvas("FluxC","FluxC");
         
         FluxC->Divide(NReactors,NADs);
@@ -1426,6 +1445,7 @@ void Oscillation :: GenerateFluxHisto()
         
         delete FluxC;
     }
+    
     delete ReactorDataF;
     
     TFile* FluxF = new TFile(Form("./Inputs/SuperFlux%d.root",NReactorPeriods),"recreate");

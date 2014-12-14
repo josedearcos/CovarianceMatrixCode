@@ -214,7 +214,6 @@ void FitBackgrounds2 :: ReadHBackgrounds()
 
     }
     
-    
     FitFastNeutrons();//Pol0 and Pol1 fit
     
     FitAmc();//Exponential fit
@@ -505,7 +504,7 @@ void FitBackgrounds2 :: FitAmc()
         
         for(Int_t i=1;i<=n_evis_bins;i++)
         {
-            AmCH->SetBinContent(i,(OriginalAmCH->Interpolate(OriginalAmCH->GetXaxis()->GetBinCenter(i))));
+            AmCH->SetBinContent(i,(OriginalAmCH->Interpolate(AmCH->GetXaxis()->GetBinCenter(i))));
             std::cout << AmCH->GetBinContent(i) << std::endl;
             if((AmCH->GetBinContent(i))<0)
             {
@@ -540,20 +539,28 @@ void FitBackgrounds2 :: FitAmc()
     Double_t IntegralOriginal = AmCH->Integral();
     //    cout << IntegralOriginal<<"\n";
     
+    // FIT from 1.5-12 (original limits)
     HAmCFunc = new TF1("AmCFunc","exp([0]+x*[1])",InitialVisibleEnergy,FinalVisibleEnergy);
     AmCH->Fit("AmCFunc","Q0");//"Q0 is quiet mode and no draw
-    // Try to change FIT options from 1.5-12? Maybe improves the output.
+    
+    //Extend background to 0-12
+    TF1* ExtendedHAmCFunc = new TF1("AmCFunc","exp([0]+x*[1])",0,FinalVisibleEnergy);
+    ExtendedHAmCFunc->SetParameter(0,HAmCFunc->GetParameter(0));
+    ExtendedHAmCFunc->SetParameter(1,HAmCFunc->GetParameter(1));
     
     ///////////////////////////////////////////////////
     //Should I fit this with or without errors? (CHECK) (Original histogram (errors+content) vs only GetBinContent)???? What about negative bins?
     ///////////////////////////////////////////////////
     
-    BackgroundsH[NADs+2]->Add(HAmCFunc);
+    BackgroundsH[NADs+2]->Add(ExtendedHAmCFunc);
+    
+    delete ExtendedHAmCFunc;
     
     Double_t IntegralExponential = BackgroundsH[NADs+2]->Integral();//  Check that this works correctly, otherwise write explicitly limits in terms of the bins (InitialVisibleEnergy/binwidth, Final...)
     //    cout << IntegralExponential <<"\n";
     
-    //Normalize histogram with respect to integral of the original graph, I can use data once I have it and normalize it to the expected number of AmC events.
+    //Normalize histogram with respect to integral of the original graph (not accurate since the limits are different, anyway when backgrounds are used they are normalized using data to match the expected number of AmC events)
+    
     BackgroundsH[NADs+2]->Scale(IntegralOriginal/IntegralExponential);
     // BackgroundsH[NADs]->Draw("same");
     //cout << IntegralOriginal/IntegralExponential <<"\n";
