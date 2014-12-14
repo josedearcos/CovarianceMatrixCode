@@ -104,8 +104,7 @@ private:
     TH1D *h_Ev_normal;
 #endif
     TRandom3 *gRandom3;
-    TRandom3 *RandomSys;
-
+    
     ///
     TF1 *roofunc_EnergyResolution;
     
@@ -131,7 +130,7 @@ nHToyMC :: nHToyMC(NominalData* Data)
 {
     /// select whether nGd or nH IBD analysis - nGd events are currently rejected in the code.  Time cuts are not currently applied.
     analysis = 0;  // 0==special cuts, 1==hydrogen, 64==gadolinium
-
+    
     R2_binnum = 10;                      // ---> set option: divide the volume to sub-regions
     R2_lower  = 0;// m2                  // ---> set option
     R2_upper  = 4;// m2                  // ---> set option
@@ -187,7 +186,7 @@ nHToyMC :: nHToyMC(NominalData* Data)
     for(Int_t AD = 0; AD < NADs; AD++)
     {
         HighResoMatrixH[AD] = new TH2D(Form("Fine_nHResponseMatrix_AD%d",AD+1),Form("Fine_nHResponseMatrix_AD%d",AD+1),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from true to visible
-      
+        
         MatrixH[AD] = new TH2D(Form("nHResponseMatrix_AD%d",AD+1),Form("nHResponseMatrix_AD%d",AD+1),n_etrue_bins,enu_bins,n_evis_bins,evis_bins);//from true to visible
         
         TransMatrixH[AD] = new TH2D(Form("nHTransResponseMatrix_AD%d",AD+1),Form("nHTransResponseMatrix_AD%d",AD+1),n_evis_bins,evis_bins,n_etrue_bins,enu_bins);//from visible to true
@@ -271,500 +270,239 @@ Int_t nHToyMC :: RootCellToVisCell(Int_t RootCell)
 
 void nHToyMC :: Toy(bool mode)
 {
+    
 #ifndef ReDoNominal
-    if(mode==0)
+    if(mode!=0)
     {
 #endif
-    func_initialization();
-
-    Double_t cap_Ev;             // neutrino energy
-    Double_t cap_Target;         // neutron captrure target. e.g. 1 for H
-    Double_t X_Ng, Y_Ng, Z_Ng;   // vertex of gamma(s) induced by neutron capture
-    Double_t Edep_Ng;            // deposited energy of gamma(s) induced by neutron capture
-    Double_t EtotScint_Ng;       // the initial energy of gamma(s) going into scintillator(LS or GdLS)
-    Double_t Etot_Ng;            // the total energy of gamma(s) when generated
-    Double_t EdepE_Ng;           // the deposited energy of secondary electrons induced by the gamma(s)
-    Double_t EdepEA_Ng;
-    Double_t EtotE_Ng;           // the total energy of electrons induced by the gamma(s)
-    Double_t Etot_N;             // the kinetic energy of neutron generated from the IBD
-    
-    Double_t X_P, Y_P, Z_P;  // vetex of positron
-    Double_t Etot_P;         // the initial energy of positron when generated
-    Double_t Etot_Pg1;       // the initial energy of one gamma generated from IBD
-    Double_t Etot_Pg2;       // the initial energy of another gamma generated from IBD
-    Double_t EtotScint_P;    // the initial energy of positron going into scintillator(LS or GdLS)
-    Double_t EtotScint_Pg;   // the initial energy of gamma(s) induced by the positron before annihilation
-    Double_t EtotScint_Pg1;  // the initial energy of one gamma going into scintillator(LS or GdLS)
-    Double_t EtotScint_Pg2;  // ... the meaning of variables bellow can be refered to the neutron capture information
-    Double_t Edep_P;
-    Double_t EdepAcrylic_P;
-    Double_t Edep_Pg1;
-    Double_t Edep_Pg2;
-    Double_t EdepE_P;
-    Double_t EdepEA_P;
-    Double_t EtotE_P;
-    Double_t EdepE_Pg1;
-    Double_t EdepEA_Pg1;
-    Double_t EtotE_Pg1;
-    Double_t EdepE_Pg2;
-    Double_t EdepEA_Pg2;
-    Double_t EtotE_Pg2;
-    
-    Int_t seed_generator = 1;
-    
+        
+        func_initialization();
+        
+        Double_t cap_Ev;             // neutrino energy
+        Double_t cap_Target;         // neutron captrure target. e.g. 1 for H
+        Double_t X_Ng, Y_Ng, Z_Ng;   // vertex of gamma(s) induced by neutron capture
+        Double_t Edep_Ng;            // deposited energy of gamma(s) induced by neutron capture
+        Double_t EtotScint_Ng;       // the initial energy of gamma(s) going into scintillator(LS or GdLS)
+        Double_t Etot_Ng;            // the total energy of gamma(s) when generated
+        Double_t EdepE_Ng;           // the deposited energy of secondary electrons induced by the gamma(s)
+        Double_t EdepEA_Ng;
+        Double_t EtotE_Ng;           // the total energy of electrons induced by the gamma(s)
+        Double_t Etot_N;             // the kinetic energy of neutron generated from the IBD
+        
+        Double_t X_P, Y_P, Z_P;  // vetex of positron
+        Double_t Etot_P;         // the initial energy of positron when generated
+        Double_t Etot_Pg1;       // the initial energy of one gamma generated from IBD
+        Double_t Etot_Pg2;       // the initial energy of another gamma generated from IBD
+        Double_t EtotScint_P;    // the initial energy of positron going into scintillator(LS or GdLS)
+        Double_t EtotScint_Pg;   // the initial energy of gamma(s) induced by the positron before annihilation
+        Double_t EtotScint_Pg1;  // the initial energy of one gamma going into scintillator(LS or GdLS)
+        Double_t EtotScint_Pg2;  // ... the meaning of variables bellow can be refered to the neutron capture information
+        Double_t Edep_P;
+        Double_t EdepAcrylic_P;
+        Double_t Edep_Pg1;
+        Double_t Edep_Pg2;
+        Double_t EdepE_P;
+        Double_t EdepEA_P;
+        Double_t EtotE_P;
+        Double_t EdepE_Pg1;
+        Double_t EdepEA_Pg1;
+        Double_t EtotE_Pg1;
+        Double_t EdepE_Pg2;
+        Double_t EdepEA_Pg2;
+        Double_t EtotE_Pg2;
+        
+        Int_t seed_generator = 1;
+        
 #ifdef LoadTree
-    
-    ////////////
-    
-    TFile *roofile_input = new TFile("./Inputs/HInputs/Data/Eprompt.root", "read");
-    TTree *wtree = (TTree*)roofile_input->Get("wtree");
-    long entries_wtree = wtree->GetEntries();
-    cout<<" ---> input entries: "<<entries_wtree<<endl;
-    
-    wtree->SetBranchAddress("cap_Target",   &cap_Target);
-    wtree->SetBranchAddress("X_Ng",         &X_Ng);
-    wtree->SetBranchAddress("Y_Ng",         &Y_Ng);
-    wtree->SetBranchAddress("Z_Ng",         &Z_Ng);
-    wtree->SetBranchAddress("Edep_Ng",      &Edep_Ng);
-    wtree->SetBranchAddress("EtotScint_Ng", &EtotScint_Ng);
-    wtree->SetBranchAddress("Etot_Ng",      &Etot_Ng);
-    wtree->SetBranchAddress("EdepE_Ng",     &EdepE_Ng);
-    wtree->SetBranchAddress("EdepEA_Ng",    &EdepEA_Ng);
-    wtree->SetBranchAddress("EtotE_Ng",     &EtotE_Ng);
-    wtree->SetBranchAddress("Etot_N",       &Etot_N);
-    wtree->SetBranchAddress("X_P",          &X_P);
-    wtree->SetBranchAddress("Y_P",          &Y_P);
-    wtree->SetBranchAddress("Z_P",          &Z_P);
-    wtree->SetBranchAddress("Etot_P",       &Etot_P);
-    wtree->SetBranchAddress("Etot_Pg1",     &Etot_Pg1);
-    wtree->SetBranchAddress("Etot_Pg2",     &Etot_Pg2);
-    wtree->SetBranchAddress("EtotScint_P",  &EtotScint_P);
-    wtree->SetBranchAddress("EtotScint_Pg", &EtotScint_Pg);
-    wtree->SetBranchAddress("EtotScint_Pg1", &EtotScint_Pg1);
-    wtree->SetBranchAddress("EtotScint_Pg2", &EtotScint_Pg2);
-    wtree->SetBranchAddress("Edep_P",        &Edep_P);
-    wtree->SetBranchAddress("EdepAcrylic_P", &EdepAcrylic_P);
-    wtree->SetBranchAddress("Edep_Pg1",      &Edep_Pg1);
-    wtree->SetBranchAddress("Edep_Pg2",      &Edep_Pg2);
-    wtree->SetBranchAddress("EdepE_P",       &EdepE_P);
-    wtree->SetBranchAddress("EdepEA_P",      &EdepEA_P);
-    wtree->SetBranchAddress("EtotE_P",       &EtotE_P);
-    wtree->SetBranchAddress("EdepE_Pg1",     &EdepE_Pg1);
-    wtree->SetBranchAddress("EdepEA_Pg1",    &EdepEA_Pg1);
-    wtree->SetBranchAddress("EtotE_Pg1",     &EtotE_Pg1);
-    wtree->SetBranchAddress("EdepE_Pg2",     &EdepE_Pg2);
-    wtree->SetBranchAddress("EdepEA_Pg2",    &EdepEA_Pg2);
-    wtree->SetBranchAddress("EtotE_Pg2",     &EtotE_Pg2);
-    
-    ////////////
-    
-    TH1D *h_Ev_toyMC_input = new TH1D("h_Ev_toyMC_input","h_Ev_toyMC_input",480,0,12);
-    
-    TFile *roofile_etree = new TFile("./Inputs/HInputs/Data/roofile_etree.root", "recreate");
-    TTree *etree = new TTree("etree", "effective entries of wtree");
-    
-    etree->Branch("cap_Ev",       &cap_Ev,       "cap_Ev/D");
-    etree->Branch("cap_Target",   &cap_Target,   "cap_Target/D");
-    etree->Branch("X_Ng",         &X_Ng,         "X_Ng/D");
-    etree->Branch("Y_Ng",         &Y_Ng,         "Y_Ng/D");
-    etree->Branch("Z_Ng",         &Z_Ng,         "Z_Ng/D");
-    etree->Branch("Edep_Ng",      &Edep_Ng,      "Edep_Ng/D");
-    etree->Branch("EtotScint_Ng", &EtotScint_Ng, "EtotScint_Ng/D");
-    etree->Branch("Etot_Ng",      &Etot_Ng,      "Etot_Ng/D");
-    etree->Branch("EdepE_Ng",     &EdepE_Ng,     "EdepE_Ng/D");
-    etree->Branch("EdepEA_Ng",    &EdepEA_Ng,    "EdepEA_Ng/D");
-    etree->Branch("EtotE_Ng",     &EtotE_Ng,     "EtotE_Ng/D");
-    etree->Branch("Etot_N",       &Etot_N,       "Etot_N/D");
-    etree->Branch("X_P",          &X_P,          "X_P/D");
-    etree->Branch("Y_P",          &Y_P,          "Y_P/D");
-    etree->Branch("Z_P",          &Z_P,          "Z_P/D");
-    etree->Branch("Etot_P",       &Etot_P,       "Etot_P/D");
-    etree->Branch("Etot_Pg1",     &Etot_Pg1,     "Etot_Pg1/D");
-    etree->Branch("Etot_Pg2",     &Etot_Pg2,     "Etot_Pg2/D");
-    etree->Branch("EtotScint_P",  &EtotScint_P,  "EtotScint_P/D");
-    etree->Branch("EtotScint_Pg", &EtotScint_Pg, "EtotScint_Pg/D");
-    etree->Branch("EtotScint_Pg1", &EtotScint_Pg1, "EtotScint_Pg1/D");
-    etree->Branch("EtotScint_Pg2", &EtotScint_Pg2, "EtotScint_Pg2/D");
-    etree->Branch("Edep_P",        &Edep_P,        "Edep_P/D");
-    etree->Branch("EdepAcrylic_P", &EdepAcrylic_P, "EdepAcrylic_P/D");
-    etree->Branch("Edep_Pg1",      &Edep_Pg1,      "Edep_Pg1/D");
-    etree->Branch("Edep_Pg2",      &Edep_Pg2,      "Edep_Pg2/D");
-    etree->Branch("EdepE_P",       &EdepE_P,       "EdepE_P/D");
-    etree->Branch("EdepEA_P",      &EdepEA_P,      "EdepEA_P/D");
-    etree->Branch("EtotE_P",       &EtotE_P,       "EtotE_P/D");
-    etree->Branch("EdepE_Pg1",     &EdepE_Pg1,     "EdepE_Pg1/D");
-    etree->Branch("EdepEA_Pg1",    &EdepEA_Pg1,    "EdepEA_Pg1/D");
-    etree->Branch("EtotE_Pg1",     &EtotE_Pg1,     "EtotE_Pg1/D");
-    etree->Branch("EdepE_Pg2",     &EdepE_Pg2,     "EdepE_Pg2/D");
-    etree->Branch("EdepEA_Pg2",    &EdepEA_Pg2,    "EdepEA_Pg2/D");
-    etree->Branch("EtotE_Pg2",     &EtotE_Pg2,     "EtotE_Pg2/D");
-    
-    for(long ientry=0; ientry<entries_wtree; ientry++)
-    {
-        wtree->GetEntry(ientry);
         
-        cout.precision(3);
-        if(ientry%10000==0)
-            cout<<" ---> processing MC spectrum "<<ientry*100./entries_wtree<<"%"<<endl;
+        ////////////
         
-        //////
+        TFile *roofile_input = new TFile("./Inputs/HInputs/Data/Eprompt.root", "read");
+        TTree *wtree = (TTree*)roofile_input->Get("wtree");
+        long entries_wtree = wtree->GetEntries();
+        cout<<" ---> input entries: "<<entries_wtree<<endl;
         
-        if(cap_Target<0) continue;
-        if(Edep_Ng<0) continue;
-        if(EtotScint_Ng<0) continue;
-        if(Etot_Ng<0) continue;
-        if(EdepE_Ng<0) continue;
-        if(EdepEA_Ng<0) continue;
-        if(EtotE_Ng<0) continue;
-        if(Etot_N<0) continue;
-        if(Etot_P<0) continue;
-        if(Etot_Pg1<0) continue;
-        if(Etot_Pg2<0) continue;
-        if(EtotScint_P<0) continue;
-        if(EtotScint_Pg<0) continue;
-        if(EtotScint_Pg1<0) continue;
-        if(EtotScint_Pg2<0) continue;
-        if(Edep_P<0) continue;
-        if(EdepAcrylic_P<0) continue;
-        if(Edep_Pg1<0) continue;
-        if(Edep_Pg2<0) continue;
-        if(EdepE_P<0) continue;
-        if(EdepEA_P<0) continue;
-        if(EtotE_P<0) continue;
-        if(EdepE_Pg1<0) continue;
-        if(EdepEA_Pg1<0) continue;
-        if(EtotE_Pg1<0) continue;
-        if(EdepE_Pg2<0) continue;
-        if(EdepEA_Pg2<0) continue;
-        if(EtotE_Pg2<0) continue;
+        wtree->SetBranchAddress("cap_Target",   &cap_Target);
+        wtree->SetBranchAddress("X_Ng",         &X_Ng);
+        wtree->SetBranchAddress("Y_Ng",         &Y_Ng);
+        wtree->SetBranchAddress("Z_Ng",         &Z_Ng);
+        wtree->SetBranchAddress("Edep_Ng",      &Edep_Ng);
+        wtree->SetBranchAddress("EtotScint_Ng", &EtotScint_Ng);
+        wtree->SetBranchAddress("Etot_Ng",      &Etot_Ng);
+        wtree->SetBranchAddress("EdepE_Ng",     &EdepE_Ng);
+        wtree->SetBranchAddress("EdepEA_Ng",    &EdepEA_Ng);
+        wtree->SetBranchAddress("EtotE_Ng",     &EtotE_Ng);
+        wtree->SetBranchAddress("Etot_N",       &Etot_N);
+        wtree->SetBranchAddress("X_P",          &X_P);
+        wtree->SetBranchAddress("Y_P",          &Y_P);
+        wtree->SetBranchAddress("Z_P",          &Z_P);
+        wtree->SetBranchAddress("Etot_P",       &Etot_P);
+        wtree->SetBranchAddress("Etot_Pg1",     &Etot_Pg1);
+        wtree->SetBranchAddress("Etot_Pg2",     &Etot_Pg2);
+        wtree->SetBranchAddress("EtotScint_P",  &EtotScint_P);
+        wtree->SetBranchAddress("EtotScint_Pg", &EtotScint_Pg);
+        wtree->SetBranchAddress("EtotScint_Pg1", &EtotScint_Pg1);
+        wtree->SetBranchAddress("EtotScint_Pg2", &EtotScint_Pg2);
+        wtree->SetBranchAddress("Edep_P",        &Edep_P);
+        wtree->SetBranchAddress("EdepAcrylic_P", &EdepAcrylic_P);
+        wtree->SetBranchAddress("Edep_Pg1",      &Edep_Pg1);
+        wtree->SetBranchAddress("Edep_Pg2",      &Edep_Pg2);
+        wtree->SetBranchAddress("EdepE_P",       &EdepE_P);
+        wtree->SetBranchAddress("EdepEA_P",      &EdepEA_P);
+        wtree->SetBranchAddress("EtotE_P",       &EtotE_P);
+        wtree->SetBranchAddress("EdepE_Pg1",     &EdepE_Pg1);
+        wtree->SetBranchAddress("EdepEA_Pg1",    &EdepEA_Pg1);
+        wtree->SetBranchAddress("EtotE_Pg1",     &EtotE_Pg1);
+        wtree->SetBranchAddress("EdepE_Pg2",     &EdepE_Pg2);
+        wtree->SetBranchAddress("EdepEA_Pg2",    &EdepEA_Pg2);
+        wtree->SetBranchAddress("EtotE_Pg2",     &EtotE_Pg2);
         
-        //////
+        ////////////
         
-        cap_Ev = Etot_P +Etot_N + DeltaM;
+        TH1D *h_Ev_toyMC_input = new TH1D("h_Ev_toyMC_input","h_Ev_toyMC_input",480,0,12);
         
-        h_Ev_toyMC_input->Fill(cap_Ev);
-#ifndef ReactorShapeinToy
-        etree->Fill();//To fill a flat spectrum to produce a response matrix with nearly equal statistics in every column and about 3 times more events in total
-#endif
-    }
-    
-    ///////// Uncomment to include reactor shape in the toy:
-    
-#ifdef ReactorShapeinToy
-    
-    Double_t max_h_Ev_toyMC_input = h_Ev_toyMC_input->GetBinContent( h_Ev_toyMC_input->GetMaximumBin() );
-    Double_t max_h_Ev_normal = h_Ev_normal->GetBinContent( h_Ev_normal->GetMaximumBin() );
-    h_Ev_normal->Scale(max_h_Ev_toyMC_input/max_h_Ev_normal);
-    
-    for(long ientry=0; ientry<entries_wtree; ientry++)
-    {
-        wtree->GetEntry(ientry);
+        TFile *roofile_etree = new TFile("./Inputs/HInputs/Data/roofile_etree.root", "recreate");
+        TTree *etree = new TTree("etree", "effective entries of wtree");
         
-        cout.precision(3);
-        if(ientry%10000==0)
-            cout<<" ---> processing reactor shape spectrum "<<ientry*100./entries_wtree<<"%"<<endl;
+        etree->Branch("cap_Ev",       &cap_Ev,       "cap_Ev/D");
+        etree->Branch("cap_Target",   &cap_Target,   "cap_Target/D");
+        etree->Branch("X_Ng",         &X_Ng,         "X_Ng/D");
+        etree->Branch("Y_Ng",         &Y_Ng,         "Y_Ng/D");
+        etree->Branch("Z_Ng",         &Z_Ng,         "Z_Ng/D");
+        etree->Branch("Edep_Ng",      &Edep_Ng,      "Edep_Ng/D");
+        etree->Branch("EtotScint_Ng", &EtotScint_Ng, "EtotScint_Ng/D");
+        etree->Branch("Etot_Ng",      &Etot_Ng,      "Etot_Ng/D");
+        etree->Branch("EdepE_Ng",     &EdepE_Ng,     "EdepE_Ng/D");
+        etree->Branch("EdepEA_Ng",    &EdepEA_Ng,    "EdepEA_Ng/D");
+        etree->Branch("EtotE_Ng",     &EtotE_Ng,     "EtotE_Ng/D");
+        etree->Branch("Etot_N",       &Etot_N,       "Etot_N/D");
+        etree->Branch("X_P",          &X_P,          "X_P/D");
+        etree->Branch("Y_P",          &Y_P,          "Y_P/D");
+        etree->Branch("Z_P",          &Z_P,          "Z_P/D");
+        etree->Branch("Etot_P",       &Etot_P,       "Etot_P/D");
+        etree->Branch("Etot_Pg1",     &Etot_Pg1,     "Etot_Pg1/D");
+        etree->Branch("Etot_Pg2",     &Etot_Pg2,     "Etot_Pg2/D");
+        etree->Branch("EtotScint_P",  &EtotScint_P,  "EtotScint_P/D");
+        etree->Branch("EtotScint_Pg", &EtotScint_Pg, "EtotScint_Pg/D");
+        etree->Branch("EtotScint_Pg1", &EtotScint_Pg1, "EtotScint_Pg1/D");
+        etree->Branch("EtotScint_Pg2", &EtotScint_Pg2, "EtotScint_Pg2/D");
+        etree->Branch("Edep_P",        &Edep_P,        "Edep_P/D");
+        etree->Branch("EdepAcrylic_P", &EdepAcrylic_P, "EdepAcrylic_P/D");
+        etree->Branch("Edep_Pg1",      &Edep_Pg1,      "Edep_Pg1/D");
+        etree->Branch("Edep_Pg2",      &Edep_Pg2,      "Edep_Pg2/D");
+        etree->Branch("EdepE_P",       &EdepE_P,       "EdepE_P/D");
+        etree->Branch("EdepEA_P",      &EdepEA_P,      "EdepEA_P/D");
+        etree->Branch("EtotE_P",       &EtotE_P,       "EtotE_P/D");
+        etree->Branch("EdepE_Pg1",     &EdepE_Pg1,     "EdepE_Pg1/D");
+        etree->Branch("EdepEA_Pg1",    &EdepEA_Pg1,    "EdepEA_Pg1/D");
+        etree->Branch("EtotE_Pg1",     &EtotE_Pg1,     "EtotE_Pg1/D");
+        etree->Branch("EdepE_Pg2",     &EdepE_Pg2,     "EdepE_Pg2/D");
+        etree->Branch("EdepEA_Pg2",    &EdepEA_Pg2,    "EdepEA_Pg2/D");
+        etree->Branch("EtotE_Pg2",     &EtotE_Pg2,     "EtotE_Pg2/D");
         
-        //////
-        
-        if(cap_Target<0) continue;
-        if(Edep_Ng<0) continue;
-        if(EtotScint_Ng<0) continue;
-        if(Etot_Ng<0) continue;
-        if(EdepE_Ng<0) continue;
-        if(EdepEA_Ng<0) continue;
-        if(EtotE_Ng<0) continue;
-        if(Etot_N<0) continue;
-        if(Etot_P<0) continue;
-        if(Etot_Pg1<0) continue;
-        if(Etot_Pg2<0) continue;
-        if(EtotScint_P<0) continue;
-        if(EtotScint_Pg<0) continue;
-        if(EtotScint_Pg1<0) continue;
-        if(EtotScint_Pg2<0) continue;
-        if(Edep_P<0) continue;
-        if(EdepAcrylic_P<0) continue;
-        if(Edep_Pg1<0) continue;
-        if(Edep_Pg2<0) continue;
-        if(EdepE_P<0) continue;
-        if(EdepEA_P<0) continue;
-        if(EtotE_P<0) continue;
-        if(EdepE_Pg1<0) continue;
-        if(EdepEA_Pg1<0) continue;
-        if(EtotE_Pg1<0) continue;
-        if(EdepE_Pg2<0) continue;
-        if(EdepEA_Pg2<0) continue;
-        if(EtotE_Pg2<0) continue;
-        
-        //////
-        
-        cap_Ev = Etot_P +Etot_N +DeltaM;
-        if( cap_Ev>12 ) continue;
-        
-        Int_t ibin = h_Ev_toyMC_input->FindBin( cap_Ev );
-        Double_t prob = h_Ev_normal->GetBinContent(ibin);
-        
-        Int_t seed_rand = 0;
-        if( ientry%100==0 )
+        for(long ientry=0; ientry<entries_wtree; ientry++)
         {
-            seed_generator += 1;
-            seed_rand = 2 *seed_generator +1;
+            wtree->GetEntry(ientry);
             
-            gRandom3->SetSeed(seed_rand);
-        }
-        
-        Double_t rand = gRandom3->Uniform(0,max_h_Ev_toyMC_input);
-        if( rand>prob ) continue;
-        
-        etree->Fill();
-    }
-#endif
-    etree->Write();
-    roofile_etree->Close();
-    
-#endif
-    
-    //////////////////////////////////////////////////////////////////////////
-    // The etree file has to have been generated before running this code:
-    //////////////////////////////////////////////////////////////////////////
-//    const long MaxEntries = 50;
-
-//#ifdef UseDelayInformation
-//    Double_t X_NG[MaxEntries];
-//    Double_t Y_NG[MaxEntries];
-//    Double_t Z_NG[MaxEntries];
-//    
-//    Double_t Edep_NG[MaxEntries];
-//    Double_t Etot_NG[MaxEntries];
-//    Double_t EdepEA_NG[MaxEntries];
-//    Double_t EtotE_NG[MaxEntries];
-//    Double_t Etot_Neutron[MaxEntries];
-//#endif
-//    Double_t NeutrinoEnergy[MaxEntries];//Is this too big? Having an array allow us to run the tree reading spectrum only once, instead of once per AD.//cap_Ev
-//    Double_t EdepE_NG[MaxEntries];
-//    Double_t EtotScint_NG[MaxEntries];
-//    
-//    
-//    Double_t X_Pos[MaxEntries];
-//    Double_t Y_Pos[MaxEntries];
-//    Double_t Z_Pos[MaxEntries];
-//    
-//    Double_t Edep_Pos[MaxEntries];
-//    Double_t Edep_PG1[MaxEntries];
-//    Double_t Edep_PG2[MaxEntries];
-//    
-//    Double_t EtotScint_Pos[MaxEntries];
-//    Double_t EtotScint_PG[MaxEntries];
-//    Double_t EtotScint_PG1[MaxEntries];
-//    Double_t EtotScint_PG2[MaxEntries];
-//    
-//    Double_t EdepE_Pos[MaxEntries];
-//    Double_t EdepE_PG1[MaxEntries];
-//    Double_t EdepE_PG2[MaxEntries];
-//    
-//    Double_t EdepAcrylic_Pos[MaxEntries];
-//    Double_t EdepEA_Pos[MaxEntries];
-//    Double_t EdepEA_PG1[MaxEntries];
-//    Double_t EdepEA_PG2[MaxEntries];
-//    
-//    Double_t EtotE_Pos[MaxEntries];
-//    Double_t EtotE_PG1[MaxEntries];
-//    Double_t EtotE_PG2[MaxEntries];
-//    
-//    Double_t Etot_Pos[MaxEntries];
-//    Double_t Etot_PG1[MaxEntries];
-//    Double_t Etot_PG2[MaxEntries];
-    
-    TFile *roofile_etree_read = new TFile("./Inputs/HInputs/Data/roofile_etree.root", "read");
-    TTree *etree_read = (TTree*)roofile_etree_read->Get("etree");
-    long entries_etree_read = etree_read->GetEntries();
-    
-    etree_read->SetBranchAddress("cap_Ev",       &cap_Ev);
-    etree_read->SetBranchAddress("cap_Target",   &cap_Target);
-    etree_read->SetBranchAddress("X_Ng",         &X_Ng);
-    etree_read->SetBranchAddress("Y_Ng",         &Y_Ng);
-    etree_read->SetBranchAddress("Z_Ng",         &Z_Ng);
-    etree_read->SetBranchAddress("Edep_Ng",      &Edep_Ng);
-    etree_read->SetBranchAddress("EtotScint_Ng", &EtotScint_Ng);
-    etree_read->SetBranchAddress("Etot_Ng",      &Etot_Ng);
-    etree_read->SetBranchAddress("EdepE_Ng",     &EdepE_Ng);
-    etree_read->SetBranchAddress("EdepEA_Ng",    &EdepEA_Ng);
-    etree_read->SetBranchAddress("EtotE_Ng",     &EtotE_Ng);
-    etree_read->SetBranchAddress("Etot_N",       &Etot_N);
-    etree_read->SetBranchAddress("X_P",          &X_P);
-    etree_read->SetBranchAddress("Y_P",          &Y_P);
-    etree_read->SetBranchAddress("Z_P",          &Z_P);
-    etree_read->SetBranchAddress("Etot_P",       &Etot_P);
-    etree_read->SetBranchAddress("Etot_Pg1",     &Etot_Pg1);
-    etree_read->SetBranchAddress("Etot_Pg2",     &Etot_Pg2);
-    etree_read->SetBranchAddress("EtotScint_P",  &EtotScint_P);
-    etree_read->SetBranchAddress("EtotScint_Pg", &EtotScint_Pg);
-    etree_read->SetBranchAddress("EtotScint_Pg1", &EtotScint_Pg1);
-    etree_read->SetBranchAddress("EtotScint_Pg2", &EtotScint_Pg2);
-    etree_read->SetBranchAddress("Edep_P",        &Edep_P);
-    etree_read->SetBranchAddress("EdepAcrylic_P", &EdepAcrylic_P);
-    etree_read->SetBranchAddress("Edep_Pg1",      &Edep_Pg1);
-    etree_read->SetBranchAddress("Edep_Pg2",      &Edep_Pg2);
-    etree_read->SetBranchAddress("EdepE_P",       &EdepE_P);
-    etree_read->SetBranchAddress("EdepEA_P",      &EdepEA_P);
-    etree_read->SetBranchAddress("EtotE_P",       &EtotE_P);
-    etree_read->SetBranchAddress("EdepE_Pg1",     &EdepE_Pg1);
-    etree_read->SetBranchAddress("EdepEA_Pg1",    &EdepEA_Pg1);
-    etree_read->SetBranchAddress("EtotE_Pg1",     &EtotE_Pg1);
-    etree_read->SetBranchAddress("EdepE_Pg2",     &EdepE_Pg2);
-    etree_read->SetBranchAddress("EdepEA_Pg2",    &EdepEA_Pg2);
-    etree_read->SetBranchAddress("EtotE_Pg2",     &EtotE_Pg2);
-    
-    ///////////////////////////////
-    ///////////////////////////////
-    ///////////////////////////////
-    ///////////////////////////////
-    
-    Double_t LY_E_P;
-    Double_t LY_E_Pg1;
-    Double_t LY_E_Pg2;
-    
-    Double_t LY_E_P_Sum;
-    Double_t Opt_E_P_Sum;
-    Double_t FEE_E_P_Sum;
-    Double_t Scale_E_P_Sum;
-    Double_t Res_E_P_Sum;
-    
-#ifdef UseDelayInformation
-    Double_t LY_Etot_Ng;
-    Double_t Opt_Etot_Ng;
-    Double_t FEE_Etot_Ng;
-    Double_t Scale_Etot_Ng;
-    Double_t Res_Etot_Ng;
-#endif
-    
-#ifdef SaveTree
-    
-    Int_t pcell = 0;
-    Int_t dcell = 0;
-    
-    TFile *roofile_toy = new TFile("roofile_toy.root", "recreate");
-    TTree *toy = new TTree("toy", "toyMC result");
-    
-    toy->Branch("cap_Ev",       &cap_Ev,       "cap_Ev/D");
-    toy->Branch("cap_Target",   &cap_Target,   "cap_Target/D");
-    toy->Branch("pcell",        &pcell,        "pcell/I");
-    toy->Branch("dcell",        &dcell,        "dcell/I");
-    toy->Branch("X_Ng",         &X_Ng,         "X_Ng/D");
-    toy->Branch("Y_Ng",         &Y_Ng,         "Y_Ng/D");
-    toy->Branch("Z_Ng",         &Z_Ng,         "Z_Ng/D");
-    toy->Branch("Edep_Ng",      &Edep_Ng,      "Edep_Ng/D");
-    toy->Branch("EtotScint_Ng", &EtotScint_Ng, "EtotScint_Ng/D");
-    toy->Branch("Etot_Ng",      &Etot_Ng,      "Etot_Ng/D");
-    toy->Branch("EdepE_Ng",     &EdepE_Ng,     "EdepE_Ng/D");
-    toy->Branch("EdepEA_Ng",    &EdepEA_Ng,    "EdepEA_Ng/D");
-    toy->Branch("EtotE_Ng",     &EtotE_Ng,     "EtotE_Ng/D");
-    toy->Branch("Etot_N",       &Etot_N,       "Etot_N/D");
-    toy->Branch("X_P",          &X_P,          "X_P/D");
-    toy->Branch("Y_P",          &Y_P,          "Y_P/D");
-    toy->Branch("Z_P",          &Z_P,          "Z_P/D");
-    toy->Branch("Etot_P",       &Etot_P,       "Etot_P/D");
-    toy->Branch("Etot_Pg1",     &Etot_Pg1,     "Etot_Pg1/D");
-    toy->Branch("Etot_Pg2",     &Etot_Pg2,     "Etot_Pg2/D");
-    toy->Branch("EtotScint_P",  &EtotScint_P,  "EtotScint_P/D");
-    toy->Branch("EtotScint_Pg", &EtotScint_Pg, "EtotScint_Pg/D");
-    toy->Branch("EtotScint_Pg1", &EtotScint_Pg1, "EtotScint_Pg1/D");
-    toy->Branch("EtotScint_Pg2", &EtotScint_Pg2, "EtotScint_Pg2/D");
-    toy->Branch("Edep_P",        &Edep_P,        "Edep_P/D");
-    toy->Branch("EdepAcrylic_P", &EdepAcrylic_P, "EdepAcrylic_P/D");
-    toy->Branch("Edep_Pg1",      &Edep_Pg1,      "Edep_Pg1/D");
-    toy->Branch("Edep_Pg2",      &Edep_Pg2,      "Edep_Pg2/D");
-    toy->Branch("EdepE_P",       &EdepE_P,       "EdepE_P/D");
-    toy->Branch("EdepEA_P",      &EdepEA_P,      "EdepEA_P/D");
-    toy->Branch("EtotE_P",       &EtotE_P,       "EtotE_P/D");
-    toy->Branch("EdepE_Pg1",     &EdepE_Pg1,     "EdepE_Pg1/D");
-    toy->Branch("EdepEA_Pg1",    &EdepEA_Pg1,    "EdepEA_Pg1/D");
-    toy->Branch("EtotE_Pg1",     &EtotE_Pg1,     "EtotE_Pg1/D");
-    toy->Branch("EdepE_Pg2",     &EdepE_Pg2,     "EdepE_Pg2/D");
-    toy->Branch("EdepEA_Pg2",    &EdepEA_Pg2,    "EdepEA_Pg2/D");
-    toy->Branch("EtotE_Pg2",     &EtotE_Pg2,     "EtotE_Pg2/D");
-    
-    toy->Branch("LY_E_P",        &LY_E_P,        "LY_E_P/D");
-    toy->Branch("LY_E_Pg1",      &LY_E_Pg1,      "LY_E_Pg1/D");
-    toy->Branch("LY_E_Pg2",      &LY_E_Pg2,      "LY_E_Pg2/D");
-    toy->Branch("LY_E_P_Sum",    &LY_E_P_Sum,    "LY_E_P_Sum/D");
-    toy->Branch("Opt_E_P_Sum",   &Opt_E_P_Sum,   "Opt_E_P_Sum/D");
-    toy->Branch("FEE_E_P_Sum",   &FEE_E_P_Sum,   "FEE_E_P_Sum/D");
-    toy->Branch("Scale_E_P_Sum", &Scale_E_P_Sum, "Scale_E_P_Sum/D");
-    toy->Branch("Res_E_P_Sum",   &Res_E_P_Sum,   "Res_E_P_Sum/D");
-#ifdef UseDelayInformation
-    toy->Branch("LY_Etot_Ng",    &LY_Etot_Ng,    "LY_Etot_Ng/D");
-    toy->Branch("Opt_Etot_Ng",   &Opt_Etot_Ng,   "Opt_Etot_Ng/D");
-    toy->Branch("FEE_Etot_Ng",   &FEE_Etot_Ng,   "FEE_Etot_Ng/D");
-    toy->Branch("Scale_Etot_Ng", &Scale_Etot_Ng, "Scale_Etot_Ng/D");
-    toy->Branch("Res_Etot_Ng",   &Res_Etot_Ng,   "Res_Etot_Ng/D");
-#endif
-    
-#endif
-    
-    
-    //Load tree data
-//    for(long ientry=0; ientry<entries_etree_read; ientry++)
-//    {
-//
-//#ifdef UseDelayInformation
-//        X_NG[ientry] = X_Ng;
-//        Y_NG[ientry] = Y_Ng;
-//        Z_NG[ientry] = Z_Ng;
-//        
-//        Edep_NG[ientry] = Edep_Ng;
-//        Etot_NG[ientry] = Etot_Ng;
-//        EdepEA_NG[ientry] = EdepEA_Ng;
-//        EtotE_NG[ientry] = EtotE_Ng;
-//        Etot_Neutron[ientry]= Etot_N;
-//#endif
-//        NeutrinoEnergy[ientry]=cap_Ev;
-//        EtotScint_NG[ientry] = EtotScint_Ng;
-//        EdepE_NG[ientry] = EdepE_Ng;
-//
-//        X_Pos[ientry] = X_P;
-//        Y_Pos[ientry] = Y_P;
-//        Z_Pos[ientry] = Z_P;
-//        
-//        Edep_Pos[ientry] = Edep_P;
-//        Edep_PG1[ientry] = Edep_Pg1;
-//        Edep_PG2[ientry] = Edep_Pg2;
-//        
-//        EtotScint_Pos[ientry] =EtotScint_P;
-//        EtotScint_PG[ientry]=EtotScint_Pg;
-//        EtotScint_PG1[ientry]=EtotScint_Pg1;
-//        EtotScint_PG2[ientry]=EtotScint_Pg2;
-//        
-//        EdepE_Pos[ientry] = EdepE_P;
-//        EdepE_PG1[ientry]=EdepE_Pg1;
-//        EdepE_PG2[ientry]=EdepE_Pg2;
-//        
-//        EdepAcrylic_Pos[ientry]=EdepAcrylic_P;
-//        EdepEA_Pos[ientry]=EdepEA_P;
-//        EdepEA_PG1[ientry]=EdepEA_Pg1;
-//        EdepEA_PG2[ientry]=EdepEA_Pg2;
-//        
-//        EtotE_Pos[ientry]=EtotE_P;
-//        EtotE_PG1[ientry]=EtotE_Pg1;
-//        EtotE_PG2[ientry]=EtotE_Pg2;
-//        
-//        Etot_Pos[ientry]=Etot_P;
-//        Etot_PG1[ientry]=Etot_Pg1;
-//        Etot_PG2[ientry]=Etot_Pg2;
-//    }
-    
-    //Use the loaded tree data in each AD in an independent way:
-    for(Int_t AD = 0; AD<NADs;AD++)
-    {
-        seed_generator = 1;//this way all matrices will be random but have a common nominal spectrum
-        
-        //Process tree
-        for(long ientry=0; ientry<entries_etree_read; ientry++)
-        {
-            etree_read->GetEntry(ientry);
-
             cout.precision(3);
             if(ientry%10000==0)
-                cout<<" ---> processing response matrix in AD" << AD << " " <<ientry*100./entries_etree_read<<"%"<<endl;
+                cout<<" ---> processing MC spectrum "<<ientry*100./entries_wtree<<"%"<<endl;
+            
+            //////
+            
+            if(cap_Target<0) continue;
+            if(Edep_Ng<0) continue;
+            if(EtotScint_Ng<0) continue;
+            if(Etot_Ng<0) continue;
+            if(EdepE_Ng<0) continue;
+            if(EdepEA_Ng<0) continue;
+            if(EtotE_Ng<0) continue;
+            if(Etot_N<0) continue;
+            if(Etot_P<0) continue;
+            if(Etot_Pg1<0) continue;
+            if(Etot_Pg2<0) continue;
+            if(EtotScint_P<0) continue;
+            if(EtotScint_Pg<0) continue;
+            if(EtotScint_Pg1<0) continue;
+            if(EtotScint_Pg2<0) continue;
+            if(Edep_P<0) continue;
+            if(EdepAcrylic_P<0) continue;
+            if(Edep_Pg1<0) continue;
+            if(Edep_Pg2<0) continue;
+            if(EdepE_P<0) continue;
+            if(EdepEA_P<0) continue;
+            if(EtotE_P<0) continue;
+            if(EdepE_Pg1<0) continue;
+            if(EdepEA_Pg1<0) continue;
+            if(EtotE_Pg1<0) continue;
+            if(EdepE_Pg2<0) continue;
+            if(EdepEA_Pg2<0) continue;
+            if(EtotE_Pg2<0) continue;
+            
+            //////
+            
+            cap_Ev = Etot_P +Etot_N + DeltaM;
+            
+            h_Ev_toyMC_input->Fill(cap_Ev);
+#ifndef ReactorShapeinToy
+            etree->Fill();//To fill a flat spectrum to produce a response matrix with nearly equal statistics in every column and about 3 times more events in total
+#endif
+        }
+        
+        ///////// Uncomment to include reactor shape in the toy:
+        
+#ifdef ReactorShapeinToy
+        
+        Double_t max_h_Ev_toyMC_input = h_Ev_toyMC_input->GetBinContent( h_Ev_toyMC_input->GetMaximumBin() );
+        Double_t max_h_Ev_normal = h_Ev_normal->GetBinContent( h_Ev_normal->GetMaximumBin() );
+        h_Ev_normal->Scale(max_h_Ev_toyMC_input/max_h_Ev_normal);
+        
+        for(long ientry=0; ientry<entries_wtree; ientry++)
+        {
+            wtree->GetEntry(ientry);
+            
+            cout.precision(3);
+            if(ientry%10000==0)
+                cout<<" ---> processing reactor shape spectrum "<<ientry*100./entries_wtree<<"%"<<endl;
+            
+            //////
+            
+            if(cap_Target<0) continue;
+            if(Edep_Ng<0) continue;
+            if(EtotScint_Ng<0) continue;
+            if(Etot_Ng<0) continue;
+            if(EdepE_Ng<0) continue;
+            if(EdepEA_Ng<0) continue;
+            if(EtotE_Ng<0) continue;
+            if(Etot_N<0) continue;
+            if(Etot_P<0) continue;
+            if(Etot_Pg1<0) continue;
+            if(Etot_Pg2<0) continue;
+            if(EtotScint_P<0) continue;
+            if(EtotScint_Pg<0) continue;
+            if(EtotScint_Pg1<0) continue;
+            if(EtotScint_Pg2<0) continue;
+            if(Edep_P<0) continue;
+            if(EdepAcrylic_P<0) continue;
+            if(Edep_Pg1<0) continue;
+            if(Edep_Pg2<0) continue;
+            if(EdepE_P<0) continue;
+            if(EdepEA_P<0) continue;
+            if(EtotE_P<0) continue;
+            if(EdepE_Pg1<0) continue;
+            if(EdepEA_Pg1<0) continue;
+            if(EtotE_Pg1<0) continue;
+            if(EdepE_Pg2<0) continue;
+            if(EdepEA_Pg2<0) continue;
+            if(EtotE_Pg2<0) continue;
+            
+            //////
+            
+            cap_Ev = Etot_P +Etot_N +DeltaM;
+            if( cap_Ev>12 ) continue;
+            
+            Int_t ibin = h_Ev_toyMC_input->FindBin( cap_Ev );
+            Double_t prob = h_Ev_normal->GetBinContent(ibin);
             
             Int_t seed_rand = 0;
             if( ientry%100==0 )
@@ -775,469 +513,727 @@ void nHToyMC :: Toy(bool mode)
                 gRandom3->SetSeed(seed_rand);
             }
             
-            //each event has a different systematic error:
+            Double_t rand = gRandom3->Uniform(0,max_h_Ev_toyMC_input);
+            if( rand>prob ) continue;
             
-            if(mode==0)//Nominal values
-            {
-                GausRelative = 0;
-                GausIAV= 0;
-                GausNL= 0;
-                GausReso=0;
-                GausResoCorr=0;
-                GausEff= 0;
-            }
-            else//vary systematic for each entry and for each AD (uncorrelated)
-            {
-                GausRelative = RandomSys->Gaus(0,1);
-                GausIAV= RandomSys->Gaus(0,1);
-                GausNL= RandomSys->Gaus(0,1);
-                GausReso= RandomSys->Gaus(0,1);
-                
-                if(AD==0)//use the same one for all ADs. (correlated)
-                {
-                    GausResoCorr = RandomSys->Gaus(0,1);
-                }
-                
-                GausEff= RandomSys->Gaus(0,1);
-                
-                //factor that is multiplied by the random error so it's added to the nominal by using:  Value = NominalValue + gRandom3->Gauss(0,1)*1sigmaError;
-            }
-            if(ientry%1000000==0)//show only a few
-            {
-            std::cout << "gaus reso correlated should be the same for different ads and same event: " << GausResoCorr << "ad: " << AD << " - event: " << ientry <<  std::endl;
-            std::cout << "gaus reso uncorrelated should be different for different ads and same event" << GausReso << "ad: " << AD << " - event: " << ientry <<  std::endl;
-            }
-
-            //to check the random numbers are properly generated:
-            //            std::cout << " AD: " << AD << " Gaus RELATIVE: " << GausRelative[AD] << " , Gaus IAV: " << GausIAV[AD] << " , Gaus NL: " << GausNL[AD] << " , Gaus RESO: " << GausReso[AD] << " , Gaus EFF: " << GausEff[AD] << std::endl;
-            
-            ///////////////////////////// LY
-            ///////////////////////////// LY
-            /*
-             /// case01: default ?
-             /// prompt
-             LY_E_P = EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" )
-             - (EtotScint_P-Edep_P) * graph_electron_LY->Eval( EtotScint_P-Edep_P, 0, "s" )
-             - (EtotE_P-EdepE_P) * graph_gamma_LY->Eval( EtotE_P-EdepE_P, 0, "s" );
-             
-             LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" )
-             - (EtotScint_Pg1-EdepE_Pg1) * graph_gamma_LY->Eval( EtotScint_Pg1-EdepE_Pg1, 0, "s" );
-             
-             LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" )
-             - (EtotScint_Pg2-EdepE_Pg2) * graph_gamma_LY->Eval( EtotScint_Pg2-EdepE_Pg2, 0, "s" );
-             
-             LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
-             
-             /// delayed
-             LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
-             - (EtotScint_Ng-EdepE_Ng) * graph_gamma_LY->Eval( EtotScint_Ng-EdepE_Ng, 0, "s" );
-             */
-            /*
-             /// case02: no leakage
-             /// prompt
-             LY_E_P = EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" );
-             
-             LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" );
-             
-             LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" );
-             
-             LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
-             
-             /// delayed
-             LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" );
-             */
-            
-            /*
-             /// case03: edit
-             /// prompt
-             LY_E_P = EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" )
-             - (EtotE_P-EdepE_P) * graph_gamma_LY->Eval( EtotE_P-EdepE_P, 0, "s" );
-             
-             LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" )
-             - (EtotE_Pg1-EdepE_Pg1) * graph_electron_LY->Eval( EtotE_Pg1-EdepE_Pg1, 0, "s" );
-             
-             LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" )
-             - (EtotE_Pg2-EdepE_Pg2) * graph_electron_LY->Eval( EtotE_Pg1-EdepE_Pg1, 0, "s" );
-             
-             LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
-             
-             /// delayed
-             LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
-             - (EtotE_Ng-EdepE_Ng) * graph_electron_LY->Eval( EtotE_Ng-EdepE_Ng, 0, "s" );
-             */
-            
-            /// case04: default ? edit
-            Double_t P_Scint = EtotScint_P-Edep_P;
-            Double_t P_totElectron = EtotE_P-EdepE_P;
-            
-            Double_t Pg1_totElectron = EtotScint_Pg1-EdepE_Pg1;
-            Double_t Pg2_totElectron = EtotScint_Pg2-EdepE_Pg2;
-            
-            Double_t Ng_totElectron = EtotScint_Ng-EdepE_Ng;
-            
-            if( P_Scint<0 )         P_Scint = 0;
-            if( Pg1_totElectron<0 ) continue;
-            if( Pg2_totElectron<0 ) continue;
-            if( Ng_totElectron<0 )  continue;
-            
-            /// prompt
-            LY_E_P = EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" )
-            - (P_Scint) * graph_electron_LY->Eval( P_Scint, 0, "s" )
-            - (P_totElectron) * graph_gamma_LY->Eval( P_totElectron, 0, "s" );
-            
-            LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" )
-            - (Pg1_totElectron) * graph_gamma_LY->Eval( Pg1_totElectron, 0, "s" );
-            
-            LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" )
-            - (Pg2_totElectron) * graph_gamma_LY->Eval( Pg2_totElectron, 0, "s" );
-            
-            LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
-            
-            /// delayed
-#ifdef UseDelayInformation
-            LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
-            - (Ng_totElectron) * graph_gamma_LY->Eval( Ng_totElectron, 0, "s" );
+            etree->Fill();
+        }
 #endif
-            ///////////////////////////// Optical NU
-            ///////////////////////////// Optical NU
-            
-            Double_t usr_opt_attention = 0;
-            Double_t usr_pmt_coverage  = 0;
-            
-            /// prompt
-            Double_t VX_P = X_P;
-            Double_t VY_P = Y_P;
-            Double_t VZ_P = Z_P;
-            
-            usr_r2 = (VX_P*VX_P+VY_P*VY_P) * 1e-6;// mm2 ---> m2
-            usr_z  = VZ_P * 1e-3;// mm ---> m
-            
-            global_bin_num = hist_findbin->FindBin(usr_r2, usr_z);
-            hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
-            
-            if( local_zbin != 0) continue;
-            
-            usr_opt_attention = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);
-            usr_pmt_coverage  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
-            
-            Opt_E_P_Sum = LY_E_P_Sum *usr_opt_attention *usr_pmt_coverage;
-            
-            /// delayed
-#ifdef UseDelayInformation
-            
-            Double_t VX_Ng = X_Ng;
-            Double_t VY_Ng = Y_Ng;
-            Double_t VZ_Ng = Z_Ng;
-            
-            usr_r2 = (VX_Ng*VX_Ng+VY_Ng*VY_Ng) * 1e-6;// mm2 ---> m2
-            usr_z  = VZ_Ng * 1e-3;// mm ---> m
-            
-            global_bin_num = hist_findbin->FindBin(usr_r2, usr_z);
-            hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
-            
-            if( local_zbin != 0) continue;
-            
-            usr_opt_attention = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);
-            usr_pmt_coverage  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
-            
-            Opt_Etot_Ng = LY_Etot_Ng *usr_opt_attention *usr_pmt_coverage;
-            
-#endif
-            ///////////////////////////// FEE
-            ///////////////////////////// FEE
-            
-            /// prompt
-            FEE_E_P_Sum = Opt_E_P_Sum *graph_electronic->Eval( Opt_E_P_Sum, 0, "s" );
-            
-            /// delayed
-#ifdef UseDelayInformation
-            FEE_Etot_Ng = Opt_Etot_Ng *graph_electronic->Eval( Opt_Etot_Ng, 0, "s" );
-#endif
-            ///////////////////////////// EnergyScale
-            ///////////////////////////// EnergyScale
-            
-            /// prompt
-            Scale_E_P_Sum = FEE_E_P_Sum *EnergyScale;
-            
-            /// delayed
-#ifdef UseDelayInformation
-            Scale_Etot_Ng = FEE_Etot_Ng *EnergyScale;
-#endif
-            ///////////////////////////// Resolution
-            ///////////////////////////// Resolution
-            
-            Double_t energy_sigma = 0;
-            Double_t R2_AA        = 0;
-            Double_t R2_BB        = 0;
-            Double_t R_average    = 0;
-            
-            /// prompt
-            usr_r2 = (VX_P*VX_P+VY_P*VY_P) * 1e-6;// mm2 ---> m2
-            usr_z  = VZ_P * 1e-3;// mm ---> m
-            
-            global_bin_num = hist_findbin->FindBin(usr_r2, usr_z);
-            hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
-            
-            if( local_zbin != 0) continue;
-            
-            R2_AA = (local_xbin-1) * R2_binwidth;
-            R2_BB = local_xbin * R2_binwidth;
-            R_average = sqrt( (R2_AA+R2_BB)/2. );// average radius from volume weighted
-            
-            roofunc_EnergyResolution->SetParameter( 0, R_average );
-            energy_sigma = roofunc_EnergyResolution->Eval( Scale_E_P_Sum );
+        etree->Write();
+        roofile_etree->Close();
         
-            Res_E_P_Sum = gRandom3->Gaus( Scale_E_P_Sum, energy_sigma );
-            
-            /// delayed
-#ifdef UseDelayInformation
-            usr_r2 = (VX_Ng*VX_Ng+VY_Ng*VY_Ng) * 1e-6;// mm2 ---> m2
-            usr_z  = VZ_Ng * 1e-3;// mm ---> m
-            
-            global_bin_num = hist_findbin->FindBin(usr_r2, usr_z);
-            hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
-            
-            if( local_zbin != 0) continue;
-            
-            R2_AA = (local_xbin-1) * R2_binwidth;
-            R2_BB = local_xbin * R2_binwidth;
-            R_average = sqrt( (R2_AA+R2_BB)/2. );// average radius from volume weighted
-            
-            roofunc_EnergyResolution->SetParameter( 0, R_average );
-            energy_sigma = roofunc_EnergyResolution->Eval( Scale_Etot_Ng );
-            Res_Etot_Ng = gRandom3->Gaus( Scale_Etot_Ng, energy_sigma );
 #endif
-            ///////////////////////////// Cell
-            ///////////////////////////// Cell
-            
-            //Fill histograms:
-            TruePredictionH[AD]->Fill(cap_Ev);
-            VisiblePredictionH[AD]->Fill(Res_E_P_Sum);
-            HighResoMatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//Fine grid
-            MatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//neutrino energy vs visible energy
-            TransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev);
-            HighResoTransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev);//Fine grid
-
+        
+        //////////////////////////////////////////////////////////////////////////
+        // The etree file has to have been generated before running this code:
+        //////////////////////////////////////////////////////////////////////////
+        //    const long MaxEntries = 50;
+        
+        //#ifdef UseDelayInformation
+        //    Double_t X_NG[MaxEntries];
+        //    Double_t Y_NG[MaxEntries];
+        //    Double_t Z_NG[MaxEntries];
+        //
+        //    Double_t Edep_NG[MaxEntries];
+        //    Double_t Etot_NG[MaxEntries];
+        //    Double_t EdepEA_NG[MaxEntries];
+        //    Double_t EtotE_NG[MaxEntries];
+        //    Double_t Etot_Neutron[MaxEntries];
+        //#endif
+        //    Double_t NeutrinoEnergy[MaxEntries];//Is this too big? Having an array allow us to run the tree reading spectrum only once, instead of once per AD.//cap_Ev
+        //    Double_t EdepE_NG[MaxEntries];
+        //    Double_t EtotScint_NG[MaxEntries];
+        //
+        //
+        //    Double_t X_Pos[MaxEntries];
+        //    Double_t Y_Pos[MaxEntries];
+        //    Double_t Z_Pos[MaxEntries];
+        //
+        //    Double_t Edep_Pos[MaxEntries];
+        //    Double_t Edep_PG1[MaxEntries];
+        //    Double_t Edep_PG2[MaxEntries];
+        //
+        //    Double_t EtotScint_Pos[MaxEntries];
+        //    Double_t EtotScint_PG[MaxEntries];
+        //    Double_t EtotScint_PG1[MaxEntries];
+        //    Double_t EtotScint_PG2[MaxEntries];
+        //
+        //    Double_t EdepE_Pos[MaxEntries];
+        //    Double_t EdepE_PG1[MaxEntries];
+        //    Double_t EdepE_PG2[MaxEntries];
+        //
+        //    Double_t EdepAcrylic_Pos[MaxEntries];
+        //    Double_t EdepEA_Pos[MaxEntries];
+        //    Double_t EdepEA_PG1[MaxEntries];
+        //    Double_t EdepEA_PG2[MaxEntries];
+        //
+        //    Double_t EtotE_Pos[MaxEntries];
+        //    Double_t EtotE_PG1[MaxEntries];
+        //    Double_t EtotE_PG2[MaxEntries];
+        //
+        //    Double_t Etot_Pos[MaxEntries];
+        //    Double_t Etot_PG1[MaxEntries];
+        //    Double_t Etot_PG2[MaxEntries];
+        
+        TFile *roofile_etree_read = new TFile("./Inputs/HInputs/Data/roofile_etree.root", "read");
+        TTree *etree_read = (TTree*)roofile_etree_read->Get("etree");
+        long entries_etree_read = etree_read->GetEntries();
+        
+        etree_read->SetBranchAddress("cap_Ev",       &cap_Ev);
+        etree_read->SetBranchAddress("cap_Target",   &cap_Target);
+        etree_read->SetBranchAddress("X_Ng",         &X_Ng);
+        etree_read->SetBranchAddress("Y_Ng",         &Y_Ng);
+        etree_read->SetBranchAddress("Z_Ng",         &Z_Ng);
+        etree_read->SetBranchAddress("Edep_Ng",      &Edep_Ng);
+        etree_read->SetBranchAddress("EtotScint_Ng", &EtotScint_Ng);
+        etree_read->SetBranchAddress("Etot_Ng",      &Etot_Ng);
+        etree_read->SetBranchAddress("EdepE_Ng",     &EdepE_Ng);
+        etree_read->SetBranchAddress("EdepEA_Ng",    &EdepEA_Ng);
+        etree_read->SetBranchAddress("EtotE_Ng",     &EtotE_Ng);
+        etree_read->SetBranchAddress("Etot_N",       &Etot_N);
+        etree_read->SetBranchAddress("X_P",          &X_P);
+        etree_read->SetBranchAddress("Y_P",          &Y_P);
+        etree_read->SetBranchAddress("Z_P",          &Z_P);
+        etree_read->SetBranchAddress("Etot_P",       &Etot_P);
+        etree_read->SetBranchAddress("Etot_Pg1",     &Etot_Pg1);
+        etree_read->SetBranchAddress("Etot_Pg2",     &Etot_Pg2);
+        etree_read->SetBranchAddress("EtotScint_P",  &EtotScint_P);
+        etree_read->SetBranchAddress("EtotScint_Pg", &EtotScint_Pg);
+        etree_read->SetBranchAddress("EtotScint_Pg1", &EtotScint_Pg1);
+        etree_read->SetBranchAddress("EtotScint_Pg2", &EtotScint_Pg2);
+        etree_read->SetBranchAddress("Edep_P",        &Edep_P);
+        etree_read->SetBranchAddress("EdepAcrylic_P", &EdepAcrylic_P);
+        etree_read->SetBranchAddress("Edep_Pg1",      &Edep_Pg1);
+        etree_read->SetBranchAddress("Edep_Pg2",      &Edep_Pg2);
+        etree_read->SetBranchAddress("EdepE_P",       &EdepE_P);
+        etree_read->SetBranchAddress("EdepEA_P",      &EdepEA_P);
+        etree_read->SetBranchAddress("EtotE_P",       &EtotE_P);
+        etree_read->SetBranchAddress("EdepE_Pg1",     &EdepE_Pg1);
+        etree_read->SetBranchAddress("EdepEA_Pg1",    &EdepEA_Pg1);
+        etree_read->SetBranchAddress("EtotE_Pg1",     &EtotE_Pg1);
+        etree_read->SetBranchAddress("EdepE_Pg2",     &EdepE_Pg2);
+        etree_read->SetBranchAddress("EdepEA_Pg2",    &EdepEA_Pg2);
+        etree_read->SetBranchAddress("EtotE_Pg2",     &EtotE_Pg2);
+        
+        ///////////////////////////////
+        ///////////////////////////////
+        ///////////////////////////////
+        ///////////////////////////////
+        
+        Double_t LY_E_P;
+        Double_t LY_E_Pg1;
+        Double_t LY_E_Pg2;
+        
+        Double_t LY_E_P_Sum;
+        Double_t Opt_E_P_Sum;
+        Double_t FEE_E_P_Sum;
+        Double_t Scale_E_P_Sum;
+        Double_t Res_E_P_Sum;
+        
+#ifdef UseDelayInformation
+        Double_t LY_Etot_Ng;
+        Double_t Opt_Etot_Ng;
+        Double_t FEE_Etot_Ng;
+        Double_t Scale_Etot_Ng;
+        Double_t Res_Etot_Ng;
+#endif
+        
 #ifdef SaveTree
-            toy->Fill();
+        
+        Int_t pcell = 0;
+        Int_t dcell = 0;
+        
+        TFile *roofile_toy = new TFile("roofile_toy.root", "recreate");
+        TTree *toy = new TTree("toy", "toyMC result");
+        
+        toy->Branch("cap_Ev",       &cap_Ev,       "cap_Ev/D");
+        toy->Branch("cap_Target",   &cap_Target,   "cap_Target/D");
+        toy->Branch("pcell",        &pcell,        "pcell/I");
+        toy->Branch("dcell",        &dcell,        "dcell/I");
+        toy->Branch("X_Ng",         &X_Ng,         "X_Ng/D");
+        toy->Branch("Y_Ng",         &Y_Ng,         "Y_Ng/D");
+        toy->Branch("Z_Ng",         &Z_Ng,         "Z_Ng/D");
+        toy->Branch("Edep_Ng",      &Edep_Ng,      "Edep_Ng/D");
+        toy->Branch("EtotScint_Ng", &EtotScint_Ng, "EtotScint_Ng/D");
+        toy->Branch("Etot_Ng",      &Etot_Ng,      "Etot_Ng/D");
+        toy->Branch("EdepE_Ng",     &EdepE_Ng,     "EdepE_Ng/D");
+        toy->Branch("EdepEA_Ng",    &EdepEA_Ng,    "EdepEA_Ng/D");
+        toy->Branch("EtotE_Ng",     &EtotE_Ng,     "EtotE_Ng/D");
+        toy->Branch("Etot_N",       &Etot_N,       "Etot_N/D");
+        toy->Branch("X_P",          &X_P,          "X_P/D");
+        toy->Branch("Y_P",          &Y_P,          "Y_P/D");
+        toy->Branch("Z_P",          &Z_P,          "Z_P/D");
+        toy->Branch("Etot_P",       &Etot_P,       "Etot_P/D");
+        toy->Branch("Etot_Pg1",     &Etot_Pg1,     "Etot_Pg1/D");
+        toy->Branch("Etot_Pg2",     &Etot_Pg2,     "Etot_Pg2/D");
+        toy->Branch("EtotScint_P",  &EtotScint_P,  "EtotScint_P/D");
+        toy->Branch("EtotScint_Pg", &EtotScint_Pg, "EtotScint_Pg/D");
+        toy->Branch("EtotScint_Pg1", &EtotScint_Pg1, "EtotScint_Pg1/D");
+        toy->Branch("EtotScint_Pg2", &EtotScint_Pg2, "EtotScint_Pg2/D");
+        toy->Branch("Edep_P",        &Edep_P,        "Edep_P/D");
+        toy->Branch("EdepAcrylic_P", &EdepAcrylic_P, "EdepAcrylic_P/D");
+        toy->Branch("Edep_Pg1",      &Edep_Pg1,      "Edep_Pg1/D");
+        toy->Branch("Edep_Pg2",      &Edep_Pg2,      "Edep_Pg2/D");
+        toy->Branch("EdepE_P",       &EdepE_P,       "EdepE_P/D");
+        toy->Branch("EdepEA_P",      &EdepEA_P,      "EdepEA_P/D");
+        toy->Branch("EtotE_P",       &EtotE_P,       "EtotE_P/D");
+        toy->Branch("EdepE_Pg1",     &EdepE_Pg1,     "EdepE_Pg1/D");
+        toy->Branch("EdepEA_Pg1",    &EdepEA_Pg1,    "EdepEA_Pg1/D");
+        toy->Branch("EtotE_Pg1",     &EtotE_Pg1,     "EtotE_Pg1/D");
+        toy->Branch("EdepE_Pg2",     &EdepE_Pg2,     "EdepE_Pg2/D");
+        toy->Branch("EdepEA_Pg2",    &EdepEA_Pg2,    "EdepEA_Pg2/D");
+        toy->Branch("EtotE_Pg2",     &EtotE_Pg2,     "EtotE_Pg2/D");
+        
+        toy->Branch("LY_E_P",        &LY_E_P,        "LY_E_P/D");
+        toy->Branch("LY_E_Pg1",      &LY_E_Pg1,      "LY_E_Pg1/D");
+        toy->Branch("LY_E_Pg2",      &LY_E_Pg2,      "LY_E_Pg2/D");
+        toy->Branch("LY_E_P_Sum",    &LY_E_P_Sum,    "LY_E_P_Sum/D");
+        toy->Branch("Opt_E_P_Sum",   &Opt_E_P_Sum,   "Opt_E_P_Sum/D");
+        toy->Branch("FEE_E_P_Sum",   &FEE_E_P_Sum,   "FEE_E_P_Sum/D");
+        toy->Branch("Scale_E_P_Sum", &Scale_E_P_Sum, "Scale_E_P_Sum/D");
+        toy->Branch("Res_E_P_Sum",   &Res_E_P_Sum,   "Res_E_P_Sum/D");
+#ifdef UseDelayInformation
+        toy->Branch("LY_Etot_Ng",    &LY_Etot_Ng,    "LY_Etot_Ng/D");
+        toy->Branch("Opt_Etot_Ng",   &Opt_Etot_Ng,   "Opt_Etot_Ng/D");
+        toy->Branch("FEE_Etot_Ng",   &FEE_Etot_Ng,   "FEE_Etot_Ng/D");
+        toy->Branch("Scale_Etot_Ng", &Scale_Etot_Ng, "Scale_Etot_Ng/D");
+        toy->Branch("Res_Etot_Ng",   &Res_Etot_Ng,   "Res_Etot_Ng/D");
 #endif
-        }//events
-    }//ADs
-    
-    if(Print)
-    {
-        TCanvas* NNFineMatrixC = new TCanvas("NNF","NNF");
-        NNFineMatrixC->Divide(NADs/2,2);
         
-        TCanvas* NNMatrixC = new TCanvas("NNM","NNM");
-        NNMatrixC->Divide(NADs/2,2);
+#endif
         
-        TCanvas* NNTransC = new TCanvas("NNT","NNT");
-        NNTransC->Divide(NADs/2,2);
         
-        TCanvas* NNFineTransC = new TCanvas("NNFT","NNFT");
-        NNFineTransC->Divide(NADs/2,2);
+        //Load tree data
+        //    for(long ientry=0; ientry<entries_etree_read; ientry++)
+        //    {
+        //
+        //#ifdef UseDelayInformation
+        //        X_NG[ientry] = X_Ng;
+        //        Y_NG[ientry] = Y_Ng;
+        //        Z_NG[ientry] = Z_Ng;
+        //
+        //        Edep_NG[ientry] = Edep_Ng;
+        //        Etot_NG[ientry] = Etot_Ng;
+        //        EdepEA_NG[ientry] = EdepEA_Ng;
+        //        EtotE_NG[ientry] = EtotE_Ng;
+        //        Etot_Neutron[ientry]= Etot_N;
+        //#endif
+        //        NeutrinoEnergy[ientry]=cap_Ev;
+        //        EtotScint_NG[ientry] = EtotScint_Ng;
+        //        EdepE_NG[ientry] = EdepE_Ng;
+        //
+        //        X_Pos[ientry] = X_P;
+        //        Y_Pos[ientry] = Y_P;
+        //        Z_Pos[ientry] = Z_P;
+        //
+        //        Edep_Pos[ientry] = Edep_P;
+        //        Edep_PG1[ientry] = Edep_Pg1;
+        //        Edep_PG2[ientry] = Edep_Pg2;
+        //
+        //        EtotScint_Pos[ientry] =EtotScint_P;
+        //        EtotScint_PG[ientry]=EtotScint_Pg;
+        //        EtotScint_PG1[ientry]=EtotScint_Pg1;
+        //        EtotScint_PG2[ientry]=EtotScint_Pg2;
+        //
+        //        EdepE_Pos[ientry] = EdepE_P;
+        //        EdepE_PG1[ientry]=EdepE_Pg1;
+        //        EdepE_PG2[ientry]=EdepE_Pg2;
+        //
+        //        EdepAcrylic_Pos[ientry]=EdepAcrylic_P;
+        //        EdepEA_Pos[ientry]=EdepEA_P;
+        //        EdepEA_PG1[ientry]=EdepEA_Pg1;
+        //        EdepEA_PG2[ientry]=EdepEA_Pg2;
+        //
+        //        EtotE_Pos[ientry]=EtotE_P;
+        //        EtotE_PG1[ientry]=EtotE_Pg1;
+        //        EtotE_PG2[ientry]=EtotE_Pg2;
+        //
+        //        Etot_Pos[ientry]=Etot_P;
+        //        Etot_PG1[ientry]=Etot_Pg1;
+        //        Etot_PG2[ientry]=Etot_Pg2;
+        //    }
         
-        for(Int_t i = 0; i<NADs;i++)
+        //Use the loaded tree data in each AD in an independent way:
+        for(Int_t AD = 0; AD<NADs;AD++)
         {
-            NNMatrixC->cd(i+1);
-            MatrixH[i]->Draw("colz");
+            seed_generator = 1;//this way all matrices will be random but have a common nominal spectrum
             
-            NNFineMatrixC->cd(i+1);
-            HighResoMatrixH[i]->Draw("colz");
-            
-            NNTransC->cd(i+1);
-            TransMatrixH[i]->Draw("colz");
-            
-            NNFineTransC->cd(i+1);
-            HighResoTransMatrixH[i]->Draw("colz");
-        }
-        
-        NNFineMatrixC->Print("./Images/NoNormFineHydrogenResponseMatrix.eps");
-        NNMatrixC->Print("./Images/NoNormHydrogenResponseMatrix.eps");
-        NNTransC->Print("./Images/NoNormTransposeHydrogenMatrix.eps");
-        NNFineTransC->Print("./Images/NoNormFineTransposeHydrogenMatrix.eps");
-        
-        delete NNMatrixC;
-        delete NNFineMatrixC;
-        delete NNTransC;
-        delete NNFineTransC;
-    }
-    
-    Double_t Norma[n_etrue_bins];//true->vis
-    Double_t HighResoNorma[MatrixBins];//true->vis
-    Double_t NormaTrans[n_evis_bins];//vis->true
-    Double_t HighResoNormaTrans[MatrixBins];//vis->true
-    //Normalize the Matrix
-    for(Int_t AD = 0; AD<NADs;AD++)
-    {
-        for(Int_t i=0;i<n_etrue_bins;i++)
-        {
-            Norma[i]=0;
-            for(Int_t j=0;j<n_evis_bins;j++)
+            //Process tree
+            for(long ientry=0; ientry<entries_etree_read; ientry++)
             {
-                Norma[i] = Norma[i]+MatrixH[AD]->GetBinContent(i+1,j+1);// true->vis
-            }
-        }
-        
-        for(Int_t i=0;i<n_evis_bins;i++)
-        {
-            NormaTrans[i]=0;
-
-            for(Int_t j=0;j<n_etrue_bins;j++)
-            {
-                NormaTrans[i] = NormaTrans[i]+TransMatrixH[AD]->GetBinContent(i+1,j+1);// vis->true
-            }
-        }
-
-        for (Int_t i = 0; i < n_etrue_bins; i++)
-        {
-            for (Int_t j = 0; j < n_evis_bins; j++)
-            {
-                if(Norma[i]!=0)
-                {
-                    MatrixH[AD]->SetBinContent(i+1,j+1,MatrixH[AD]->GetBinContent(i+1,j+1)/Norma[i]);//true->vis
-                }
-            }
-        }
-        
-        for (Int_t i = 0; i < n_evis_bins; i++)
-        {
-            for (Int_t j = 0; j < n_etrue_bins; j++)
-            {
-                if(NormaTrans[i]!=0)
-                {
-                    TransMatrixH[AD]->SetBinContent(i+1,j+1,TransMatrixH[AD]->GetBinContent(i+1,j+1)/NormaTrans[i]);
-                }
-
-            }
-        }
-        
-        for(Int_t i=0;i<MatrixBins;i++)
-        {
-            HighResoNorma[i]=0;
-            HighResoNormaTrans[i]=0;
-            
-            for(Int_t j=0;j<MatrixBins;j++)
-            {
-                HighResoNorma[i] = HighResoNorma[i]+HighResoMatrixH[AD]->GetBinContent(i+1,j+1);// true->vis
-                HighResoNormaTrans[i] = HighResoNormaTrans[i]+HighResoTransMatrixH[AD]->GetBinContent(i+1,j+1);// vis->true
+                etree_read->GetEntry(ientry);
                 
-            }
-        }
-        
-        for(Int_t i=0;i<MatrixBins;i++)
-        {
-            for(Int_t j=0;j<MatrixBins;j++)
-            {
-                if(HighResoNorma[i]!=0)
+                cout.precision(3);
+                if(ientry%10000==0)
+                    cout<<" ---> processing response matrix in AD" << AD << " " <<ientry*100./entries_etree_read<<"%"<<endl;
+                
+                Int_t seed_rand = 0;
+                if( ientry%100==0 )
                 {
-                    HighResoMatrixH[AD]->SetBinContent(i+1,j+1,HighResoMatrixH[AD]->GetBinContent(i+1,j+1)/HighResoNorma[i]);//true->vis
+                    seed_generator += 1;
+                    seed_rand = 2 *seed_generator +1;
+                    
+                    gRandom3->SetSeed(seed_rand);
                 }
                 
-                if(HighResoNormaTrans[i]!=0)
+                //each event has a different systematic error:
+                
+                if(mode==0)//Nominal values
                 {
-                    HighResoTransMatrixH[AD]->SetBinContent(i+1,j+1,HighResoTransMatrixH[AD]->GetBinContent(i+1,j+1)/HighResoNormaTrans[i]);
+                    GausRelative = 0;
+                    GausIAV= 0;
+                    GausNL= 0;
+                    GausReso=0;
+                    GausResoCorr=0;
+                    GausEff= 0;
                 }
-            }
-        }
-    }
-    
-    if(Print)
-    {
-        TCanvas* FineMatrixC = new TCanvas("F","F");
-        FineMatrixC->Divide(NADs/2,2);
-        
-        TCanvas* MatrixC = new TCanvas("","");
-        MatrixC->Divide(NADs/2,2);
-        
-        TCanvas* PredictionC = new TCanvas("P","P");
-        PredictionC->Divide(NADs/2,2);
-        
-        TCanvas* VisPredictionC = new TCanvas("VP","VP");
-        VisPredictionC->Divide(NADs/2,2);
-        
-        TCanvas* TransC = new TCanvas("T","T");
-        TransC->Divide(NADs/2,2);
-        
-        TCanvas* FineTransC = new TCanvas("FT","FT");
-        FineTransC->Divide(NADs/2,2);
-        
-        for(Int_t i = 0; i<NADs;i++)
-        {
-            PredictionC->cd(i+1);
-            TruePredictionH[i]->Draw();
-            
-            VisPredictionC->cd(i+1);
-            VisiblePredictionH[i]->Draw();
-            
-            MatrixC->cd(i+1);
-            MatrixH[i]->Draw("colz");
-            
-            FineMatrixC->cd(i+1);
-            HighResoMatrixH[i]->Draw("colz");
-  
-            TransC->cd(i+1);
-            TransMatrixH[i]->Draw("colz");
-            
-            FineTransC->cd(i+1);
-            HighResoTransMatrixH[i]->Draw("colz");
-
-        }
-        
-        PredictionC->Print("./Images/ToyMCTrueHydrogenPrediction.eps");
-        VisPredictionC->Print("./Images/ToyMCVisibleHydrogenPrediction.eps");
-        FineMatrixC->Print("./Images/FineHydrogenResponseMatrix.eps");
-        MatrixC->Print("./Images/HydrogenResponseMatrix.eps");
-        TransC->Print("./Images/TransposeHydrogenMatrix.eps");
-        FineTransC->Print("./Images/FineTransposeHydrogenMatrix.eps");
-
-        delete PredictionC;
-        delete VisPredictionC;
-
-        delete MatrixC;
-        delete FineMatrixC;
-        delete TransC;
-        delete FineTransC;
-    }
-    
-    if(mode==0)
-    {
-        TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root","recreate");
-        
-        for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
-        {
-            HighResoMatrixH[AD]->Write(Form("FineEvisEnu%d",AD+1));//Save the matrices.
-            MatrixH[AD]->Write(Form("EvisEnu%d",AD+1));//Save the matrices.
-        }
-        
-        TransMatrixH[0]->Write("EnuEvis");//All ADs are "identical", only need 1
-
-        delete SaveMatrix;
-        
-    }
-    else
-    {
-        TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root","recreate");
-        
-        for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
-        {
-            HighResoMatrixH[AD]->Write(Form("FineEvisEnu%d",AD+1));//Save the matrices.
-            MatrixH[AD]->Write(Form("EvisEnu%d",AD+1));//Save the matrices.
-        }
-        
-        TransMatrixH[0]->Write("EnuEvis");//All ADs are "identical", only need 1
-        
-        delete SaveMatrix;
-    }
-    
+                else//vary systematic for each entry and for each AD (uncorrelated)
+                {
+                    GausRelative = gRandom3->Gaus(0,1);
+                    GausIAV= gRandom3->Gaus(0,1);
+                    GausNL= gRandom3->Gaus(0,1);
+                    GausReso= gRandom3->Gaus(0,1);
+                    GausEff= gRandom3->Gaus(0,1);
+                    
+                    if(AD==0)//use the same one for all ADs. (correlated)
+                    {
+                        GausResoCorr = gRandom3->Gaus(0,1);
+                    }
+                    
+                    //factor that is multiplied by the random error so it's added to the nominal by using:  Value = NominalValue + gRandom3->Gauss(0,1)*1sigmaError;
+                }
+                if(ientry%1000000==0)//show only a few
+                {
+                    std::cout << "gaus reso correlated should be the same for different ads and same event: " << GausResoCorr << "ad: " << AD << " - event: " << ientry <<  std::endl;
+                    std::cout << "gaus reso uncorrelated should be different for different ads and same event" << GausReso << "ad: " << AD << " - event: " << ientry <<  std::endl;
+                }
+                
+                //to check the random numbers are properly generated:
+                //            std::cout << " AD: " << AD << " Gaus RELATIVE: " << GausRelative[AD] << " , Gaus IAV: " << GausIAV[AD] << " , Gaus NL: " << GausNL[AD] << " , Gaus RESO: " << GausReso[AD] << " , Gaus EFF: " << GausEff[AD] << std::endl;
+                
+                ///////////////////////////// LY
+                ///////////////////////////// LY
+                /*
+                 /// case01: default ?
+                 /// prompt
+                 LY_E_P = EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" )
+                 - (EtotScint_P-Edep_P) * graph_electron_LY->Eval( EtotScint_P-Edep_P, 0, "s" )
+                 - (EtotE_P-EdepE_P) * graph_gamma_LY->Eval( EtotE_P-EdepE_P, 0, "s" );
+                 
+                 LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" )
+                 - (EtotScint_Pg1-EdepE_Pg1) * graph_gamma_LY->Eval( EtotScint_Pg1-EdepE_Pg1, 0, "s" );
+                 
+                 LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" )
+                 - (EtotScint_Pg2-EdepE_Pg2) * graph_gamma_LY->Eval( EtotScint_Pg2-EdepE_Pg2, 0, "s" );
+                 
+                 LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
+                 
+                 /// delayed
+                 LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
+                 - (EtotScint_Ng-EdepE_Ng) * graph_gamma_LY->Eval( EtotScint_Ng-EdepE_Ng, 0, "s" );
+                 */
+                /*
+                 /// case02: no leakage
+                 /// prompt
+                 LY_E_P = EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" );
+                 
+                 LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" );
+                 
+                 LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" );
+                 
+                 LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
+                 
+                 /// delayed
+                 LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" );
+                 */
+                
+                /*
+                 /// case03: edit
+                 /// prompt
+                 LY_E_P = EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" )
+                 - (EtotE_P-EdepE_P) * graph_gamma_LY->Eval( EtotE_P-EdepE_P, 0, "s" );
+                 
+                 LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" )
+                 - (EtotE_Pg1-EdepE_Pg1) * graph_electron_LY->Eval( EtotE_Pg1-EdepE_Pg1, 0, "s" );
+                 
+                 LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" )
+                 - (EtotE_Pg2-EdepE_Pg2) * graph_electron_LY->Eval( EtotE_Pg1-EdepE_Pg1, 0, "s" );
+                 
+                 LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
+                 
+                 /// delayed
+                 LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
+                 - (EtotE_Ng-EdepE_Ng) * graph_electron_LY->Eval( EtotE_Ng-EdepE_Ng, 0, "s" );
+                 */
+                
+                /// case04: default ? edit
+                Double_t P_Scint = EtotScint_P-Edep_P;
+                Double_t P_totElectron = EtotE_P-EdepE_P;
+                
+                Double_t Pg1_totElectron = EtotScint_Pg1-EdepE_Pg1;
+                Double_t Pg2_totElectron = EtotScint_Pg2-EdepE_Pg2;
+                
+                Double_t Ng_totElectron = EtotScint_Ng-EdepE_Ng;
+                
+                if( P_Scint<0 )         P_Scint = 0;
+                if( Pg1_totElectron<0 ) continue;
+                if( Pg2_totElectron<0 ) continue;
+                if( Ng_totElectron<0 )  continue;
+                
+                /// prompt
+                LY_E_P = EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" )
+                - (P_Scint) * graph_electron_LY->Eval( P_Scint, 0, "s" )
+                - (P_totElectron) * graph_gamma_LY->Eval( P_totElectron, 0, "s" );
+                
+                LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" )
+                - (Pg1_totElectron) * graph_gamma_LY->Eval( Pg1_totElectron, 0, "s" );
+                
+                LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" )
+                - (Pg2_totElectron) * graph_gamma_LY->Eval( Pg2_totElectron, 0, "s" );
+                
+                LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
+                
+                /// delayed
+#ifdef UseDelayInformation
+                LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
+                - (Ng_totElectron) * graph_gamma_LY->Eval( Ng_totElectron, 0, "s" );
+#endif
+                ///////////////////////////// Optical NU
+                ///////////////////////////// Optical NU
+                
+                Double_t usr_opt_attention = 0;
+                Double_t usr_pmt_coverage  = 0;
+                
+                /// prompt
+                Double_t VX_P = X_P;
+                Double_t VY_P = Y_P;
+                Double_t VZ_P = Z_P;
+                
+                usr_r2 = (VX_P*VX_P+VY_P*VY_P) * 1e-6;// mm2 ---> m2
+                usr_z  = VZ_P * 1e-3;// mm ---> m
+                
+                global_bin_num = hist_findbin->FindBin(usr_r2, usr_z);
+                hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
+                
+                if( local_zbin != 0) continue;
+                
+                usr_opt_attention = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);
+                usr_pmt_coverage  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
+                
+                Opt_E_P_Sum = LY_E_P_Sum *usr_opt_attention *usr_pmt_coverage;
+                
+                /// delayed
+#ifdef UseDelayInformation
+                
+                Double_t VX_Ng = X_Ng;
+                Double_t VY_Ng = Y_Ng;
+                Double_t VZ_Ng = Z_Ng;
+                
+                usr_r2 = (VX_Ng*VX_Ng+VY_Ng*VY_Ng) * 1e-6;// mm2 ---> m2
+                usr_z  = VZ_Ng * 1e-3;// mm ---> m
+                
+                global_bin_num = hist_findbin->FindBin(usr_r2, usr_z);
+                hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
+                
+                if( local_zbin != 0) continue;
+                
+                usr_opt_attention = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);
+                usr_pmt_coverage  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
+                
+                Opt_Etot_Ng = LY_Etot_Ng *usr_opt_attention *usr_pmt_coverage;
+                
+#endif
+                ///////////////////////////// FEE
+                ///////////////////////////// FEE
+                
+                /// prompt
+                FEE_E_P_Sum = Opt_E_P_Sum *graph_electronic->Eval( Opt_E_P_Sum, 0, "s" );
+                
+                /// delayed
+#ifdef UseDelayInformation
+                FEE_Etot_Ng = Opt_Etot_Ng *graph_electronic->Eval( Opt_Etot_Ng, 0, "s" );
+#endif
+                ///////////////////////////// EnergyScale
+                ///////////////////////////// EnergyScale
+                
+                /// prompt
+                Scale_E_P_Sum = FEE_E_P_Sum *EnergyScale;
+                
+                /// delayed
+#ifdef UseDelayInformation
+                Scale_Etot_Ng = FEE_Etot_Ng *EnergyScale;
+#endif
+                ///////////////////////////// Resolution
+                ///////////////////////////// Resolution
+                
+                Double_t energy_sigma = 0;
+                Double_t R2_AA        = 0;
+                Double_t R2_BB        = 0;
+                Double_t R_average    = 0;
+                
+                /// prompt
+                usr_r2 = (VX_P*VX_P+VY_P*VY_P) * 1e-6;// mm2 ---> m2
+                usr_z  = VZ_P * 1e-3;// mm ---> m
+                
+                global_bin_num = hist_findbin->FindBin(usr_r2, usr_z);
+                hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
+                
+                if( local_zbin != 0) continue;
+                
+                R2_AA = (local_xbin-1) * R2_binwidth;
+                R2_BB = local_xbin * R2_binwidth;
+                R_average = sqrt( (R2_AA+R2_BB)/2. );// average radius from volume weighted
+                
+                roofunc_EnergyResolution->SetParameter( 0, R_average );
+                energy_sigma = roofunc_EnergyResolution->Eval( Scale_E_P_Sum );
+                
+                Res_E_P_Sum = gRandom3->Gaus( Scale_E_P_Sum, energy_sigma );
+                
+                /// delayed
+#ifdef UseDelayInformation
+                usr_r2 = (VX_Ng*VX_Ng+VY_Ng*VY_Ng) * 1e-6;// mm2 ---> m2
+                usr_z  = VZ_Ng * 1e-3;// mm ---> m
+                
+                global_bin_num = hist_findbin->FindBin(usr_r2, usr_z);
+                hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
+                
+                if( local_zbin != 0) continue;
+                
+                R2_AA = (local_xbin-1) * R2_binwidth;
+                R2_BB = local_xbin * R2_binwidth;
+                R_average = sqrt( (R2_AA+R2_BB)/2. );// average radius from volume weighted
+                
+                roofunc_EnergyResolution->SetParameter( 0, R_average );
+                energy_sigma = roofunc_EnergyResolution->Eval( Scale_Etot_Ng );
+                Res_Etot_Ng = gRandom3->Gaus( Scale_Etot_Ng, energy_sigma );
+#endif
+                ///////////////////////////// Cell
+                ///////////////////////////// Cell
+                
+                //Fill histograms:
+                TruePredictionH[AD]->Fill(cap_Ev);
+                VisiblePredictionH[AD]->Fill(Res_E_P_Sum);
+                HighResoMatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//Fine grid
+                MatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//neutrino energy vs visible energy
+                TransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev);
+                HighResoTransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev);//Fine grid
+                
 #ifdef SaveTree
-    toy->Write();
-    roofile_toy->Close();
+                toy->Fill();
 #endif
-    
+            }//events
+        }//ADs
+        
+        if(Print)
+        {
+            TCanvas* NNFineMatrixC = new TCanvas("NNF","NNF");
+            NNFineMatrixC->Divide(NADs/2,2);
+            
+            TCanvas* NNMatrixC = new TCanvas("NNM","NNM");
+            NNMatrixC->Divide(NADs/2,2);
+            
+            TCanvas* NNTransC = new TCanvas("NNT","NNT");
+            NNTransC->Divide(NADs/2,2);
+            
+            TCanvas* NNFineTransC = new TCanvas("NNFT","NNFT");
+            NNFineTransC->Divide(NADs/2,2);
+            
+            for(Int_t i = 0; i<NADs;i++)
+            {
+                NNMatrixC->cd(i+1);
+                MatrixH[i]->Draw("colz");
+                
+                NNFineMatrixC->cd(i+1);
+                HighResoMatrixH[i]->Draw("colz");
+                
+                NNTransC->cd(i+1);
+                TransMatrixH[i]->Draw("colz");
+                
+                NNFineTransC->cd(i+1);
+                HighResoTransMatrixH[i]->Draw("colz");
+            }
+            
+            NNFineMatrixC->Print("./Images/NoNormFineHydrogenResponseMatrix.eps");
+            NNMatrixC->Print("./Images/NoNormHydrogenResponseMatrix.eps");
+            NNTransC->Print("./Images/NoNormTransposeHydrogenMatrix.eps");
+            NNFineTransC->Print("./Images/NoNormFineTransposeHydrogenMatrix.eps");
+            
+            delete NNMatrixC;
+            delete NNFineMatrixC;
+            delete NNTransC;
+            delete NNFineTransC;
+        }
+        
+        Double_t Norma[n_etrue_bins];//true->vis
+        Double_t HighResoNorma[MatrixBins];//true->vis
+        Double_t NormaTrans[n_evis_bins];//vis->true
+        Double_t HighResoNormaTrans[MatrixBins];//vis->true
+        //Normalize the Matrix
+        for(Int_t AD = 0; AD<NADs;AD++)
+        {
+            for(Int_t i=0;i<n_etrue_bins;i++)
+            {
+                Norma[i]=0;
+                for(Int_t j=0;j<n_evis_bins;j++)
+                {
+                    Norma[i] = Norma[i]+MatrixH[AD]->GetBinContent(i+1,j+1);// true->vis
+                }
+            }
+            
+            for(Int_t i=0;i<n_evis_bins;i++)
+            {
+                NormaTrans[i]=0;
+                
+                for(Int_t j=0;j<n_etrue_bins;j++)
+                {
+                    NormaTrans[i] = NormaTrans[i]+TransMatrixH[AD]->GetBinContent(i+1,j+1);// vis->true
+                }
+            }
+            
+            for (Int_t i = 0; i < n_etrue_bins; i++)
+            {
+                for (Int_t j = 0; j < n_evis_bins; j++)
+                {
+                    if(Norma[i]!=0)
+                    {
+                        MatrixH[AD]->SetBinContent(i+1,j+1,MatrixH[AD]->GetBinContent(i+1,j+1)/Norma[i]);//true->vis
+                    }
+                }
+            }
+            
+            for (Int_t i = 0; i < n_evis_bins; i++)
+            {
+                for (Int_t j = 0; j < n_etrue_bins; j++)
+                {
+                    if(NormaTrans[i]!=0)
+                    {
+                        TransMatrixH[AD]->SetBinContent(i+1,j+1,TransMatrixH[AD]->GetBinContent(i+1,j+1)/NormaTrans[i]);
+                    }
+                    
+                }
+            }
+            
+            for(Int_t i=0;i<MatrixBins;i++)
+            {
+                HighResoNorma[i]=0;
+                HighResoNormaTrans[i]=0;
+                
+                for(Int_t j=0;j<MatrixBins;j++)
+                {
+                    HighResoNorma[i] = HighResoNorma[i]+HighResoMatrixH[AD]->GetBinContent(i+1,j+1);// true->vis
+                    HighResoNormaTrans[i] = HighResoNormaTrans[i]+HighResoTransMatrixH[AD]->GetBinContent(i+1,j+1);// vis->true
+                    
+                }
+            }
+            
+            for(Int_t i=0;i<MatrixBins;i++)
+            {
+                for(Int_t j=0;j<MatrixBins;j++)
+                {
+                    if(HighResoNorma[i]!=0)
+                    {
+                        HighResoMatrixH[AD]->SetBinContent(i+1,j+1,HighResoMatrixH[AD]->GetBinContent(i+1,j+1)/HighResoNorma[i]);//true->vis
+                    }
+                    
+                    if(HighResoNormaTrans[i]!=0)
+                    {
+                        HighResoTransMatrixH[AD]->SetBinContent(i+1,j+1,HighResoTransMatrixH[AD]->GetBinContent(i+1,j+1)/HighResoNormaTrans[i]);
+                    }
+                }
+            }
+        }
+        
+        if(Print)
+        {
+            TCanvas* FineMatrixC = new TCanvas("F","F");
+            FineMatrixC->Divide(NADs/2,2);
+            
+            TCanvas* MatrixC = new TCanvas("","");
+            MatrixC->Divide(NADs/2,2);
+            
+            TCanvas* PredictionC = new TCanvas("P","P");
+            PredictionC->Divide(NADs/2,2);
+            
+            TCanvas* VisPredictionC = new TCanvas("VP","VP");
+            VisPredictionC->Divide(NADs/2,2);
+            
+            TCanvas* TransC = new TCanvas("T","T");
+            TransC->Divide(NADs/2,2);
+            
+            TCanvas* FineTransC = new TCanvas("FT","FT");
+            FineTransC->Divide(NADs/2,2);
+            
+            for(Int_t i = 0; i<NADs;i++)
+            {
+                PredictionC->cd(i+1);
+                TruePredictionH[i]->Draw();
+                
+                VisPredictionC->cd(i+1);
+                VisiblePredictionH[i]->Draw();
+                
+                MatrixC->cd(i+1);
+                MatrixH[i]->Draw("colz");
+                
+                FineMatrixC->cd(i+1);
+                HighResoMatrixH[i]->Draw("colz");
+                
+                TransC->cd(i+1);
+                TransMatrixH[i]->Draw("colz");
+                
+                FineTransC->cd(i+1);
+                HighResoTransMatrixH[i]->Draw("colz");
+                
+            }
+            
+            PredictionC->Print("./Images/ToyMCTrueHydrogenPrediction.eps");
+            VisPredictionC->Print("./Images/ToyMCVisibleHydrogenPrediction.eps");
+            FineMatrixC->Print("./Images/FineHydrogenResponseMatrix.eps");
+            MatrixC->Print("./Images/HydrogenResponseMatrix.eps");
+            TransC->Print("./Images/TransposeHydrogenMatrix.eps");
+            FineTransC->Print("./Images/FineTransposeHydrogenMatrix.eps");
+            
+            delete PredictionC;
+            delete VisPredictionC;
+            
+            delete MatrixC;
+            delete FineMatrixC;
+            delete TransC;
+            delete FineTransC;
+        }
+        
+        if(mode==0)
+        {
+            TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root","recreate");
+            
+            for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+            {
+                HighResoMatrixH[AD]->Write(Form("FineEvisEnu%d",AD+1));//Save the matrices.
+                MatrixH[AD]->Write(Form("EvisEnu%d",AD+1));//Save the matrices.
+            }
+            
+            TransMatrixH[0]->Write("EnuEvis");//All ADs are "identical", only need 1
+            
+            delete SaveMatrix;
+        }
+#ifdef SaveTree
+        toy->Write();
+        roofile_toy->Close();
+#endif
+        
 #ifndef ReDoNominal
-}
+    }
+    else//if mode == 0
+    {
+        TFile* NominalMatrixF = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root");
+        
+        for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+        {
+            HighResoMatrixH[AD] = (TH2D*)NominalMatrixF->Get(Form("FineEvisEnu%d",AD+1));//Save the matrices.
+        }
+        
+        delete NominalMatrixF;
+    }
+    
 #endif
 }
 
@@ -1276,7 +1272,6 @@ void nHToyMC :: func_initialization()
     
     ///
     gRandom3 = new TRandom3();
-    RandomSys = new TRandom3(0);
     /// energy resolution
     roofunc_EnergyResolution = new TF1("roofunc_EnergyResolution", this, &nHToyMC::func_EnergyResolution, 0,20, 1,"nHToyMC","func_EnergyResolution");
 }
