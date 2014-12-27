@@ -13,13 +13,13 @@
 
 bool TestAllTheSame = 0;
 
-const bool Print = 1;//To save results in .eps files
+#define PrintEps//To save results in .eps files
 
 const bool DeltaMee = 0;//Use Δm^2ee instead of Δm32 and Δm31 values
 
 const bool ADSimple = 1;
 
-const bool LoganBinning = 0;
+const bool LoganBinning = 1;//240 visible bins from 0 to 12 MeV to check coherence between our predicted  spectra
 
 const Int_t MaxExperiments = 1000;
 const Int_t MaxPeriods = 32;
@@ -2263,13 +2263,12 @@ void NominalData :: ReadChristineCovMatrix()
     
     TMatrixD covmatrix(NReactors * MatrixBins, NReactors * MatrixBins, &m_dNdE_mcov[0][0]);//   Fix dimensions, then we resize it to avoid 0's in the empty spaces.
     covmatrix.ResizeTo(m_nSamples * NReactors, m_nSamples * NReactors);
-//    if(Print)
-//    {
+//    #ifdef PrintEps
 //        TCanvas* c2 = new TCanvas("","");
 //        covmatrix.Draw("colz");
 //        c2->Print("./Images/Reactor/ReactorCovMatrix.eps");
 //        delete c2;
-//    }
+//    #endif
     TDecompChol chol(covmatrix);//  M = L*U
     chol.Decompose();
     TMatrixD cmat(chol.GetU());//   U

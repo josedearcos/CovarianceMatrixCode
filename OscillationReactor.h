@@ -66,6 +66,14 @@ private:
     bool LBNL;
     bool Unified;
     
+    bool VaryAccidentalMatrix;
+    bool VaryLiHeMatrix;
+    bool VaryFastNeutronsMatrix;
+    bool VaryAmCMatrix;
+    bool DistortLiHeMatrix;
+    bool DistortFastNeutronsMatrix;
+    bool DistortAmCMatrix;
+    
     bool IsotopeMatrix;
     bool ReactorPowerMatrix;
     bool Sin22t12Matrix;
@@ -378,6 +386,14 @@ OscillationReactor :: OscillationReactor()
         }
     }
     
+    VaryAccidentalMatrix = Nom->GetVaryAccidentalMatrix();
+    VaryLiHeMatrix = Nom->GetVaryLiHeMatrix();
+    VaryFastNeutronsMatrix = Nom->GetVaryFastNeutronsMatrix();
+    VaryAmCMatrix = Nom->GetVaryAmCMatrix();
+    DistortLiHeMatrix = Nom->GetDistortLiHeMatrix();
+    DistortFastNeutronsMatrix = Nom->GetDistortFastNeutronsMatrix();
+    DistortAmCMatrix = Nom->GetDistortAmCMatrix();
+    
     IsotopeMatrix = Nom->GetIsotopeMatrix();
     ReactorPowerMatrix = Nom->GetReactorPowerMatrix();
     Sin22t12Matrix = Nom->GetSin22t12Matrix();
@@ -524,6 +540,14 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
         }
     }
     
+    VaryAccidentalMatrix = Data->GetVaryAccidentalMatrix();
+    VaryLiHeMatrix = Data->GetVaryLiHeMatrix();
+    VaryFastNeutronsMatrix = Data->GetVaryFastNeutronsMatrix();
+    VaryAmCMatrix = Data->GetVaryAmCMatrix();
+    DistortLiHeMatrix = Data->GetDistortLiHeMatrix();
+    DistortFastNeutronsMatrix = Data->GetDistortFastNeutronsMatrix();
+    DistortAmCMatrix = Data->GetDistortAmCMatrix();
+    
     IsotopeMatrix = Data->GetIsotopeMatrix();
     ReactorPowerMatrix = Data->GetReactorPowerMatrix();
     Sin22t12Matrix = Data->GetSin22t12Matrix();
@@ -630,7 +654,9 @@ void OscillationReactor :: OscillationFromReactorData(Int_t Week,bool mode,bool 
     std::cout <<  "\t ***********************************************************************************************" << std::endl;
     
     week = Week;
+   
     CovMatrix = covMatrix;
+ 
     if((Sin22t12Matrix||IsotopeMatrix||ReactorPowerMatrix)&&Mode==1)
     {
         sprintf(OutputFileName,("./RootOutputs/"+ AnalysisString+ "/RandomOutputs/RandomOscillation_Isotope_%d_Power_%d_Sin22t12_%d_.root").c_str(),IsotopeMatrix,ReactorPowerMatrix,Sin22t12Matrix);
@@ -659,7 +685,6 @@ void OscillationReactor :: OscillationFromReactorData(Int_t Week,bool mode,bool 
         GenerateVisibleSpectrum();
     }
     
-    
     FlagEfficiency = 1;//Not necessary since this class is created and deleted for each random prediction, but just in case...
     
     TFile* OutputFile = new TFile(OutputFileName, "recreate");
@@ -676,6 +701,7 @@ void OscillationReactor :: OscillationFromReactorData(Int_t Week,bool mode,bool 
             TotalOscillatedSpectrumAD[AD]->Write();
         }
     }
+    
     if((!strcmp((RandomPredictionDirectory).c_str(),"")&&!strcmp((NominalPredictionDirectory).c_str(),"")))
     {
         TDirectory* EHDirectory = OutputFile->mkdir("EH spectra after oscillation");
@@ -715,7 +741,7 @@ void OscillationReactor:: LoadNominalBackgrounds()
     for (Int_t AD =0; AD<NADs; AD++)
     {
         AccidentalsH[AD]=(TH1D*)gDirectory->Get(Form("Accidentals_AD%i",AD));
-        LiHeH[AD]=(TH1D*)gDirectory->Get(Form("LiHe_AD%i",AD));//Missing LiHe inputs so far in Hydrogen Analysis
+        LiHeH[AD]=(TH1D*)gDirectory->Get(Form("LiHe_AD%i",AD));
         FastNeutronsH[AD]=(TH1D*)gDirectory->Get(Form("FN_AD%i",AD));
         AmCH[AD]=(TH1D*)gDirectory->Get(Form("AmC_AD%i",AD));
     }
@@ -745,6 +771,9 @@ void OscillationReactor :: LoadExternalInputs()//This only works for week = 1 (i
         
         if(Mode)//return random toy sample
         {
+            std::cout << " Need to read random tree here, not nominal " << std::endl;
+            exit(EXIT_FAILURE);
+
             LoadPredictionF = new TFile((RandomPredictionDirectory).c_str());
             
             //Get random sample, need to see how the tree is built, this is nominal sample so far.
@@ -872,8 +901,7 @@ void OscillationReactor :: SetUpDetectorResponse()
 {
     // Apply detector distortions to get visible energy.
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TLegend *legend=new TLegend(0.6,0.15,0.88,0.35);
         legend->SetTextFont(72);
         legend->SetTextSize(0.02);
@@ -898,7 +926,7 @@ void OscillationReactor :: SetUpDetectorResponse()
         
         VisibleC->Print(("./Images/"+AnalysisString+"/Detector/VisibleFunctions.eps").c_str(),".eps");
         delete VisibleC;
-    }
+    #endif
     
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //                                                           Set kinematic energy shift function
@@ -993,8 +1021,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         VisibleHisto[AD] = new TH1D(Form("Visible Oscillation Prediction AD%d, week%d",AD+1,week),Form("Visible Oscillation Prediction AD%d, week%d",AD+1,week), MatrixBins,0,FinalVisibleEnergy);
     }
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* AntineutrinoSpectrumC = new TCanvas("AntineutrinoSpectrumC","AntineutrinoSpectrumC");
         
         AntineutrinoSpectrumC->Divide(NADs/2,2);
@@ -1007,7 +1034,8 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         }
         AntineutrinoSpectrumC->Print("./Images/ReactorSpectrumOscillatedInADs.eps");
         delete AntineutrinoSpectrumC;
-    }
+    #endif
+    
     if(!isH)//Gadolinium
     {
         for (Int_t AD = 0; AD <NADs; AD++)
@@ -1041,8 +1069,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 delete OscDeltaNLSpectrumH[TrueEnergyIndex];
                 delete OscDeltaVisibleSpectrumH[TrueEnergyIndex];
             }
-            if(Print)
-            {
+            #ifdef PrintEps
                 TCanvas* CheckC = new TCanvas("CheckC","CheckC",1600,1600);
                 CheckC->Divide(2,2);
                 CheckC->cd(1);
@@ -1102,7 +1129,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 CheckC2->Print(("./Images/"+ AnalysisString+ Form("/Detector/AllVisibleStepsAD%d.eps",AD+1)).c_str());
                 //            VisibleHisto[AD]->Scale(VisibleHisto[AD]->Integral()/IBDEvents[AD][week]);//undo scaling
                 delete CheckC2;
-            }
+        #endif
             //
             delete ShiftHisto;
             delete IAVHisto;
@@ -1113,8 +1140,20 @@ void OscillationReactor :: GenerateVisibleSpectrum()
     {
         
         //  Here generate Xiang Pan/Logan Toy MC matrix and multiply by the reactor spectrum (his Toy MC is produced from a flat antineutrino spectrum, with no oscillation/reactor information inside the prediction)
-        
-        nHToy->Toy(Mode);//Produce enu-evis matrix with nominal or varied values
+        bool TestDiagonalMatrix=0;
+
+        if(!TestDiagonalMatrix)
+        {
+            if(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix||DistortLiHeMatrix||DistortFastNeutronsMatrix||DistortAmCMatrix||IsotopeMatrix||ReactorPowerMatrix||Sin22t12Matrix)
+            {
+                nHToy->Toy(0);//Produce enu-evis matrix with nominal values if only reactor or backgrounds are fluctuated.
+                //This is done to steep up the calculation by using the option //#define ReDoNominal inside nHToyMC.h
+            }
+            else
+            {
+                nHToy->Toy(Mode);//Produce enu-evis matrix with nominal or varied values
+            }
+        }
         
         TH2D* nHPredictionMatrix[MaxDetectors];
         
@@ -1122,11 +1161,46 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         
         for(Int_t AD = 0; AD<NADs; AD++)
         {
-            nHPredictionMatrix[AD] = (TH2D*)nHToy->LoadnHMatrix(AD);
-            
-            for(Int_t i = 1; i<=MatrixBins; i++)//visible, 240 bins
+            if(TestDiagonalMatrix)
             {
-                for(Int_t j = 1; j<=Nbins; j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
+                nHPredictionMatrix[AD] = new TH2D("DiagonalResponseMatrix","DiagonalResponseMatrix",n_evis_bins,InitialVisibleEnergy,FinalVisibleEnergy,TotalOscillatedSpectrumAD[0]->GetXaxis()->GetNbins(),InitialEnergy,FinalEnergy);
+                
+                for(Int_t i = 1; i<=nHPredictionMatrix[AD]->GetYaxis()->GetNbins(); i++)//visible, 240 bins
+                {
+                    for(Int_t j = 1; j<=nHPredictionMatrix[AD]->GetXaxis()->GetNbins(); j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
+                    {
+                        if(i==j)
+                        {
+                            nHPredictionMatrix[AD]->SetBinContent(i+1,j+1,1);
+                        }
+                        else
+                        {
+                            nHPredictionMatrix[AD]->SetBinContent(i+1,j+1,0);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                nHPredictionMatrix[AD] = (TH2D*)nHToy->LoadnHMatrix(AD);
+            }
+            
+            if(nHPredictionMatrix[AD]->GetYaxis()->GetNbins() != VisibleHisto[AD]->GetXaxis()->GetNbins())
+            {
+                std::cout << " RESPONSE MATRIX NEEDS REBINNING " << std::endl;
+                
+                exit(EXIT_FAILURE);
+            }
+            if(nHPredictionMatrix[AD]->GetXaxis()->GetNbins() != VisibleHisto[AD]->GetXaxis()->GetNbins())
+            {
+                std::cout << " RESPONSE MATRIX NEEDS REBINNING " << std::endl;
+                
+                exit(EXIT_FAILURE);
+            }
+            
+            for(Int_t i = 1; i<=nHPredictionMatrix[AD]->GetYaxis()->GetNbins(); i++)//visible, 240 bins
+            {
+                for(Int_t j = 1; j<=nHPredictionMatrix[AD]->GetXaxis()->GetNbins(); j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
                 {
                     VisibleHisto[AD]->SetBinContent(i,VisibleHisto[AD]->GetBinContent(i)+nHPredictionMatrix[AD]->GetBinContent(j+ShiftBin,i)*TotalOscillatedSpectrumAD[AD]->GetBinContent(j));
                     
@@ -1139,8 +1213,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         }
     }
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* PredictionC = new TCanvas("PredictionC","PredictionC");
         PredictionC->Divide(NADs/2,2);
         
@@ -1152,7 +1225,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         
         PredictionC->Print(("./Images/"+AnalysisString+"/OscillationReactorPredictionWithoutBackgrounds.eps").c_str());
         delete PredictionC;
-    }
+    #endif
     
     for (Int_t AD = 0; AD <NADs; AD++)
     {
@@ -1370,10 +1443,12 @@ void OscillationReactor :: FreeMemory()
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //                                           Clean up the dust
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    delete ResoF;
-    delete NLF;
-    delete VisibleF;
-    
+    if(!isH)
+    {
+        delete ResoF;
+        delete NLF;
+        delete VisibleF;
+    }
     //Oscilation probabilities calculated for all baselines
     for (Int_t AD = 0; AD <NADs; AD++)
     {
@@ -1470,8 +1545,7 @@ void OscillationReactor :: RandomIAVMatrix()
         
         std::cout << "\t \t \t IAV error" << IAVError[AD] << std::endl;
     }
-    if(Print)
-    {
+    #ifdef PrintEps
         TH2D*  NominalIAVMatrixH = new TH2D("Nominal IAV Matrix","Nominal IAV Matrix", MatrixBins,0,MatrixBins,MatrixBins,0,MatrixBins);
         NominalIAVMatrixH->Reset();
         
@@ -1499,7 +1573,7 @@ void OscillationReactor :: RandomIAVMatrix()
         IAVC->Print(("./Images/"+ AnalysisString+ "/Detector/NominalIAVMatrix.eps").c_str(),".eps");
         delete IAVC;
         delete NominalIAVMatrixH;
-    }
+    #endif
 }
 
 void OscillationReactor :: RandomAbsoluteEnergyScaleMatrix()
@@ -1847,8 +1921,7 @@ void OscillationReactor :: LoadNLParameters()
                 }
             }
             
-            if(Print)
-            {
+            #ifdef PrintEps
                 TCanvas* NLCurvesC = new TCanvas("NLCurvesC","NLCurvesC");
                 
                 TLegend *legend3=new TLegend(0.6,0.15,0.88,0.35);
@@ -1869,7 +1942,7 @@ void OscillationReactor :: LoadNLParameters()
                 NLCurvesC->Print(("./Images/"+ AnalysisString+ "/Detector/NonlinearityCurves.eps").c_str(),".eps");
                 
                 delete NLCurvesC;
-            }
+            #endif
             delete g_unified_positron_nl;
             
             for (Int_t i = 0; i < m_num_unified_nl_pars; i++)
@@ -2000,15 +2073,14 @@ void OscillationReactor :: SetNLParameters(bool mode)
     
     Interpolation(NLF);//Interpolate the non-linearity function
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* NLC = new TCanvas("NLC","NLC");
         
         NLF->Draw();
         
         NLC->Print(("./Images/"+ AnalysisString+ "/Detector/Nonlinearity.eps").c_str(),".eps");
         delete NLC;
-    }
+    #endif
 }
 
 void OscillationReactor :: LoadIavCorrection()// From Bryce Littlejohn's results. //I don't use different IAV matrix for each AD since the analysis it's been done for just 1 of them, assume identical ADs.

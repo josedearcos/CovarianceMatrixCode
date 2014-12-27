@@ -22,10 +22,30 @@ using namespace std;
 #include "TRandom3.h"
 #include "TCanvas.h"
 
+/// select whether nGd or nH IBD analysis - nGd events are currently rejected in the code.  Time cuts are not currently applied.
+// 0==special cuts, 1==hydrogen, 64==gadolinium
+#define SpecialCuts
+//#define Hydrogen
+//#define Gadolinium
+
+#ifdef SpecialCuts  /// Time cuts are not currently applied.
+    const double EpromptCutLow=0.0, EpromptCutHigh=12.0, EdelayCutLow=0.0, EdelayCutHigh=3.3;// 1.5, 12.0, 1.5, 3.3
+    const double TcapCutLow=500.0, TcapCutHigh=400000.0, distCut=500.0;
+    const double radialCut=0.0;//3.9;  // adjust OAV radius [m^2]: nominal=4.0
+#elif def Hydrogen
+    const double EpromptCutLow=1.5, EpromptCutHigh=12.0, EdelayCutLow=1.7955, EdelayCutHigh=2.6535;
+    const double TcapCutLow=500.0, TcapCutHigh=400000.0, distCut=500.0;
+    const double radialCut=0.0;  // adjust OAV radius [m^2]: nominal=4.0
+#elif def Gadolinium
+    const double EpromptCutLow=1.5, EpromptCutHigh=12.0, EdelayCutLow=6.0, EdelayCutHigh=12.0;
+    const double TcapCutLow=500.0, TcapCutHigh=200000.0, distCut=0.0;
+    const double radialCut=0.0;  // adjust OAV radius [m^2]: nominal=4.0
+#endif
+
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- Global
 //#define ReDoNominal // if you change binning use this to remake the nominal matrix
 #define FullEnergyResolution
-//#define UseDelayInformation
+#define UseDelayInformation
 //#define SaveTree // To save toy tree
 //#define LoadTree // To load eprompt tree
 //#define ReactorShapeinToy //To produce the toy with the reactor shape included
@@ -41,9 +61,20 @@ const Double_t DeltaM = 1.80433; //( (Mn+Me)^2-Mp^2 ) / (2Mp) =
 
 const double EnergyScale = 1.023;  // data_centercell/toy_centercell = 1.02 when using same non-uniformity in both data and toy
 
+const int MaxCellNum = 401;
+
 class nHToyMC
 {
 private:
+    
+    //Logan Plots:
+    
+    TH1D *hEp_cc[MaxCellNum];
+    TH1D *hEd_cc[MaxCellNum];
+    TH1D *hEp_cc_clone[MaxCellNum];
+    TH1D *hEd_cc_clone[MaxCellNum];
+    
+    
     Double_t GausRelative,GausIAV,GausNL,GausReso,GausResoCorr,GausEff;
     Double_t ResolutionError,ResolutionErrorUncorrelated;
     
@@ -68,8 +99,7 @@ private:
     //AD configuration parameters:
     Int_t NADs;
     
-    /// select whether nGd or nH IBD analysis - nGd events are currently rejected in the code.  Time cuts are not currently applied.
-    Int_t analysis;  // 0==special cuts, 1==hydrogen, 64==gadolinium
+
     
     /// vetex region
     Int_t    R2_binnum  ;                      // ---> set option: divide the volume to sub-regions
@@ -87,8 +117,10 @@ private:
     Int_t local_xbin    ;
     Int_t local_ybin    ;
     Int_t local_zbin    ;
-    Double_t usr_r2     ;
-    Double_t usr_z      ;
+    Double_t usr_r2_P   ;
+    Double_t usr_z_P    ;
+    Double_t usr_r2_Ng  ;
+    Double_t usr_z_Ng   ;
     
     /// non-linearity: NL
     TGraph *graph_electron_LY;
@@ -130,13 +162,11 @@ public:
 // constructor:
 nHToyMC :: nHToyMC(NominalData* Data)
 {
-    /// select whether nGd or nH IBD analysis - nGd events are currently rejected in the code.  Time cuts are not currently applied.
-    analysis = 0;  // 0==special cuts, 1==hydrogen, 64==gadolinium
     
     R2_binnum = 10;                      // ---> set option: divide the volume to sub-regions
     R2_lower  = 0;// m2                  // ---> set option
     R2_upper  = 4;// m2                  // ---> set option
-    R2_binwidth = 0.4;                   // ---> set option
+    R2_binwidth = 4.0/R2_binnum;                  // ---> set option
     
     Z_binnum  = 10;                      // ---> set option
     Z_lower   = -2;// m                  // ---> set option
@@ -147,8 +177,10 @@ nHToyMC :: nHToyMC(NominalData* Data)
     local_xbin     = 0;
     local_ybin     = 0;
     local_zbin     = 0;
-    usr_r2      = 0;
-    usr_z       = 0;
+    usr_r2_P    = 0;
+    usr_z_P     = 0;
+    usr_r2_Ng   = 0;
+    usr_z_Ng    = 0;
     
     
     InitialEnergy = Data->GetEmin();
@@ -250,17 +282,20 @@ Int_t nHToyMC :: RootCellToVisCell(Int_t RootCell)
     // 91 92 93 94 95 96 97 98 99 100
     
     Int_t cell = 0;
-    hist_findbin->GetBinXYZ(RootCell, local_xbin, local_ybin, local_zbin);
     
-    if( local_zbin==0 && local_xbin>=1 && local_xbin<=10 && local_ybin>=1 && local_ybin<=10 )
+    TH2D *hist_findbin_temp = new TH2D("hist_findbin_temp","", R2_binnum,R2_lower,R2_upper, Z_binnum,Z_lower,Z_upper);
+    hist_findbin_temp->GetBinXYZ(RootCell, local_xbin, local_ybin, local_zbin);
+    
+    if( local_zbin==0 && local_xbin>=1 && local_xbin<=R2_binnum && local_ybin>=1 && local_ybin<=Z_binnum )
     {
         cell = R2_binnum*Z_binnum - local_ybin*R2_binnum + local_xbin;
     }
     else
     {
-        cell = 200;
+        cell = (R2_binnum+2)*(Z_binnum+2);
     }
     
+    delete hist_findbin_temp;
     return cell;
 }
 
@@ -272,6 +307,7 @@ Int_t nHToyMC :: RootCellToVisCell(Int_t RootCell)
 
 void nHToyMC :: Toy(bool mode)
 {
+
     
 #ifndef ReDoNominal
     if(mode!=0)
@@ -408,7 +444,7 @@ void nHToyMC :: Toy(bool mode)
             wtree->GetEntry(ientry);
             
             cout.precision(3);
-            if(ientry%10000==0)
+            if(ientry%20000==0)
                 cout<<" ---> processing MC spectrum "<<ientry*100./entries_wtree<<"%"<<endl;
             
             //////
@@ -465,7 +501,7 @@ void nHToyMC :: Toy(bool mode)
             wtree->GetEntry(ientry);
             
             cout.precision(3);
-            if(ientry%10000==0)
+            if(ientry%20000==0)
                 cout<<" ---> processing reactor shape spectrum "<<ientry*100./entries_wtree<<"%"<<endl;
             
             //////
@@ -627,19 +663,22 @@ void nHToyMC :: Toy(bool mode)
         Double_t LY_E_P;
         Double_t LY_E_Pg1;
         Double_t LY_E_Pg2;
+        Double_t LY_E_N;
         
         Double_t LY_E_P_Sum;
         Double_t Opt_E_P_Sum;
         Double_t FEE_E_P_Sum;
         Double_t Scale_E_P_Sum;
         Double_t Res_E_P_Sum;
-        
+        Double_t Erec_P;
+
 #ifdef UseDelayInformation
-        Double_t LY_Etot_Ng;
-        Double_t Opt_Etot_Ng;
-        Double_t FEE_Etot_Ng;
-        Double_t Scale_Etot_Ng;
-        Double_t Res_Etot_Ng;
+        Double_t LY_E_Ng;
+        Double_t Opt_E_Ng;
+        Double_t FEE_E_Ng;
+        Double_t Scale_E_Ng;
+        Double_t Res_E_Ng;
+        Double_t Erec_Ng;
 #endif
         
 #ifdef SaveTree
@@ -691,17 +730,22 @@ void nHToyMC :: Toy(bool mode)
         toy->Branch("LY_E_P",        &LY_E_P,        "LY_E_P/D");
         toy->Branch("LY_E_Pg1",      &LY_E_Pg1,      "LY_E_Pg1/D");
         toy->Branch("LY_E_Pg2",      &LY_E_Pg2,      "LY_E_Pg2/D");
+        toy->Branch("LY_E_N",    &LY_E_N,    "LY_E_N/D");
         toy->Branch("LY_E_P_Sum",    &LY_E_P_Sum,    "LY_E_P_Sum/D");
         toy->Branch("Opt_E_P_Sum",   &Opt_E_P_Sum,   "Opt_E_P_Sum/D");
         toy->Branch("FEE_E_P_Sum",   &FEE_E_P_Sum,   "FEE_E_P_Sum/D");
         toy->Branch("Scale_E_P_Sum", &Scale_E_P_Sum, "Scale_E_P_Sum/D");
         toy->Branch("Res_E_P_Sum",   &Res_E_P_Sum,   "Res_E_P_Sum/D");
+        toy->Branch("Erec_P",   &Erec_P,   "Erec_P/D");
+
 #ifdef UseDelayInformation
-        toy->Branch("LY_Etot_Ng",    &LY_Etot_Ng,    "LY_Etot_Ng/D");
-        toy->Branch("Opt_Etot_Ng",   &Opt_Etot_Ng,   "Opt_Etot_Ng/D");
-        toy->Branch("FEE_Etot_Ng",   &FEE_Etot_Ng,   "FEE_Etot_Ng/D");
-        toy->Branch("Scale_Etot_Ng", &Scale_Etot_Ng, "Scale_Etot_Ng/D");
-        toy->Branch("Res_Etot_Ng",   &Res_Etot_Ng,   "Res_Etot_Ng/D");
+        toy->Branch("LY_E_Ng",    &LY_E_Ng,    "LY_E_Ng/D");`
+        toy->Branch("Opt_E_Ng",   &Opt_E_Ng,   "Opt_E_Ng/D");
+        toy->Branch("FEE_E_Ng",   &FEE_E_Ng,   "FEE_E_Ng/D");
+        toy->Branch("Scale_E_Ng", &Scale_E_Ng, "Scale_E_Ng/D");
+        toy->Branch("Res_E_Ng",   &Res_E_Ng,   "Res_E_Ng/D");
+        toy->Branch("Erec_Ng",   &Erec_Ng,   "Erec_Ng/D");
+
 #endif
         
 #endif
@@ -757,13 +801,22 @@ void nHToyMC :: Toy(bool mode)
         //        Etot_PG2[ientry]=Etot_Pg2;
         //    }
         
-        seed_generator_uncorr = 32769;//for uncorrelated systematics
+        
+        Double_t P_Scint=0, Pg1_Scint=0, Pg2_Scint=0, Ng_Scint=0;
+        Double_t AdSimple_P=0, AdSimple_Ng=0;
+        Double_t usr_opt_attenuation_P=0, usr_pmt_coverage_P=0, usr_opt_attenuation_Ng=0, usr_pmt_coverage_Ng=0;
+        Double_t energy_sigma=0, R2_AA=0, R2_BB=0, R_average=0;
+        
+        
+        seed_generator_uncorr = 2863311530; //=(2*4294967295/3) for uncorrelated systematics, chose 2/3*(maxseed) to make it different to 'seed_generator' as a precaution so I don't use the same seeds.
         
         //Use the loaded tree data in each AD in an independent way:
         for(Int_t AD = 0; AD<NADs;AD++)
         {
             seed_generator = 1;//this way all matrices will be random but have a common nominal spectrum
-            seed_generator_corr = 16385;// for correlated systematics, chose maxseed/4 to make it different to 'seed_generator' as a precaution so I don't use the same random numbers
+            seed_generator_corr = 1431655765; //=(4294967295/3) for correlated systematics, chose maxseed/3 to make it different to 'seed_generator' as a precaution so I don't use the same seeds.
+           
+            Double_t distPD=0;
 
             //Process tree
             for(long ientry=0; ientry<entries_etree_read; ientry++)
@@ -771,7 +824,7 @@ void nHToyMC :: Toy(bool mode)
                 etree_read->GetEntry(ientry);
                 
                 cout.precision(3);
-                if(ientry%10000==0)
+                if(ientry%20000==0)
                     cout<<" ---> processing response matrix in AD" << AD << " " <<ientry*100./entries_etree_read<<"%"<<endl;
                 
                 Int_t seed_rand = 0;
@@ -848,7 +901,7 @@ void nHToyMC :: Toy(bool mode)
                  LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
                  
                  /// delayed
-                 LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
+                 LY_E_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
                  - (EtotScint_Ng-EdepE_Ng) * graph_gamma_LY->Eval( EtotScint_Ng-EdepE_Ng, 0, "s" );
                  */
                 /*
@@ -863,7 +916,7 @@ void nHToyMC :: Toy(bool mode)
                  LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
                  
                  /// delayed
-                 LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" );
+                 LY_E_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" );
                  */
                 
                 /*
@@ -881,107 +934,108 @@ void nHToyMC :: Toy(bool mode)
                  LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
                  
                  /// delayed
-                 LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
+                 LY_E_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
                  - (EtotE_Ng-EdepE_Ng) * graph_electron_LY->Eval( EtotE_Ng-EdepE_Ng, 0, "s" );
                  */
                 
                 /// case04: default ? edit
-                Double_t P_Scint = EtotScint_P-Edep_P;
-                Double_t P_totElectron = EtotE_P-EdepE_P;
-                
-                Double_t Pg1_totElectron = EtotScint_Pg1-EdepE_Pg1;
-                Double_t Pg2_totElectron = EtotScint_Pg2-EdepE_Pg2;
-                
-                Double_t Ng_totElectron = EtotScint_Ng-EdepE_Ng;
-                
-                if( P_Scint<0 )         P_Scint = 0;
-                if( Pg1_totElectron<0 ) continue;
-                if( Pg2_totElectron<0 ) continue;
-                if( Ng_totElectron<0 )  continue;
+                /// case03: default
+                P_Scint = EtotScint_P-Edep_P;
+                Pg1_Scint = EtotScint_Pg1-Edep_Pg1;
+                Pg2_Scint = EtotScint_Pg2-Edep_Pg2;
+                Ng_Scint = EtotScint_Ng-Edep_Ng;
                 
                 /// prompt
                 LY_E_P = EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" )
-                - (P_Scint) * graph_electron_LY->Eval( P_Scint, 0, "s" )
-                - (P_totElectron) * graph_gamma_LY->Eval( P_totElectron, 0, "s" );
+                - P_Scint * graph_electron_LY->Eval( P_Scint, 0, "s" );
                 
                 LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" )
-                - (Pg1_totElectron) * graph_gamma_LY->Eval( Pg1_totElectron, 0, "s" );
+                - Pg1_Scint * graph_gamma_LY->Eval( Pg1_Scint, 0, "s" );
                 
                 LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" )
-                - (Pg2_totElectron) * graph_gamma_LY->Eval( Pg2_totElectron, 0, "s" );
+                - Pg2_Scint * graph_gamma_LY->Eval( Pg2_Scint, 0, "s" );
                 
-                LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2;
+                // ------------------------ //
+                /// neutron - determined from NuWa for 0-0.18 MeV (does not consider leakage)
+                LY_E_N = Etot_N * ( 0.186 + exp(-1.142-126.4*Etot_N) + exp(-1.217-17.90*Etot_N) ) * graph_electron_LY->Eval( 0.2, 0, "s" );
+                
+                /// prompt SUM
+                LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2 + LY_E_N;
+                //------------------------ //
+                
+#ifdef UseDelayInformation
                 
                 /// delayed
-#ifdef UseDelayInformation
-                LY_Etot_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
-                - (Ng_totElectron) * graph_gamma_LY->Eval( Ng_totElectron, 0, "s" );
+                LY_E_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )
+                - Ng_Scint * graph_gamma_LY->Eval( Ng_Scint, 0, "s" );
 #endif
                 ///////////////////////////// Optical NU
-                ///////////////////////////// Optical NU
-                
-                Double_t usr_opt_attention = 0;
-                Double_t usr_pmt_coverage  = 0;
-                
+                /*
+                 usr_opt_attenuation_P = 0;
+                 usr_pmt_coverage_P  = 0;
+                 usr_opt_attenuation_Ng = 0;
+                 usr_pmt_coverage_Ng  = 0;
+                 */
                 /// prompt
-                Double_t VX_P = X_P;
-                Double_t VY_P = Y_P;
-                Double_t VZ_P = Z_P;
+                usr_r2_P = (X_P*X_P+Y_P*Y_P) * 1e-6;  // mm2 ---> m2
+                usr_z_P  = Z_P * 1e-3;  // mm ---> m
+                /*
+                 global_bin_num = hist_findbin->FindBin(usr_r2_P, usr_z_P);
+                 hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
+                 
+                 if( local_zbin != 0) continue;
+                 
+                 usr_opt_attenuation_P = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);
+                 usr_pmt_coverage_P  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
+                 
+                 Opt_E_P_Sum = LY_E_P_Sum * usr_opt_attenuation_P * usr_pmt_coverage_P;  // nH analysis
+                 */
                 
-                usr_r2 = (VX_P*VX_P+VY_P*VY_P) * 1e-6;// mm2 ---> m2
-                usr_z  = VZ_P * 1e-3;// mm ---> m
+                AdSimple_P = ( (7.84628 * (1 + 3.41294e-02*usr_r2_P) * (1 - 1.21750e-02*usr_z_P - 1.64275e-02*usr_z_P*usr_z_P + 7.33006e-04*pow(usr_z_P,3)))/8.05 );  // AdSimple
+               
+                // Doc7334(old function), updated from http://dayabay.ihep.ac.cn/tracs/dybsvn/browser/dybgaudi/trunk/Reconstruction/QsumEnergy/src/components/QsumEnergyTool.cc
                 
-                global_bin_num = hist_findbin->FindBin(usr_r2, usr_z);
-                hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
+                Opt_E_P_Sum = LY_E_P_Sum * AdSimple_P;
                 
-                if( local_zbin != 0) continue;
-                
-                usr_opt_attention = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);
-                usr_pmt_coverage  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
-                
-                Opt_E_P_Sum = LY_E_P_Sum *usr_opt_attention *usr_pmt_coverage;
-                
-                /// delayed
 #ifdef UseDelayInformation
+                usr_r2_Ng = (X_Ng*X_Ng+Y_Ng*Y_Ng) * 1e-6;  // mm2 ---> m2
+                usr_z_Ng  = Z_Ng * 1e-3;  // mm ---> m
+                /*
+                 global_bin_num = hist_findbin->FindBin(usr_r2_Ng, usr_z_Ng);
+                 hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
+                 
+                 if( local_zbin != 0) continue;
+                 
+                 usr_opt_attenuation_Ng = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);
+                 usr_pmt_coverage_Ng  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
+                 
+                 Opt_E_Ng = LY_E_Ng * usr_opt_attenuation_Ng * usr_pmt_coverage_Ng;  // nH analysis
+                 */
+                AdSimple_Ng = ( (7.84628 * (1 + 3.41294e-02*usr_r2_Ng) * (1 - 1.21750e-02*usr_z_Ng - 1.64275e-02*usr_z_Ng*usr_z_Ng + 7.33006e-04*pow(usr_z_Ng,3)))/8.05 );  // AdSimple
+                // Doc7334(old function), updated from http://dayabay.ihep.ac.cn/tracs/dybsvn/browser/dybgaudi/trunk/Reconstruction/QsumEnergy/src/components/QsumEnergyTool.cc
                 
-                Double_t VX_Ng = X_Ng;
-                Double_t VY_Ng = Y_Ng;
-                Double_t VZ_Ng = Z_Ng;
-                
-                usr_r2 = (VX_Ng*VX_Ng+VY_Ng*VY_Ng) * 1e-6;// mm2 ---> m2
-                usr_z  = VZ_Ng * 1e-3;// mm ---> m
-                
-                global_bin_num = hist_findbin->FindBin(usr_r2, usr_z);
-                hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
-                
-                if( local_zbin != 0) continue;
-                
-                usr_opt_attention = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);
-                usr_pmt_coverage  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
-                
-                Opt_Etot_Ng = LY_Etot_Ng *usr_opt_attention *usr_pmt_coverage;
+                Opt_E_Ng = LY_E_Ng * AdSimple_Ng;
                 
 #endif
                 ///////////////////////////// FEE
-                ///////////////////////////// FEE
-                
                 /// prompt
-                FEE_E_P_Sum = Opt_E_P_Sum *graph_electronic->Eval( Opt_E_P_Sum, 0, "s" );
+                if( Opt_E_P_Sum!=Opt_E_P_Sum ) continue;
+                FEE_E_P_Sum = Opt_E_P_Sum * graph_electronic->Eval( Opt_E_P_Sum, 0, "s" );
                 
-                /// delayed
-#ifdef UseDelayInformation
-                FEE_Etot_Ng = Opt_Etot_Ng *graph_electronic->Eval( Opt_Etot_Ng, 0, "s" );
-#endif
                 ///////////////////////////// EnergyScale
-                ///////////////////////////// EnergyScale
-                
                 /// prompt
                 Scale_E_P_Sum = FEE_E_P_Sum *EnergyScale;
-                
-                /// delayed
 #ifdef UseDelayInformation
-                Scale_Etot_Ng = FEE_Etot_Ng *EnergyScale;
+                ///////////////////////////// FEE
+                /// delayed
+                if( Opt_E_Ng!=Opt_E_Ng ) continue;
+                FEE_E_Ng = Opt_E_Ng * graph_electronic->Eval( Opt_E_Ng, 0, "s" );
+                
+                ///////////////////////////// EnergyScale
+                /// delayed
+                Scale_E_Ng = FEE_E_Ng *EnergyScale;
 #endif
+
                 ///////////////////////////// Resolution
                 ///////////////////////////// Resolution
                 
@@ -991,51 +1045,95 @@ void nHToyMC :: Toy(bool mode)
                 Double_t R_average    = 0;
                 
                 /// prompt
-                usr_r2 = (VX_P*VX_P+VY_P*VY_P) * 1e-6;// mm2 ---> m2
-                usr_z  = VZ_P * 1e-3;// mm ---> m
-                
-                global_bin_num = hist_findbin->FindBin(usr_r2, usr_z);
+                global_bin_num = hist_findbin->FindBin(usr_r2_P, usr_z_P);
                 hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
                 
                 if( local_zbin != 0) continue;
-                
-                R2_AA = (local_xbin-1) * R2_binwidth;
-                R2_BB = local_xbin * R2_binwidth;
-                R_average = sqrt( (R2_AA+R2_BB)/2. );// average radius from volume weighted
+                /*
+                 R2_AA = (local_xbin-1) * R2_binwidth;
+                 R2_BB = local_xbin * R2_binwidth;
+                 R_average = sqrt( (R2_AA+R2_BB)/2. );  // volume-weighted average radius of cell
+                 */
+                R_average = sqrt( usr_r2_P );
                 
                 roofunc_EnergyResolution->SetParameter( 0, R_average );
                 energy_sigma = roofunc_EnergyResolution->Eval( Scale_E_P_Sum );
-                
                 Res_E_P_Sum = gRandom3->Gaus( Scale_E_P_Sum, energy_sigma );
                 
-                /// delayed
-#ifdef UseDelayInformation
-                usr_r2 = (VX_Ng*VX_Ng+VY_Ng*VY_Ng) * 1e-6;// mm2 ---> m2
-                usr_z  = VZ_Ng * 1e-3;// mm ---> m
+                /// Estimate an "Erec" on which to apply cuts
+                ///////////////////////////// Reconstructed Energy
+                /// prompt
+                //Erec_P = Res_E_P_Sum / (usr_opt_attenuation_P *usr_pmt_coverage_P);  // nH analysis
+                Erec_P = Res_E_P_Sum / AdSimple_P;  // AdSimple
                 
-                global_bin_num = hist_findbin->FindBin(usr_r2, usr_z);
+#ifdef UseDelayInformation
+                /// delayed
+                global_bin_num = hist_findbin->FindBin(usr_r2_Ng, usr_z_Ng);
                 hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
                 
                 if( local_zbin != 0) continue;
-                
-                R2_AA = (local_xbin-1) * R2_binwidth;
-                R2_BB = local_xbin * R2_binwidth;
-                R_average = sqrt( (R2_AA+R2_BB)/2. );// average radius from volume weighted
+                /*
+                 R2_AA = (local_xbin-1) * R2_binwidth;
+                 R2_BB = local_xbin * R2_binwidth;
+                 R_average = sqrt( (R2_AA+R2_BB)/2. );  // volume-weighted average radius of cell
+                 */
+                R_average = sqrt( usr_r2_Ng );
                 
                 roofunc_EnergyResolution->SetParameter( 0, R_average );
-                energy_sigma = roofunc_EnergyResolution->Eval( Scale_Etot_Ng );
-                Res_Etot_Ng = gRandom3->Gaus( Scale_Etot_Ng, energy_sigma );
+                energy_sigma = roofunc_EnergyResolution->Eval( Scale_E_Ng );
+                Res_E_Ng = gRandom3->Gaus( Scale_E_Ng, energy_sigma );
+                
+                /// Estimate an "Erec" on which to apply cuts
+                ///////////////////////////// Reconstructed Energy
+                /// delayed
+                //Erec_Ng = Res_E_Ng / (usr_opt_attenuation_Ng * usr_pmt_coverage_Ng);  // nH analysis
+                Erec_Ng = Res_E_Ng / AdSimple_Ng;  // AdSimple
 #endif
                 ///////////////////////////// Cell
                 ///////////////////////////// Cell
                 
+                ////// Cuts:
+                //////
+                if( cap_Target==64 ) continue;  // reject nGd events because not properly considered in toyMC input sample
+                /// Analysis cuts
+                
+                if( Res_E_P_Sum!=Res_E_P_Sum) continue;
+                
+#ifdef UseDelayInformation
+                if(Res_E_Ng!=Res_E_Ng ) continue;
+                
+                if( Erec_Ng<EdelayCutLow || Erec_Ng>EdelayCutHigh ) continue;
+#endif
+                //if( TcapCutHigh>0 && (?>TcapCutHigh || ?<TcapCutLow) ) continue;  // time information is currently not saved in the toyMC input sample
+                if( Erec_P<EpromptCutLow || Erec_P>EpromptCutHigh ) continue;
+                if( distCut>0 ) {
+                    distPD = sqrt( (X_Ng-X_P)*(X_Ng-X_P) + (Y_Ng-Y_P)*(Y_Ng-Y_P) + (Z_Ng-Z_P)*(Z_Ng-Z_P) );
+                    if( distPD>distCut ) continue;
+                }
+                
+                ////// prompt
+                usr_r2_P = (X_P*X_P+Y_P*Y_P) * 1e-6;  // mm2 ---> m2
+                if( radialCut>0 && usr_r2_P>radialCut ) continue;
+                usr_z_P  = Z_P * 1e-3;  // mm ---> m
+                global_bin_num = hist_findbin->FindBin(usr_r2_P, usr_z_P);
+                hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
+                
+#ifdef UseDelayInformation
+                ////// delayed
+                usr_r2_Ng = (X_Ng*X_Ng+Y_Ng*Y_Ng) * 1e-6;  // mm2 ---> m2
+                if( radialCut>0 && usr_r2_Ng>radialCut ) continue;
+                usr_z_Ng  = Z_Ng * 1e-3;  // mm ---> m
+                global_bin_num = hist_findbin->FindBin(usr_r2_Ng, usr_z_Ng);
+                hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
+#endif
+                
                 //Fill histograms:
                 TruePredictionH[AD]->Fill(cap_Ev);
-                VisiblePredictionH[AD]->Fill(Res_E_P_Sum);
-                HighResoMatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//Fine grid
-                MatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum);//neutrino energy vs visible energy
-                TransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev);
-                HighResoTransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev);//Fine grid
+                VisiblePredictionH[AD]->Fill(Erec_P);
+                HighResoMatrixH[AD]->Fill(cap_Ev,Erec_P);//Fine grid
+                MatrixH[AD]->Fill(cap_Ev,Erec_P);//neutrino energy vs visible energy
+                TransMatrixH[AD]->Fill(Erec_P,cap_Ev);
+                HighResoTransMatrixH[AD]->Fill(Erec_P,cap_Ev);//Fine grid
                 
 #ifdef SaveTree
                 toy->Fill();
@@ -1050,8 +1148,7 @@ void nHToyMC :: Toy(bool mode)
             delete RandomSysCorr;
         }
         
-        if(Print)
-        {
+        #ifdef PrintEps
             TCanvas* NNFineMatrixC = new TCanvas("NNF","NNF");
             NNFineMatrixC->Divide(NADs/2,2);
             
@@ -1088,7 +1185,7 @@ void nHToyMC :: Toy(bool mode)
             delete NNFineMatrixC;
             delete NNTransC;
             delete NNFineTransC;
-        }
+        #endif
         
         Double_t Norma[n_etrue_bins];//true->vis
         Double_t HighResoNorma[MatrixBins];//true->vis
@@ -1169,8 +1266,7 @@ void nHToyMC :: Toy(bool mode)
             }
         }
         
-        if(Print)
-        {
+        #ifdef PrintEps
             TCanvas* FineMatrixC = new TCanvas("F","F");
             FineMatrixC->Divide(NADs/2,2);
             
@@ -1225,11 +1321,25 @@ void nHToyMC :: Toy(bool mode)
             delete FineMatrixC;
             delete TransC;
             delete FineTransC;
-        }
+        #endif
         
         if(mode==0)
         {
             TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root","recreate");
+            
+            for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+            {
+                HighResoMatrixH[AD]->Write(Form("FineEvisEnu%d",AD+1));//Save the matrices.
+                MatrixH[AD]->Write(Form("EvisEnu%d",AD+1));//Save the matrices.
+            }
+            
+            TransMatrixH[0]->Write("EnuEvis");//All ADs are "identical", only need 1
+            
+            delete SaveMatrix;
+        }
+        else
+        {
+            TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/RandomResponseMatrix.root","recreate");
             
             for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
             {
@@ -1275,6 +1385,14 @@ void nHToyMC :: func_initialization()
 {
     //////
     hist_findbin = new TH2D("hist_findbin","", R2_binnum,R2_lower,R2_upper, Z_binnum,Z_lower,Z_upper);
+    
+    if( MaxCellNum<(R2_binnum+2)*(Z_binnum+2) ) {
+        printf("\n\n MaxCellNum = %d, but must be >= %d\n\n", MaxCellNum, (R2_binnum+2)*(Z_binnum+2) );
+        return;
+    }
+
+    
+
     
     ////// ~/WORK/jixp/hapy/usr_job/work_mc_Ep/Production/process/plot_obj.cc
 #ifdef ReactorShapeinToy

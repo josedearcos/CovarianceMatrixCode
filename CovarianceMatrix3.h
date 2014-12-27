@@ -162,15 +162,6 @@ CovarianceMatrix3 :: CovarianceMatrix3()
     
     Combine = Nom->GetCombineMode();
     NReactorPeriods=Nom->GetNReactorPeriods();
-
-    if(Analysis)
-    {
-        NSamples = 1;//nH Toy MC is made event by event, with a sufficiently dense number of events the random systematics can be applied to the whole spectrum at once
-    }
-    else
-    {
-        NSamples = Nom->GetNSamples();//LBNL produces ~500 samples per covariance matrix with a different random variation for each sample
-    }
     
     Sin22t13 = Nom->GetSin22t13();
     Dm2_31 = Nom->GetDm231();
@@ -194,6 +185,15 @@ CovarianceMatrix3 :: CovarianceMatrix3()
     ResolutionMatrix = Nom->GetResolutionMatrix();
     Sin22t12Matrix = Nom->GetSin22t12Matrix();
     EfficiencyMatrix = Nom->GetEfficiencyMatrix();
+    
+    if(Analysis&&!(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix||DistortLiHeMatrix||DistortFastNeutronsMatrix||DistortAmCMatrix||IsotopeMatrix||ReactorPowerMatrix||Sin22t12Matrix))
+    {
+        NSamples = 1;//nH Toy MC is made event by event, with a sufficiently dense number of events the random detector systematics can be applied to the whole spectrum at once. This is not the same for reactor or background systematics though.
+    }
+    else
+    {
+        NSamples = Nom->GetNSamples();//LBNL produces ~500 samples per covariance matrix with a different random variation for each sample
+    }
     
     Nweeks = Nom->GetWeeks();
     NADs = Nom->GetADs();
@@ -244,9 +244,9 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
     Combine = Data->GetCombineMode();
     NReactorPeriods=Data->GetNReactorPeriods();
 
-    if(Analysis)
+    if(Analysis&&!(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix||DistortLiHeMatrix||DistortFastNeutronsMatrix||DistortAmCMatrix||IsotopeMatrix||ReactorPowerMatrix||Sin22t12Matrix))
     {
-        NSamples = 1;//nH Toy MC is made event by event, with a sufficiently dense number of events the random systematics can be applied to the whole spectrum at once
+        NSamples = 1;//nH Toy MC is made event by event, with a sufficiently dense number of events the random detector systematics can be applied to the whole spectrum at once. This is not the same for reactor or background systematics though.
     }
     else
     {
@@ -712,8 +712,7 @@ void CovarianceMatrix3 :: GenerateCovarianceMatrix(Int_t week,Int_t samples)
                     //                        std::cout << Nj1*Fj1 << Nj2*Fj2 << Nj3*Fj3 << Nj4*Fj4 <<"\n";
                     //                        std::cout <<"\n";
                     
-//                    if(Print)
-//                    {
+//                    #ifdef Print
 //                        if(BackgroundE == (CovarianceMatrix3::BackgroundType)(-1))
 //                        {
 //                            TCanvas* PredC = new TCanvas("","");
@@ -738,7 +737,7 @@ void CovarianceMatrix3 :: GenerateCovarianceMatrix(Int_t week,Int_t samples)
 //                            
 //                            PredC->Print(Form("./Images/CovarianceMatrixPredictionsNeari%d_Fari%d_Nearj%d_Farj%d.eps",neari,fari,nearj,farj));
 //                        }
-//                    }
+//                    #endif
                     for (Int_t i = 0; i<n_evis_bins; i++)
                     {//columns
                         x = i+(Ni1*Fi1+Ni2*Fi2+Ni3*Fi3+Ni4*Fi4-1)*n_evis_bins;
@@ -937,55 +936,52 @@ void CovarianceMatrix3 :: SaveCovarianceMatrix(Int_t week)
     
     delete SaveCovarianceMatrixF;
     
-    if(Print)
+    #ifdef PrintEps
+    
+    TH1D* DiagonalCov = new TH1D(("sigma "+CovString).c_str(),("sigma "+CovString).c_str(),Cov2H->GetXaxis()->GetNbins(),0,CovMatrix2H->GetXaxis()->GetNbins());
+    
+    for(Int_t i = 0; i < Cov2H->GetXaxis()->GetNbins(); i++)
     {
-        TH1D* DiagonalCov = new TH1D(("sigma "+CovString).c_str(),("sigma "+CovString).c_str(),Cov2H->GetXaxis()->GetNbins(),0,CovMatrix2H->GetXaxis()->GetNbins());
-        
-        for(Int_t i = 0; i < Cov2H->GetXaxis()->GetNbins(); i++)
-        {
-            DiagonalCov->SetBinContent(i+1,CovMatrix2H->GetBinContent(i+1,i+1));//Diagonal of the covariance matrix = sigma
-        }
-        
-        TCanvas* sigmaC = new TCanvas("sigmaC","sigmaC");
-        
-        DiagonalCov->Draw();
-        
-        sigmaC->Print((Form("./Images/Sigma_Combine%d_",Combine)+CovString+".eps").c_str(),".eps");
-        
-        delete sigmaC;
-        
-        delete DiagonalCov;
+        DiagonalCov->SetBinContent(i+1,CovMatrix2H->GetBinContent(i+1,i+1));//Diagonal of the covariance matrix = sigma
     }
     
-    if(Print)
-    {
-            TCanvas* TestCovariance = new TCanvas("","");
+    TCanvas* sigmaC = new TCanvas("sigmaC","sigmaC");
+    
+    DiagonalCov->Draw();
+    
+    sigmaC->Print((Form("./Images/Sigma_Combine%d_",Combine)+CovString+".eps").c_str(),".eps");
+    
+    delete sigmaC;
+    
+    delete DiagonalCov;
 
-            CovMatrix2H->Draw("colz");
-        
-            if(TESTFARCORR)
-            {
-                TestCovariance->Print("./Images/CovarianceMatrices/CovarianceMatrixTests/TestFar.eps");
-            }
-            if(TESTNEARFARCORR)
-            {
-                TestCovariance->Print("./Images/CovarianceMatrices/CovarianceMatrixTests/TestNeartoFar.eps");
-            }
-            if(TESTFARANDNEARCORR)
-            {
-                TestCovariance->Print("./Images/CovarianceMatrices/CovarianceMatrixTests/TestFarAndNeartoFar.eps");
-            }
-            if(TESTNOCORR)
-            {
-                TestCovariance->Print("./Images/CovarianceMatrices/CovarianceMatrixTests/TestNoCorr.eps");
-            }
-            if(TESTEH1CORR)
-            {
-                TestCovariance->Print("./Images/CovarianceMatrices/CovarianceMatrixTests/TestEH1Only.eps");
-            }
-            delete TestCovariance;
-        
+    TCanvas* TestCovariance = new TCanvas("","");
+    
+    CovMatrix2H->Draw("colz");
+    
+    if(TESTFARCORR)
+    {
+        TestCovariance->Print("./Images/CovarianceMatrices/CovarianceMatrixTests/TestFar.eps");
     }
+    if(TESTNEARFARCORR)
+    {
+        TestCovariance->Print("./Images/CovarianceMatrices/CovarianceMatrixTests/TestNeartoFar.eps");
+    }
+    if(TESTFARANDNEARCORR)
+    {
+        TestCovariance->Print("./Images/CovarianceMatrices/CovarianceMatrixTests/TestFarAndNeartoFar.eps");
+    }
+    if(TESTNOCORR)
+    {
+        TestCovariance->Print("./Images/CovarianceMatrices/CovarianceMatrixTests/TestNoCorr.eps");
+    }
+    if(TESTEH1CORR)
+    {
+        TestCovariance->Print("./Images/CovarianceMatrices/CovarianceMatrixTests/TestEH1Only.eps");
+    }
+    delete TestCovariance;
+    #endif
+    
     //Save in a txt file
     if(WriteOutput)//I will have to do the same here, select a covariance matrix name depending on what has been calculated
     {

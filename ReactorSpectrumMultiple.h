@@ -385,8 +385,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
         }
         delete ReactorFile;
 
-        if(Print)
-        {
+        #ifdef PrintEps
             TCanvas* SaveReactor = new TCanvas("Reactor","Reactor",1200,1200);
             
             TLegend *legend=new TLegend(0.6,0.65,0.88,0.85);
@@ -416,7 +415,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
             
             SaveReactor->Print("./Images/Reactor/ChristineReactorSpectrum.eps",".eps");
             delete SaveReactor;
-        }
+        #endif
         
         for(Int_t reactor=0; reactor<NReactors;reactor++)
         {
@@ -521,8 +520,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
         }
         delete outputFile;
         
-        if(Print)
-        {
+        #ifdef PrintEps
             //Scale with reactor power and Energy per fission
             TCanvas* SaveReactor = new TCanvas("Reactor","Reactor");
             
@@ -537,7 +535,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
             
             SaveReactor->Print("./Images/Reactor/ReactorSpectrum.eps",".eps");
             delete SaveReactor;
-        }
+        #endif
         
         delete[] Energy;
         delete[] Spectrum;

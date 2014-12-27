@@ -834,7 +834,6 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     
     TFile* PredictionF1 = new TFile(FileName,optionC);
     
-    
     for (Int_t near = 0; near<MaxNearCombine; near++)
     {
         for (Int_t far =0; far<MaxFarCombine; far++)
@@ -860,8 +859,8 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     delete PredictionF1;
 
     std::cout << "\t Saved done" << std::endl;
-    
-    if(Print&&(firstNominalPrediction==0||firstRandomPrediction==0))//To print only once
+#ifdef PrintEps
+    if((firstNominalPrediction==0||firstRandomPrediction==0))//To print only once
     {
         if(!mode){firstNominalPrediction=1;}
         else{firstRandomPrediction=1;}
@@ -972,7 +971,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
         delete AllReactorPredC;
         }
     }
-    
+#endif
     
     for (Int_t far = 0; far<MaxFarLoadOscModel; far++)
     {
@@ -1311,8 +1310,7 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
     
     //Prediction difference test:
     
-    if(Print)
-    {
+    #ifdef PrintEps
       /*  TH1D* DifferenceH2;
         TCanvas* DifferenceC2 = new TCanvas("diffenreceC2","differenceC2");
         DifferenceC2->Divide(MaxNearCombine,1);
@@ -1344,7 +1342,7 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
             delete DifferenceC;
             delete DifferenceH;
         }
-    }
+    #endif
     
     if(!Rate)
     {
@@ -1638,8 +1636,7 @@ void Prediction :: GenerateStatisticalCovarianceMatrix()
     
     StatisticalCovarianceMatrixH = new TH2D("Statistical Covariance Matrix","Statistical Covariance Matrix",MaxBins,0,MaxBins,MaxBins,0,MaxBins);
     
-    if(Print)
-    {
+    #ifdef PrintEps
         std::cout << " Printing" << std::endl;
         
         TCanvas* cstat = new TCanvas("TestStatisticalmatrix.eps","TestStatisticalmatrix.eps");
@@ -1657,7 +1654,7 @@ void Prediction :: GenerateStatisticalCovarianceMatrix()
         cstat->Print("./Images/TestStatisticalmatrix.eps", ".eps");
         
         delete cstat;
-    }
+    #endif
     
     Double_t Sigma_Near[MaxFarDetectors][MaxNearDetectors][MaxNbins];
     Double_t Sigma_Far[MaxFarDetectors][MaxNearDetectors][MaxNbins];
@@ -1759,8 +1756,7 @@ void Prediction :: GenerateStatisticalCovarianceMatrix()
         }
     }
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* StatisticalCovarianceMatrixC = new TCanvas("StatisticalCovarianceMatrixC","Statistical Cov",400,400);
         StatisticalCovarianceMatrixH->SetStats(0);
         StatisticalCovarianceMatrixH->Draw("colz");
@@ -1768,7 +1764,7 @@ void Prediction :: GenerateStatisticalCovarianceMatrix()
         StatisticalCovarianceMatrixC->Print(("./Images/"+AnalysisString+"/StatisticalCovarianceMatrix.eps").c_str(),".eps");
         
         delete StatisticalCovarianceMatrixC;
-    }
+    #endif
     
     std::cout << "\t Finished Generating StatisticalCovarianceMatrix" << std::endl;
     std::cout <<  "\t ***********************************************************************************************" << std::endl;
@@ -2140,8 +2136,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             }
         }
         
-        if(Print)
-        {
+        #ifdef PrintEps
             TCanvas* NearC = new TCanvas("NearC","Near Data", (ADsEH1+ADsEH2)*400,400);
             NearC->Divide(ADsEH1+ADsEH2,1);
             
@@ -2181,7 +2176,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             
             delete NearC;
             delete FarC;
-        }
+        #endif
         
         for (Int_t far=0; far<ADsEH3; far++)
         {
@@ -2285,8 +2280,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             }
         }
         
-        if(Print)
-        {
+        #ifdef PrintEps
             TCanvas* FarDataC = new TCanvas("FarDataC","Far Data", ADsEH3*400,400);
             FarDataC->Divide(ADsEH3,1);
             
@@ -2301,7 +2295,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             FarDataC->Print(("./Images/"+AnalysisString+"/FitterInputs/RealFarDataInFitter.eps").c_str(),".eps");
             
             delete FarDataC;
-        }
+        #endif
         
         for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
         {
@@ -2364,8 +2358,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
         DataF->Close();
     }
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* NearDataC = new TCanvas("NearDataC","Near Data", (ADsEH1+ADsEH2)*400,400);
         
         NearDataC->Divide(ADsEH1+ADsEH2,1);
@@ -2392,7 +2385,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             NearDataC->Print(("./Images/"+AnalysisString+"/FitterInputs/RealNearDataInFitter.eps").c_str(),".eps");
         }
         delete NearDataC;
-    }
+    #endif
     
     for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
     {
@@ -2476,8 +2469,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
         delete CombinedFarBackgroundSpectrumH[far];
     }
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* CombinedNearC = new TCanvas("CombinedNearC","Combined Near Data", MaxNearCombine*400,400);
         
         CombinedNearC->Divide(MaxNearCombine,1);
@@ -2505,10 +2497,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             CombinedNearC->Print(("./Images/"+AnalysisString+"/FitterInputs/CombinedRealNearDataInFitter.eps").c_str(),".eps");
         }
         delete CombinedNearC;
-    }
     
-    if(Print)
-    {
         TCanvas* CombinedFarC = new TCanvas("CombinedFarC","Combined Far Data", MaxNearCombine*400, MaxFarCombine*400);
         
         CombinedFarC->Divide(MaxNearCombine,MaxFarCombine);
@@ -2539,7 +2528,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
         }
         
         delete CombinedFarC;
-    }
+    #endif
 }
 
 void Prediction :: LoadBackgrounds(Int_t week,bool mode)
@@ -2635,8 +2624,7 @@ void Prediction :: LoadBackgrounds(Int_t week,bool mode)
         
     }
     
-    if(Print)
-    {
+    #ifdef PrintEps
     TCanvas* FarBackgroundsC = new TCanvas("FarBackgroundsC","FarBackgroundsC",MaxFarLoadOscModel*400,400);
     TCanvas* NearBackgroundsC = new TCanvas("NearBackgroundsC","NearBackgroundsC",(ADsEH1+ADsEH2)*400,400);
 
@@ -2657,7 +2645,7 @@ void Prediction :: LoadBackgrounds(Int_t week,bool mode)
 
     delete FarBackgroundsC;
     delete NearBackgroundsC;
-    }
+    #endif
 }
 
 void Prediction :: LoadRootCovarianceMatrices(Int_t week)
@@ -4036,8 +4024,7 @@ void Prediction :: InvertMatrix(Int_t week)
             UnityH->SetBinContent(i+1,j+1,UnityM[(j+MaxBins*i)]);
         }
     }
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* unityC = new TCanvas("unityC","unityC",1200,400);
         unityC->Divide(3,1);
         unityC->cd(1);
@@ -4053,7 +4040,7 @@ void Prediction :: InvertMatrix(Int_t week)
         unityC->Update();
         unityC->Print("./Images/TestInvert.eps", ".eps");
         delete unityC;
-    }
+    #endif
     
     delete TotalCovarianceMatrix;
 }
@@ -4184,8 +4171,7 @@ void Prediction :: ProduceCovToyMCSample(Int_t week,TH1D** NominalPredictionH)
             }
         }
         
-        if(Print)//just a check
-        {
+        #ifdef PrintEps//just a check
             TH2D* PrintCov2H = new TH2D("Cov2H","Cov2H",MaxBins,0,MaxBins,MaxBins,0,MaxBins);
             TH2D* CorrelationH = new TH2D("Cov2H","Cov2H",MaxBins,0,MaxBins,MaxBins,0,MaxBins);
             
@@ -4221,7 +4207,7 @@ void Prediction :: ProduceCovToyMCSample(Int_t week,TH1D** NominalPredictionH)
             CovarianceMatrixC->Print(Form("./Images/RandomCovarianceMatrix%d.eps",SystematicI));
             
             delete CovarianceMatrixC;
-        }
+        #endif
         
         TMatrixD renormmatrix(9*MaxNbins,9*MaxNbins, &RenormToyMCSample[0][0]);
         renormmatrix.ResizeTo(MaxBins,MaxBins);
@@ -4247,8 +4233,7 @@ void Prediction :: ProduceCovToyMCSample(Int_t week,TH1D** NominalPredictionH)
         
         Double_t* tmp_matrix = tcmat.GetMatrixArray();
         
-        if(Print)
-        {
+        #ifdef PrintEps
             TCanvas* MatrixC = new TCanvas("","");
             
             MatrixC->Divide(3,1);
@@ -4263,7 +4248,7 @@ void Prediction :: ProduceCovToyMCSample(Int_t week,TH1D** NominalPredictionH)
             MatrixC->Print(Form("./Images/MatrixRenormCheck%d.eps",SystematicI));
             
             delete MatrixC;
-        }
+        #endif
         
         for (Int_t i = 0; i < MaxBins; i++)
         {
@@ -4426,8 +4411,7 @@ Double_t Prediction :: RateChiSquare(Int_t week)
     
     RateInvTotalCovarianceMatrixH->Rebin2D(n_evis_bins,n_evis_bins);
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* TestRateC = new TCanvas("TestRateChi2","TestRateChi2");
         TestRateC->Divide(3,1);
         TestRateC->cd(1);
@@ -4442,7 +4426,7 @@ Double_t Prediction :: RateChiSquare(Int_t week)
         
         TestRateC->Print("./Images/TestRateChi2.eps", ".eps");
         delete TestRateC;
-    }
+    #endif
     
     Int_t x =0;
     Int_t y =0;

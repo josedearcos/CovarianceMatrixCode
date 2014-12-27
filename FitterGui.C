@@ -26,9 +26,10 @@
 #include "TKey.h"
 #include <assert.h> // Used to debug, if you don't want it to run, uncomment the following line:
 
+//#define NoOscillation //this sets sin22t13 and sin22t13 = 0, also uses the reactor antineutrino model to reset the flux
 //#define NDEBUG
-const bool TestExternalInputs=0;
-const bool PrintOnConsole=1;
+//#define TestExternalInputs
+#define PrintOnConsole
 
 //To interpolate the chi2 curves
 const Int_t InterpolationFactor = 100;
@@ -74,22 +75,20 @@ FitterGui::FitterGui(const TGWindow *p,UInt_t w,UInt_t h)
     gBenchmark = new TBenchmark();
     
     //Write "" if you want to generate the inputs
-    if(TestExternalInputs)
-    {
+#ifdef TestExternalInputs
         ToyMCSampleDirectory = "/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/ToyMCTrees/nGdInputs/toySpectra_allsys_and_stat.root";
         NominalPredictionsDirectory = "/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/ToyMCTrees/nGdInputs/toySpectra_allsys_and_stat.root";
         ResponseMatrixDirectory = "/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/matrix_evis_to_enu_unified_p12e_unblinded.root";
         SysCovarianceMatrixDirectory = "/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/CovarianceMatrices/Berkeley/matrix_sigsys_full.root";
         BkgCovarianceMatrixDirectory = "/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/CovarianceMatrices/Berkeley/matrix_bgsys_full.root";
-    }
-    else
-    {
+#else
+
         ToyMCSampleDirectory =  "";
         NominalPredictionsDirectory = "";
         ResponseMatrixDirectory = "";
         SysCovarianceMatrixDirectory = "";
         BkgCovarianceMatrixDirectory = "";
-    }
+#endif
     
     Minuit = 0;//Choose between applying Minuit or manual grid fitting.
     Fit2D = 0; // 1 for 2D Fit, 0 for 1D Fit
@@ -108,6 +107,9 @@ FitterGui::FitterGui(const TGWindow *p,UInt_t w,UInt_t h)
     NominalString = "Nominal";
     CovString = "";
     Analysis = 0; //0 for Gd, 1 for H
+   
+    CalculateBinning();
+    
     if(Analysis)
     {
         AnalysisString = "Hydrogen";
@@ -117,6 +119,7 @@ FitterGui::FitterGui(const TGWindow *p,UInt_t w,UInt_t h)
     {
         AnalysisString = "Gadolinium";
     }
+    
     NSamples = 10; //change default to 500 once debug is completed
     CombineMode = 2; // change default to 2 once debug is completed
     NL[0]=0;//BCW
@@ -631,10 +634,11 @@ void FitterGui::RunFitter()
     
     gBenchmark->Start("Fitter");
     std::cout << "Running Fitter" << std::endl;
-    if(!PrintOnConsole)
-    {
+    
+#ifndef PrintOnConsole
         coutstream = cout.rdbuf(0);//change stream of cout
-    }
+#endif
+    
     const bool RangeSin = 0;    //  Fit over a range of 20 Sin22t13
     const bool RangeDelta = 0;  //  Fit over a range of 20 Delta2Mee
     
@@ -961,6 +965,12 @@ FitterGui::~FitterGui()
 
 void FitterGui::DoReadInputs()
 {
+    Int_t HorizontalMargin = 8;
+    Int_t VerticalMargin = 8;
+    Int_t Width = 232;
+    Int_t Height = 24;
+    Int_t NumberOfButons = 3;
+    
     // main frame
     TGMainFrame *fReadInputs = new TGMainFrame(gClient->GetRoot(),10,10,kMainFrame | kVerticalFrame);
     fReadInputs->SetName("fReadInputs");
@@ -968,7 +978,7 @@ void FitterGui::DoReadInputs()
     fReadInputs->SetWindowName(" Load Inputs Menu ");
     
     // composite frame
-    TGCompositeFrame *fLoadInputs = new TGCompositeFrame(fReadInputs,849,587,kVerticalFrame);
+    TGCompositeFrame *fLoadInputs = new TGCompositeFrame(fReadInputs,Width+2*HorizontalMargin,(NumberOfButons+2)*Height+(NumberOfButons-1)*VerticalMargin,kVerticalFrame);
     fLoadInputs->SetName("fLoadInputs");
     fLoadInputs->SetLayoutBroken(kTRUE);
     
@@ -992,35 +1002,35 @@ void FitterGui::DoReadInputs()
     gClient->GetColorByName("#ffffff",ucolor);
     
     // composite frame
-    fLoadInputs2 = new TGCompositeFrame(fLoadInputs,490,372,kVerticalFrame,ucolor);
+    fLoadInputs2 = new TGCompositeFrame(fLoadInputs,Width+2*HorizontalMargin,(NumberOfButons+2)*Height+(NumberOfButons-1)*VerticalMargin,kVerticalFrame,ucolor);
     fLoadInputs2->SetName("fLoadInputs2");
     fLoadInputs2->SetLayoutBroken(kTRUE);
     
     fLoadInputs->AddFrame(fLoadInputs2, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
-    fLoadInputs2->MoveResize(0,0,490,372);
+    fLoadInputs2->MoveResize(0,0,Width+2*HorizontalMargin,(NumberOfButons+2)*Height+(NumberOfButons-1)*VerticalMargin);
     
     fReadInputs->AddFrame(fLoadInputs, new TGLayoutHints(kLHintsExpandX | kLHintsExpandY));
-    fLoadInputs->MoveResize(0,0,490,372);
+    fLoadInputs->MoveResize(0,0,Width+2*HorizontalMargin,(NumberOfButons+2)*Height+(NumberOfButons-1)*VerticalMargin);
     
     TGTextButton *fResponseButton= new TGTextButton(fLoadInputs2,"Load Response Matrix",-1,uGC->GetGC());
     fResponseButton->Connect("Clicked()","FitterGui",this,"LoadResponseMatrix()");
     fResponseButton->SetTextJustify(36);
     fResponseButton->SetMargins(0,0,0,0);
     fResponseButton->SetWrapLength(-1);
-    fResponseButton->Resize(232,24);
+    fResponseButton->Resize(Width,Height);
     
     fLoadInputs2->AddFrame(fResponseButton, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    fResponseButton->MoveResize(8,24,232,24);
+    fResponseButton->MoveResize(HorizontalMargin,Height,Width,Height);
     
     TGTextButton *fNominalPredictions= new TGTextButton(fLoadInputs2,"Load Nominal Predictions",-1,uGC->GetGC());
     fNominalPredictions->Connect("Clicked()","FitterGui",this,"LoadNominalPredictions()");
     fNominalPredictions->SetTextJustify(36);
     fNominalPredictions->SetMargins(0,0,0,0);
     fNominalPredictions->SetWrapLength(-1);
-    fNominalPredictions->Resize(232,24);
+    fNominalPredictions->Resize(Width,Height);
     
     fLoadInputs2->AddFrame(fNominalPredictions, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    fNominalPredictions->MoveResize(8,56,232,24);
+    fNominalPredictions->MoveResize(HorizontalMargin,Height*2+VerticalMargin,Width,Height);
     
     
     TGTextButton *fToyMCSamples= new TGTextButton(fLoadInputs2,"Load Toy MC Samples",-1,uGC->GetGC());
@@ -1028,17 +1038,17 @@ void FitterGui::DoReadInputs()
     fToyMCSamples->SetTextJustify(36);
     fToyMCSamples->SetMargins(0,0,0,0);
     fToyMCSamples->SetWrapLength(-1);
-    fToyMCSamples->Resize(232,24);
+    fToyMCSamples->Resize(Width,Height);
     
     fLoadInputs2->AddFrame(fToyMCSamples, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    fToyMCSamples->MoveResize(8,88,232,24);
+    fToyMCSamples->MoveResize(HorizontalMargin,Height*NumberOfButons+(NumberOfButons-1)*VerticalMargin,Width,Height);
     
     fReadInputs->SetMWMHints(kMWMDecorAll, kMWMFuncAll, kMWMInputModeless);
     fReadInputs->MapSubwindows();
     
     fReadInputs->Resize(fReadInputs->GetDefaultSize());
     fReadInputs->MapWindow();
-    fReadInputs->Resize(490,372);
+    fReadInputs->Resize(Width+2*HorizontalMargin,(NumberOfButons+2)*Height+(NumberOfButons-1)*VerticalMargin);
 }
 
 void FitterGui::LoadToyMCSamples()
@@ -1511,10 +1521,10 @@ void FitterGui::RunToyMC()
 {
     gBenchmark->Start("ToyMC");
     std::cout << "Running Covariance Matrix ToyMC" << std::endl;
-    if(!PrintOnConsole)
-    {
+#ifndef PrintOnConsole
         coutstream = cout.rdbuf(0);//change stream of cout
-    }
+#endif
+    
     const Int_t CovarianceMatrices=15;
     
     //To draw using a better palette:
@@ -1628,8 +1638,10 @@ void FitterGui::RunToyMC()
     }
     
     //To check non theta13 oscillation behaviour of the fitter. To avoid any oscillation at all then theta12 has to be set to 0 too.
-    //    Data->SetSin22t12(0);
-    //    Data->SetSin22t13(0);
+#ifdef NoOscillation
+        Data->SetSin22t12(0);
+        Data->SetSin22t13(0);
+#endif
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     FitBackgrounds2* Bkg = new FitBackgrounds2(Data);
     
@@ -1720,10 +1732,9 @@ void FitterGui::RunFlux()
 {
     gBenchmark->Start("RunFlux");
     std::cout << "Regenerating Flux" << std::endl;
-    if(!PrintOnConsole)
-    {
+#ifndef PrintOnConsole
         coutstream = cout.rdbuf(0);//change stream of cout
-    }
+#endif
     
     //To draw using a better palette:
     const Int_t NRGBs = 5;
@@ -1828,9 +1839,10 @@ void FitterGui::RunFlux()
     }
     
     //To check non theta13 oscillation behaviour of the fitter. To avoid any oscillation at all then theta12 has to be set to 0 too.
-    //    Data->SetSin22t12(0);
-    //    Data->SetSin22t13(0);
-
+#ifdef NoOscillation
+    Data->SetSin22t12(0);
+    Data->SetSin22t13(0);
+#endif
 
     std::string FluxInputS;
     if(Analysis)
@@ -1894,7 +1906,7 @@ void FitterGui::DoBinning()
 {
     Binning = BinningBox->GetSelected();
     std::cout << "BINNING MODE : " << Binning << " ( 0 is LBNL binning, 1 is linear binning )" << std::endl;
-    
+    CalculateBinning();
 }
 
 void FitterGui::DoStatisticalFluctuation()
@@ -2077,6 +2089,8 @@ void FitterGui::DoAnalysis()
     }
     
     std::cout << "Analysis: " << AnalysisString << std::endl;
+    
+    CalculateBinning();
 }
 void FitterGui::Update(Int_t samples)
 {
@@ -3022,18 +3036,8 @@ void FitterGui :: PlotSpectrumFraction()
     
     hslider->Connect("PositionChanged(Int_t)", "FitterGui", this, "DoChangeBin()");
     
-    Int_t Max;
+    hslider->SetRange(0,visible_bins-1);
     
-    if(Binning)
-    {
-        Max = 51;
-    }
-    else
-    {
-        Max = 37;//Max LBNL Vis binning
-    }
-    
-    hslider->SetRange(0,Max-1);
     hslider->SetPosition(0);
     
     hframe->AddFrame(hslider, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
@@ -3959,7 +3963,7 @@ void FitterGui::ChoosePlotCov()
 //
 //void FitterGui::ChoosePlotCorr()
 //{
-//    if(Print)
+//    #ifdef PrintEps
 //    {
 //        TFile *f1 = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/CorrelationMatrices.root",CombineMode)).c_str());
 //
@@ -4445,10 +4449,9 @@ void FitterGui::GenerateToyMC()
     gBenchmark->Start("GenerateTree");
     std::cout << "Running Toy MC Tree Generation" << std::endl;
 
-    if(!PrintOnConsole)
-    {
+#ifndef PrintOnConsole
         coutstream = cout.rdbuf(0);//change stream of cout
-    }
+#endif
     //To draw using a better palette:
     const Int_t NRGBs = 5;
     const Int_t NCont = 999;
@@ -5043,10 +5046,9 @@ void FitterGui :: RunFitterTests()
     gBenchmark->Start("TestFitter");
     std::cout << "Running Fitter TESTs" << std::endl;
 
-    if(!PrintOnConsole)
-    {
+#ifndef PrintOnConsole
         coutstream = cout.rdbuf(0);//change stream of cout
-    }
+#endif
     //To draw using a better palette:
     const Int_t NRGBs = 5;
     const Int_t NCont = 999;
@@ -5076,8 +5078,10 @@ void FitterGui :: RunFitterTests()
     
     Data->SetCombineMode(CombineMode); //0 is 9x9, 1 is 1x1 and 2 is 2x2
     Data->SetUseToyMCTree(UseToyMCTree);
-    //    Data->SetSin22t12(0);
-    //    Data->SetSin22t13(0);
+#ifdef NoOscillation
+    Data->SetSin22t12(0);
+    Data->SetSin22t13(0);
+#endif
     
     //Parameters of the model
     Data->SetAnalysis(Analysis);//  Gd or H data
@@ -5105,3 +5109,37 @@ void FitterGui :: RunFitterTests()
     
 }
 
+
+
+void FitterGui :: CalculateBinning()
+{
+    std::cout << " Recalculating binning " << std::endl;
+    
+    //Gadolinium:
+    
+    if(Binning)//  Linear binning
+    {
+        if(Analysis)//Hydrogen analysis linear binning
+        {
+            visible_bins=42;//match visible cuts
+            
+            if(LoganBinning)//To test our different spectra
+            {
+                visible_bins = 240;
+            }
+        }
+        else//Linear binning for Gadolinium Analysis
+        {
+            visible_bins = 60;//0.2 steps from 0 to 12
+        }
+    }
+    else
+    {
+        if(!Analysis)// LBNL Non-linear binning for Gadolinium Analysis
+        {
+            visible_bins=37;
+        }
+    }
+    
+    std::cout << " visible bins in fitter: " << visible_bins << std::endl;
+}

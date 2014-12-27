@@ -174,6 +174,7 @@ private:
     TGCompositeFrame *fLoadInputs2;
     TGCompositeFrame* fFitterFrame2;
     
+    Int_t visible_bins;
     Int_t Period;
     Int_t NReactorPeriods;
     Int_t NADs;
@@ -293,6 +294,7 @@ public:
     void DoSamples();
     void DoCombine();
     void DoBinning();
+    void CalculateBinning();
     
     void DoNLModel();
     void DoFitterMode();

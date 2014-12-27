@@ -33,6 +33,7 @@
 
 // IN PREDICTION I WILL INTEGRATE BACK IN VISIBLE ENERGY
 
+//#define CheckSumTrueSpectrum
 class Oscillation
 {
 private:
@@ -64,9 +65,6 @@ private:
     bool DistortFastNeutronsMatrix;
     bool DistortAmCMatrix;
     
-    bool VaryRate;
-    bool Distort;
-
     bool Mode;
     
     std::string ResponseDirectory;
@@ -75,7 +73,6 @@ private:
     Double_t s22t13;
     
     Int_t week;
-    Int_t VisibleBins;
     std::vector<Double_t> ADdistances;
     std::vector<Double_t> Norma;
     
@@ -165,6 +162,10 @@ private:
     TH2D* LBNLEnergyMatrix;
     //Files
     Char_t DistanceFileName[100];
+    Char_t name[20];
+    const Double_t colors[6]= {1,2,4,8,6,11};
+    const std::string labels[6]={"D1","D2","L1","L2","L3","L4"};
+
     bool flagDelete;
     //Load data
     void ReadDistances(Char_t*);
@@ -216,7 +217,8 @@ public:
 Oscillation :: Oscillation()
 {
     std::cout << " oscillation the default constructor shouldn't be called" << std::endl;
-
+    exit(EXIT_FAILURE);
+    
     flagDelete=0;
 
     Nom = new NominalData(0,2);
@@ -284,7 +286,7 @@ Oscillation :: Oscillation()
     InitialEnergy = Nom->GetEmin();
     InitialVisibleEnergy = Nom->GetEVisMin();
     FinalVisibleEnergy = Nom->GetEVisMax();
-   
+    
     n_evis_bins = Nom->GetVisibleBins();
     
     for (Int_t i = 0; i <= n_evis_bins; i++)
@@ -395,6 +397,7 @@ Oscillation :: Oscillation(NominalData* OData)
     InitialEnergy = OData->GetEmin();
     InitialVisibleEnergy = OData->GetEVisMin();
     FinalVisibleEnergy = OData->GetEVisMax();
+    
     n_evis_bins = OData->GetVisibleBins();
     
     for (Int_t i = 0; i <= n_evis_bins; i++)
@@ -475,7 +478,7 @@ Oscillation :: ~Oscillation()
         
         for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
         {
-            for(Int_t j = 0; j < VisibleBins; j ++)
+            for(Int_t j = 0; j < n_evis_bins; j ++)
             {
                 delete NearSpectrumH[near][j];
                 delete TrueADSpectrumH[near][j];
@@ -498,6 +501,10 @@ Oscillation :: ~Oscillation()
             {
                 delete FluxFractionH[near+reactor*(ADsEH1+ADsEH2)];
                 delete OscillationFunction[near*NReactors+reactor];
+                for (Int_t far = 0; far<(ADsEH3); far++)//far
+                {
+                    delete ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors];
+                }
             }
         }
         
@@ -513,7 +520,7 @@ Oscillation :: ~Oscillation()
         {
             for (Int_t near = 0; near<(ADsEH1+ADsEH2); near++)//near
             {
-                for(Int_t j = 0; j < VisibleBins; j ++)
+                for(Int_t j = 0; j < n_evis_bins; j ++)
                 {
                     delete FarHallSpectrumH[far*(ADsEH1+ADsEH2)+near][j];
                 }
@@ -565,8 +572,10 @@ void Oscillation :: OscillationFromNearHallData(Int_t Week,bool ToyMC,bool mode)
 {
     flagDelete = 0;
     
+    week = Week;
+
     Mode = mode;
-    
+
     if(Mode)
     {
         RandomString="Random";
@@ -575,7 +584,7 @@ void Oscillation :: OscillationFromNearHallData(Int_t Week,bool ToyMC,bool mode)
     {
         RandomString="Nominal";
     }
-    week = Week;
+    
     std::cout <<  "\t ***********************************************************************************************" << std::endl;
     std::cout << "\t Calculating Oscillation" << std::endl;
     
@@ -724,8 +733,7 @@ void Oscillation :: SaveOscillationFunction()
         }
     }
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* Curves = new TCanvas("OscCurves","OscCurves");
         
         TF1* OscCurve = new TF1("OscillationCurve",this,&Oscillation::PlotOscProb,0,4000,0,"Oscillation","PlotOscProb");
@@ -737,7 +745,7 @@ void Oscillation :: SaveOscillationFunction()
         Curves->Print("./Images/OscillationCurves.eps",".eps");
         delete OscCurve;
         delete Curves;
-    }
+    #endif
     delete OscillationF;
 }
 
@@ -747,7 +755,7 @@ void Oscillation :: CalculateFluxFraction()
     std::cout << "\t \t \t Sin22t13 in Oscillation.h is: " << s22t13 << std::endl;
     std::cout << "\t \t \t Dm2_ee in Oscillation.h is: " << dm2ee << std::endl;
     
-    TFile* FactorF = new TFile(("./RootOutputs/"+ AnalysisString+ "/FactorStudies.root").c_str(),"recreate");
+    //TFile* FactorF = new TFile(("./RootOutputs/"+ AnalysisString+ "/FactorStudies.root").c_str(),"recreate");
     
     Char_t filenameFraction[100];
     
@@ -760,7 +768,7 @@ void Oscillation :: CalculateFluxFraction()
     {
         for (Int_t k = 0; k<NReactors; k++)
         {
-            OscillationFunction[near*NReactors+k] = new TH1D(Form("OscProbFromReactor%itoNear%i",k,near),Form("OscProbFromReactor%itoNear%i",k,near),n_etrue_bins,InitialEnergy,FinalVisibleEnergy);
+            OscillationFunction[near*NReactors+k] = new TH1D(Form("OscProbFromReactor%itoNear%i",k,near),Form("OscProbFromReactor%itoNear%i",k,near),n_etrue_bins,enu_bins[0],enu_bins[n_etrue_bins]);
         }
         
         for(Int_t pts=0;pts<n_etrue_bins;pts++)
@@ -793,6 +801,8 @@ void Oscillation :: CalculateFluxFraction()
                 if(Norma[near+pts*(ADsEH1+ADsEH2)]!=0.0)
                 {
                     FluxFraction[near+reactor*(ADsEH1+ADsEH2)+pts*(ADsEH1+ADsEH2)*NReactors] = (FluxH[reactor][near][week]->GetBinContent(pts+1)*OscProb(ADdistances[near*NReactors+reactor],Energy,s22t13,dm2ee))/(ADdistances[near*NReactors+reactor]*ADdistances[near*NReactors+reactor]*Norma[near+pts*(ADsEH1+ADsEH2)]);
+                    
+                   // std::cout << "bin: " << pts << " flux fraction: " << FluxFraction[near+reactor*(ADsEH1+ADsEH2)+pts*(ADsEH1+ADsEH2)*NReactors] << " flux: " << FluxH[reactor][near][week]->GetBinContent(pts+1) << " norm: " << Norma[near+pts*(ADsEH1+ADsEH2)] << " osc prob: " << OscProb(ADdistances[near*NReactors+reactor],Energy,s22t13,dm2ee) << std::endl;
                 }
                 else
                 {
@@ -806,11 +816,57 @@ void Oscillation :: CalculateFluxFraction()
                 FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->SetBinContent(pts+1,FluxFraction[near+reactor*(ADsEH1+ADsEH2)+pts*(ADsEH1+ADsEH2)*NReactors]);
             }
             
-            FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->Write();
+            //FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->Write();
         }
     }
     
-    delete FactorF;
+    //delete FactorF;
+    
+    #ifdef PrintEps
+    TCanvas* FluxFracC = new TCanvas("FluxFractions","FluxFractions",1000,300);
+
+    FluxFracC->Divide(3,1);
+    TLegend *leg = new TLegend(0.1,0.1,0.4,0.5);
+    leg->SetBorderSize(0);
+    leg->SetFillColor(0);
+    
+    for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
+    {
+        FluxFracC->cd(near+1);
+        
+        for (Int_t reactor = 0; reactor<NReactors; reactor++)
+        {
+            FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->SetTitle("Flux Fractions");
+            
+            FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->SetLineColor(colors[reactor]);
+            FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->GetXaxis()->SetTitle("E_{true} (MeV)");
+            FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->GetXaxis()->SetTitleSize(0.04);
+            FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->GetYaxis()->SetTitleSize(0.045);
+            FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->GetXaxis()->SetLabelSize(0.045);
+            FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->GetYaxis()->SetLabelSize(0.045);
+            FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->SetTitle("");
+            
+            sprintf(name,"f_{%i,j}",near+1);
+            FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->GetYaxis()->SetTitle(name);
+            if(reactor==0)
+            {
+                FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->GetYaxis()->SetRangeUser(0,0.5);
+                FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->Draw();
+            }
+            FluxFractionH[near+reactor*(ADsEH1+ADsEH2)]->Draw("same");
+            if(near==0)
+            {
+                leg->AddEntry(FluxFractionH[near+reactor*(ADsEH1+ADsEH2)],labels[reactor].c_str(),"l");
+                leg->Draw("same");
+            }
+            
+        }
+    }
+    
+    FluxFracC->Print(("./Images/"+AnalysisString+"/FluxFractions.eps").c_str());
+    
+    delete FluxFracC;
+    #endif
 }
 
 void Oscillation :: NearSpectrumFraction()
@@ -819,9 +875,26 @@ void Oscillation :: NearSpectrumFraction()
     
     Char_t filenameNear[100];
     Char_t filenameFrac[100];
-    
-    for(Int_t j = 0; j < VisibleBins; j++)
+#ifdef CheckSumTrueSpectrum
+    TH1D* SumNearSpectrumH[(ADsEH1+ADsEH2)*NReactors];
+
+    for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
     {
+        for (Int_t reactor = 0; reactor<NReactors; reactor++)
+        {
+            SumNearSpectrumH[near+reactor*(ADsEH1+ADsEH2)] = new TH1D(Form("Near_AD%d_Spectrum_from_reactor%d",near+1,reactor+1),Form("Near_AD%d_Spectrum_from_reactor%d",near+1,reactor+1),n_etrue_bins,enu_bins);
+        }
+    }
+#endif
+    for(Int_t j = 0; j < n_evis_bins; j++)
+    {
+#ifdef CheckSumTrueSpectrum
+
+        TCanvas* NearSpectrumFC = new TCanvas("NearSpectrumFC","NearSpectrumFC");
+
+        NearSpectrumFC->Divide(NReactors,(ADsEH1+ADsEH2));
+#endif
+
         for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
         {
             if(Nweeks==1)
@@ -850,49 +923,78 @@ void Oscillation :: NearSpectrumFraction()
                 NearSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)][j] = (TH1D*)TrueADSpectrumH[near][j]->Clone(filenameFrac);
                 NearSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)][j]->SetTitle(filenameFrac);
                 
-                for(Int_t pts=0;pts<n_etrue_bins;pts++)
+                for(Int_t pts=0;pts<TrueADSpectrumH[near][0]->GetXaxis()->GetNbins();pts++)
                 {
                     Double_t SpectrumScaled = (TrueADSpectrumH[near][j]->GetBinContent(pts+1))*FluxFraction[near+reactor*(ADsEH1+ADsEH2)+pts*(ADsEH1+ADsEH2)*NReactors];
-                    //                        std::cout <<"BINCONTENT" <<ADSpectrumH[near][j]->GetBinContent(pts+1) << std::endl;
+                    
+ //                   std::cout << pts << " " << j << " " << TrueADSpectrumH[near][j]->GetBinContent(pts+1) << " " << FluxFraction[near+reactor*(ADsEH1+ADsEH2)+pts*(ADsEH1+ADsEH2)*NReactors] << std::endl;
+                    
                     NearSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)][j]->SetBinContent(pts+1, SpectrumScaled);
                 }
                 
-                NearSpectrumH[near][j]->Add(NearSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)][j],1);//sum over cores
+                NearSpectrumH[near][j]->Add(NearSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)][j]);//sum over cores
                 
                 NearSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)][j]->Write();
+                
+#ifdef CheckSumTrueSpectrum
+                SumNearSpectrumH[near+reactor*(ADsEH1+ADsEH2)]->Add(NearSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)][j]);
+                
+                #ifdef PrintEps
+                    NearSpectrumFC->cd(near+reactor*(ADsEH1+ADsEH2)+1);
+                    
+                    SumNearSpectrumH[near+reactor*(ADsEH1+ADsEH2)]->Draw();
+                    
+                    TrueADSpectrumH[near][j]->Draw();
+                #endif
+#endif
             }
+            
             NearSpectrumH[near][j]->SetTitle(filenameNear);
             NearSpectrumH[near][j]->Write();
         }
+#ifdef CheckSumTrueSpectrum
+
+        NearSpectrumFC->Print(Form("./Images/SpectrumFractions/NearTrueSpectrumSumVisible%d.eps",j+1));
+
+        delete NearSpectrumFC;
+#endif
     }
     
     delete NearSpectrumF;
     
-//    if(Print)
-//    {
-//        for(Int_t j = 0; j < VisibleBins; j++)
-//        {
-//            for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
-//            {
-//                NearSpectrumH[near][j]->Draw();
-//            }
-//        }
-//    }
+#ifdef CheckSumTrueSpectrum
+    for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
+    {
+        for (Int_t reactor = 0; reactor<NReactors; reactor++)
+        {
+            delete SumNearSpectrumH[near+reactor*(ADsEH1+ADsEH2)];
+        }
+    }
+#endif
 }
 void Oscillation :: GetExtrapolation()
 {
-    TFile* FactorF = new TFile(("./RootOutputs/"+ AnalysisString+ "/FactorStudies.root").c_str(),"update");
+  //  TFile* FactorF = new TFile(("./RootOutputs/"+ AnalysisString+ "/FactorStudies.root").c_str(),"update");
     
     Char_t filenameExtrapolation[100];
     
     Extrapolation.resize(n_etrue_bins*ADsEH3*NReactors*(ADsEH1+ADsEH2));
     ExtrapolationH.resize(ADsEH3*NReactors*(ADsEH1+ADsEH2));
+#ifdef PrintEps
+    TCanvas *c2 = new TCanvas("Extrapolation","Extrapolation",900,900);
+    c2->Divide(3,3);
+    Int_t cont=0;
+#endif
     
     for (Int_t far = 0; far<(ADsEH3); far++)//far
     {
-        for (Int_t reactor = 0; reactor<NReactors; reactor++)
+        for (Int_t near = 0; near<(ADsEH1+ADsEH2); near++)//near
         {
-            for (Int_t near = 0; near<(ADsEH1+ADsEH2); near++)//near
+            #ifdef PrintEps
+            ++cont;
+            c2->cd(cont);
+            #endif
+            for (Int_t reactor = 0; reactor<NReactors; reactor++)
             {
                 if(Nweeks==1)
                 {
@@ -920,15 +1022,38 @@ void Oscillation :: GetExtrapolation()
                     
                     ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->SetBinContent(pts+1,Extrapolation[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors+pts*(ADsEH1+ADsEH2)*NReactors*ADsEH3]);
                 }
+                #ifdef PrintEps
+                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->SetLineColor(colors[reactor]);
+                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetXaxis()->SetTitle("E_{true} (MeV)");
+                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetXaxis()->SetTitleSize(0.040);
+                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetYaxis()->SetTitleSize(0.045);
+
+                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetXaxis()->SetLabelSize(0.045);
+                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetYaxis()->SetLabelSize(0.045);
+                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->SetTitle("");
                 
-                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->Write();
-                delete ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors];
+                sprintf(name,"e_{%ij,%i}",near+1,far+1);
+                
+                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetYaxis()->SetTitle(name);
+                
+                if(reactor==0)
+                {
+                    ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetYaxis()->SetRangeUser(0,0.885);
+                    ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->Draw();
+                }
+                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->Draw("same");
+                #endif
+                //ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->Write();
                 
             }
         }
     }
+    #ifdef PrintEps
+    c2->Print(("./Images/"+AnalysisString+"/ExtrapolationFactors.eps").c_str());
+    delete c2;
+    #endif
     
-    delete FactorF;
+    //delete FactorF;
 }
 
 void Oscillation :: FarSpectrumPrediction()
@@ -938,8 +1063,15 @@ void Oscillation :: FarSpectrumPrediction()
     
     TFile* FarSpectrumFractionF = new TFile(("./RootOutputs/"+ AnalysisString+ "/Spectra/FarSpectrumFraction.root").c_str(),"recreate");
     
-    for(Int_t j = 0; j < VisibleBins; j ++)
+    TCanvas* FarSpectrumFractionC;
+    
+    for(Int_t j = 0; j < n_evis_bins; j ++)
     {
+        #ifdef PrintEps
+            FarSpectrumFractionC = new TCanvas(Form("FarSpectrumFractionVisible%d",j+1),Form("FarSpectrumFractionVisible%d",j+1));
+            FarSpectrumFractionC->Divide(ADsEH1+ADsEH2,ADsEH3);
+        #endif
+        
         for (Int_t far = 0; far<(ADsEH3); far++)//far
         {
             for (Int_t near = 0; near<(ADsEH1+ADsEH2); near++)//near
@@ -969,6 +1101,7 @@ void Oscillation :: FarSpectrumPrediction()
                         Double_t FarValue = NearSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)][j]->GetBinContent(pts+1)*Extrapolation[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors+pts*(ADsEH1+ADsEH2)*NReactors*ADsEH3];
                         
                         FarHallSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors][j]->SetBinContent(pts+1, FarValue);
+                        
                     }
                     
                     FarHallSpectrumFractionH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors][j]->SetTitle(filenameFraction);
@@ -986,8 +1119,17 @@ void Oscillation :: FarSpectrumPrediction()
                 
                 FarHallSpectrumH[far*(ADsEH1+ADsEH2)+near][j]->SetTitle(filenameFar);
                 FarHallSpectrumH[far*(ADsEH1+ADsEH2)+near][j]->Write();
+                #ifdef PrintEps
+                FarSpectrumFractionC->cd(near+far*(ADsEH1+ADsEH2)+1);
+                FarHallSpectrumH[far*(ADsEH1+ADsEH2)+near][j]->Draw();
+                #endif
             }
         }
+        #ifdef PrintEps
+          //  FarSpectrumFractionC->Print(Form("./Images/SpectrumFractions/FarSpectrumFractionVisible%d.eps",j+1));
+            delete FarSpectrumFractionC;
+        #endif
+
     }
     delete FarSpectrumFractionF;
 }
@@ -1032,8 +1174,7 @@ void Oscillation :: LoadToyHistograms(Int_t week)
     
     delete NearHallDataF;
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* cr = new TCanvas("cr","cr", 1200,400);
         cr->Divide(ADsEH1+ADsEH2,1);
         
@@ -1045,7 +1186,14 @@ void Oscillation :: LoadToyHistograms(Int_t week)
         
         cr->Print(("./Images/"+ AnalysisString+ "/"+RandomString+"NearReactorPredictionWithoutBackground.eps").c_str(),".eps");
         delete cr;
+    #endif
+    
+    TFile* checkADS = new TFile("./RootOutputs/VisibleBinCheck.root","recreate");
+    for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
+    {
+        ADSpectrumVisH[near]->Write();
     }
+    delete checkADS;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1059,43 +1207,17 @@ void Oscillation :: LoadBackgrounds(Int_t week)
     
     if(Mode)
     {
-        if(VaryAccidentalMatrix)
-        {
-            VaryRate=1;
-            Distort=0;
-        }
-        if(VaryLiHeMatrix)
-        {
-            VaryRate=1;
-            Distort=0;
-        }
-        if(VaryFastNeutronsMatrix)
-        {
-            VaryRate=1;
-            Distort=0;
-        }
-        if(VaryAmCMatrix)
-        {
-            VaryRate=1;
-            Distort=0;
-        }
         if(DistortLiHeMatrix)
         {
             DistortLiHe=0.2;
-            VaryRate=0;
-            Distort=1;
         }
         if(DistortFastNeutronsMatrix)
         {
             DistortFN=0.2;
-            VaryRate=0;
-            Distort=1;
         }
         if(DistortAmCMatrix)
         {
             DistortAmC=0.15;
-            VaryRate=0;
-            Distort=1;
         }
  
         FluctuateBackgrounds(week);//Vary backgrounds
@@ -1198,13 +1320,12 @@ void Oscillation :: LoadNearData(Int_t week)
         {
             if(ADSpectrumVisH[near]->GetBinContent(i+1)<0)
             {
-                ADSpectrumVisH[near]->SetBinContent(i+1,0);
+                ADSpectrumVisH[near]->SetBinContent(i+1,0);//Check if using 0 would will produce NaNs! Maybe need to extrapolate
             }
         }
     }
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* c1 = new TCanvas("c1","Near Data", 1200,400);
         c1->Divide(ADsEH1+ADsEH2,1);
         
@@ -1215,19 +1336,18 @@ void Oscillation :: LoadNearData(Int_t week)
         }
         
         c1->Print(("./Images/"+ AnalysisString+ "/"+RandomString+"NearData.eps").c_str(),".eps");
+        
         if(RandomString!="Nominal")
         {
             std::cout << "REAL DATA SHOULD HAVE NOMINAL BACKGROUNDS SUBTRACTED INSTEAD OF RANDOM BACKGROUNDS, CHECK CASES" << std::endl;
             exit(EXIT_FAILURE);
         }
         delete c1;
-    }
+    #endif
 }
 
 void Oscillation :: ApplyResponseMatrix()
 {
-    Char_t optionS[50];
-    
     if(!strcmp((ResponseDirectory).c_str(),""))
     {
         TFile* TransEnergyMatrixDataF = new TFile(("./ResponseMatrices/"+ AnalysisString+ "/NominalResponseMatrix.root").c_str());
@@ -1246,22 +1366,11 @@ void Oscillation :: ApplyResponseMatrix()
     
     //        TransEnergyMatrix->Rebin();
     
-    VisibleBins = n_evis_bins;//For real data rebinned in LBNL binning
-    
     for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
     {
         ADSpectrumVisH[near]->Scale(1./(DetectorEfficiency[near][week]*FullTime[near][week]*DetectorProtons[near]));// Remove AD performance included in oscillation reactor and data. This is later included in the far spectrum fraction calculation.
         
-        if(near==0)
-        {
-            sprintf(optionS,"recreate");
-        }
-        else
-        {
-            sprintf(optionS,"update");
-        }
-        
-        for(Int_t j = 0; j < VisibleBins; j ++)
+        for(Int_t j = 0; j < n_evis_bins; j ++)
         {
             TrueADSpectrumH[near][j] = new TH1D(Form("TrueEnergyData%i",j),Form("TrueEnergyData%i",j),n_etrue_bins,enu_bins);
         }
@@ -1270,19 +1379,25 @@ void Oscillation :: ApplyResponseMatrix()
         {
             for(Int_t j=0; j<n_evis_bins; j++)
             {
-                //  Fluctuations in this one:
-                TrueADSpectrumH[near][j]->SetBinContent(i+1,TrueADSpectrumH[near][j]->GetBinContent(i+1)+TransEnergyMatrix->GetBinContent(i+1,j+1)*ADSpectrumVisH[near]->GetBinContent(j+1));
+                //[True_0 ... True_n] = [0,0]  [...] [0,m]  * [Vis_0]
+                //                      [0,n]  [...] [n,m]     [...]
+                //                                            [Vis_m]
+                
+                // [nx1] = [n x m] x [mx1]
+                TrueADSpectrumH[near][j]->SetBinContent(i+1,TrueADSpectrumH[near][j]->GetBinContent(i+1)+TransEnergyMatrix->GetBinContent(j+1,i+1)*ADSpectrumVisH[near]->GetBinContent(j+1));
             }
         }
     }
     if(TrueADSpectrumH[0][0]->GetXaxis()->GetNbins()!=TransEnergyMatrix->GetYaxis()->GetNbins())
     {
-        std::cout << "Binning disagreement between true spectrum and respone matrix" << std::endl;
+        std::cout << "Binning disagreement between true spectrum and response matrix" << std::endl;
         exit(EXIT_FAILURE);
     }
+    
+    
     if(ADSpectrumVisH[0]->GetXaxis()->GetNbins()!=TransEnergyMatrix->GetXaxis()->GetNbins())
     {
-        std::cout << "Binning disagreement between vis spectrum and respone matrix" << std::endl;
+        std::cout << "Binning disagreement between vis spectrum and response matrix" << std::endl;
         exit(EXIT_FAILURE);
     }
     delete TransEnergyMatrix;
@@ -1304,7 +1419,7 @@ void Oscillation :: GenerateFluxHisto()
         //need to use superhistograms? efficiency corrected fluxes in each AD
         if(TestAllTheSame)
         {
-            sprintf(ReactorData,("./RootOutputs/"+ AnalysisString+"/NominalOutputs/AntineutrinoSpectrum.root").c_str()); //The reactor model spectrum, with no reactor on/off information, just assumes it's on all the time.
+            sprintf(ReactorData,("./RootOutputs/"+ AnalysisString+"/NominalOutputs/AntineutrinoSpectrum.root").c_str()); //The reactor model spectrum, with no reactor on/off information, just assumes the nominal spectrum is on all the time.
         }
         else
         {
@@ -1315,6 +1430,11 @@ void Oscillation :: GenerateFluxHisto()
     {
         sprintf(ReactorData, Form("./ReactorInputs/WeeklyFlux_%dweek_unblinded.root",NReactorPeriods));
     }
+    
+#ifdef NoOscillation
+    //To show a flat extrapolation factor and flux fraction
+    sprintf(ReactorData,("./RootOutputs/"+ AnalysisString+"/NominalOutputs/AntineutrinoSpectrum.root").c_str()); //The reactor model spectrum, with no reactor on/off information, just assumes the nominal spectrum is on all the time.
+#endif
     
     TFile* ReactorDataF = new TFile(ReactorData);
     
@@ -1338,7 +1458,10 @@ void Oscillation :: GenerateFluxHisto()
             {
                 sprintf(ReactorSpectrum,"Week%i/%i", period, reactor);
             }
-            
+            #ifdef NoOscillation
+            //To show a flat extrapolation factor and flux fraction
+            sprintf(ReactorSpectrum,"AntineutrinoSpectrumFromReactor%i",reactor+1);
+            #endif
             TH1D* NonBinnedFluxH = (TH1D*)gDirectory->Get(ReactorSpectrum);
             
             //        NonBinnedFluxH = (TH1D*)NonBinnedFluxH->Rebin(n_etrue_bins,Form("Flux True Spectrum from reactor%d",reactor+1),enu_bins);
@@ -1406,8 +1529,7 @@ void Oscillation :: GenerateFluxHisto()
         }
     }
     
-    if(Print)
-    {
+    #ifdef PrintEps
         for(Int_t week=0;week<NReactorPeriods;week++)
         {
             TCanvas* WeeklyFluxC = new TCanvas("WeeklyFluxC","WeeklyFluxC");
@@ -1444,7 +1566,7 @@ void Oscillation :: GenerateFluxHisto()
         FluxC->Print("./Images/Reactor/InclusiveAndWeeklyFluxes.eps");
         
         delete FluxC;
-    }
+    #endif
     
     delete ReactorDataF;
     
@@ -1618,14 +1740,85 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
     
     if(DistortLiHeMatrix)// Distort LiHe shape for all ADs in the same way
     {
-        TF1* func_LiHe = new TF1("func_LiHe","TMath::Abs([0]+[1]*x)",InitialVisibleEnergy,FinalVisibleEnergy);
+        TF1* func_LiHe;
         
-        GetDistortionFunction(DistortLiHe,func_LiHe);
-        
-        for(Int_t AD=0;AD<NADs;AD++)
+        if(Analysis)//Hydrogen
         {
-            RandomLiHeH[AD]->Multiply(func_LiHe);
-            RandomLiHeH[AD]->Scale(LiHeH[AD]->Integral()/RandomLiHeH[AD]->Integral());
+            //9Li8He
+            TFile* LiF = TFile::Open("./BackgroundSpectrum/HBackground/Li9_beta_neutron.root");
+            TH1D* LithiumH = (TH1D*)LiF->Get("h");
+            delete LiF;//90%
+            
+            TFile* HF = TFile::Open("./BackgroundSpectrum/HBackground/He8_beta_neutron.root");
+            TH1D* HeliumH = (TH1D*)HF->Get("h");
+            delete HF;//10%
+            
+            Double_t FractionError = 0.0;//This number is provisional
+            Double_t LiHeError = FractionError*rand->Gaus(0,1);
+           
+            if((.9+LiHeError)>1)
+            {
+                LiHeError = 0.1;//maximum error to avoid positive fractions
+            }
+            else if((.9+LiHeError)<0)
+            {
+                LiHeError = 0.9;//maximum error to avoid negative fractions
+            }
+            
+            std::cout << LiHeError << std::endl;
+            
+            RandomLiHeH[NADs] = new TH1D("LiHe","LiHe",n_evis_bins,evis_bins);
+            
+            for(Int_t AD=0;AD<NADs;AD++)
+            {
+                for (Int_t visbin = 1; visbin <= n_evis_bins; visbin++)
+                {
+                    RandomLiHeH[AD]->SetBinContent(visbin,(.9+LiHeError)*LithiumH->Interpolate(RandomLiHeH[AD]->GetXaxis()->GetBinCenter(visbin))+(.1-LiHeError)*HeliumH->Interpolate(RandomLiHeH[AD]->GetXaxis()->GetBinCenter(visbin)));
+                }
+            }
+            for(Int_t AD=0;AD<NADs;AD++)
+            {
+                RandomLiHeH[AD]->Scale(LiHeH[AD]->Integral()/RandomLiHeH[AD]->Integral());
+            }
+            
+            TCanvas* LiC = new TCanvas("a","");
+
+                LithiumH->Draw();
+            
+            LiC->Print("./Images/Li.eps");
+            delete LiC;
+            
+            TCanvas* HeC = new TCanvas("b","");
+
+                HeliumH->Draw();
+            
+            HeC->Print("./Images/He.eps");
+            delete HeC;
+            
+            TCanvas* LiHeC = new TCanvas("c","");
+            LiHeC->Divide(NADs/2,2);
+            for(Int_t AD=0;AD<NADs;AD++)
+            {
+                LiHeC->cd(AD+1);
+                RandomLiHeH[AD]->Draw();
+            }
+            LiHeC->Print("./Images/LiHe.eps");
+            delete LiHeC;
+
+            delete LithiumH;
+            delete HeliumH;
+        }
+        else
+        {
+            func_LiHe = new TF1("func_LiHe","TMath::Abs([0]+[1]*x)",InitialVisibleEnergy,FinalVisibleEnergy);
+            
+            GetDistortionFunction(DistortLiHe,func_LiHe);
+            
+            for(Int_t AD=0;AD<NADs;AD++)
+            {
+                RandomLiHeH[AD]->Multiply(func_LiHe);
+                RandomLiHeH[AD]->Scale(LiHeH[AD]->Integral()/RandomLiHeH[AD]->Integral());
+            }
         }
         
         TFile* SaveLiHe = TFile::Open(("./RootOutputs/"+AnalysisString+Form("/Backgrounds/LiHeDistortions.root")).c_str(),"recreate");
@@ -1634,40 +1827,92 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             LiHeH[AD]->Write(Form("Nominal LiHe%d period%d",AD,week));
             RandomLiHeH[AD]->Write(Form("LiHeAD%d period%d",AD,week));
         }
-        func_LiHe->Write();
+        if(!Analysis)//Gadolinium
+        {
+            func_LiHe->Write();
+            delete func_LiHe;
+        }
         delete SaveLiHe;
-        delete func_LiHe;
+        
+        
     }
     if(DistortFastNeutronsMatrix)//Distort FN shape for all ADs in the same hall
     {
-        TF1* func_FN1 = new TF1("func_FN1","[0]/(0.2*pow(x,0.1))+[1]",InitialVisibleEnergy,FinalVisibleEnergy);
+        TF1* func_FN1;
+        TF1* func_FN2;
+        TF1* func_FN3;
         
-        //  FN shape distortions are applied taking into account correlations in each EH
-        GetFastNeutronsDistortionFunction(DistortFN,func_FN1);
-        
-        for(Int_t AD=0;AD<ADsEH1;AD++)
+        if(Analysis)//Hydrogen
         {
-            RandomFastNeutronsH[AD]->Multiply(func_FN1);
-            RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
+            func_FN1 = new TF1("func_FN1","pow(x,[0])",InitialVisibleEnergy,FinalVisibleEnergy);
+            func_FN2 = new TF1("func_FN2","pow(x,[0])",InitialVisibleEnergy,FinalVisibleEnergy);
+            func_FN3 = new TF1("func_FN3","pow(x,[0])",InitialVisibleEnergy,FinalVisibleEnergy);
+
+            Double_t FNError;
+            
+            FNError = 0.036*rand->Gaus(0,1);
+            func_FN1->SetParameter(0,-0.639+FNError);//From Xiang Pan Fast Neutron = E^{-P} where P = 0.639±0.036
+            
+            FNError = 0.036*rand->Gaus(0,1);
+            func_FN2->SetParameter(0,-0.639+FNError);//From Xiang Pan Fast Neutron = E^{-P} where P = 0.639±0.036
+            
+            FNError = 0.036*rand->Gaus(0,1);
+            func_FN3->SetParameter(0,-0.639+FNError);//From Xiang Pan Fast Neutron = E^{-P} where P = 0.639±0.036
+            
+            for(Int_t AD=0;AD<NADs;AD++)
+            {
+                if(AD<ADsEH1)
+                {
+                    RandomFastNeutronsH[AD]->Reset();
+                    RandomFastNeutronsH[AD]->Add(func_FN1);
+                    RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
+                }
+                else if(AD<(ADsEH1+ADsEH2))
+                {
+                    RandomFastNeutronsH[AD]->Reset();
+                    RandomFastNeutronsH[AD]->Add(func_FN2);
+                    RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
+                }
+                else
+                {
+                    RandomFastNeutronsH[AD]->Reset();
+                    RandomFastNeutronsH[AD]->Add(func_FN3);
+                    RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
+                }
+            }
         }
-        TF1* func_FN2 = new TF1("func_FN2","[0]/(0.2*pow(x,0.1))+[1]",InitialVisibleEnergy,FinalVisibleEnergy);
-        
-        GetFastNeutronsDistortionFunction(DistortFN,func_FN2);
-        
-        for(Int_t AD=ADsEH1;AD<(ADsEH1+ADsEH2);AD++)
+        else//Gadolinium
         {
-            RandomFastNeutronsH[AD]->Multiply(func_FN2);
-            RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
+            func_FN1 = new TF1("func_FN1","[0]/(0.2*pow(x,0.1))+[1]",InitialVisibleEnergy,FinalVisibleEnergy);
+            
+            //  FN shape distortions are applied taking into account correlations in each EH
+            GetFastNeutronsDistortionFunction(DistortFN,func_FN1);
+            
+            for(Int_t AD=0;AD<ADsEH1;AD++)
+            {
+                RandomFastNeutronsH[AD]->Multiply(func_FN1);
+                RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
+            }
+            func_FN2 = new TF1("func_FN2","[0]/(0.2*pow(x,0.1))+[1]",InitialVisibleEnergy,FinalVisibleEnergy);
+            
+            GetFastNeutronsDistortionFunction(DistortFN,func_FN2);
+            
+            for(Int_t AD=ADsEH1;AD<(ADsEH1+ADsEH2);AD++)
+            {
+                RandomFastNeutronsH[AD]->Multiply(func_FN2);
+                RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
+            }
+            func_FN3 = new TF1("func_FN3","[0]/(0.2*pow(x,0.1))+[1]",InitialVisibleEnergy,FinalVisibleEnergy);
+            
+            GetFastNeutronsDistortionFunction(DistortFN,func_FN3);
+            
+            for(Int_t AD=(ADsEH1+ADsEH2);AD<(ADsEH1+ADsEH2+ADsEH3);AD++)
+            {
+                RandomFastNeutronsH[AD]->Multiply(func_FN3);
+                RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
+            }
         }
-        TF1* func_FN3 = new TF1("func_FN3","[0]/(0.2*pow(x,0.1))+[1]",InitialVisibleEnergy,FinalVisibleEnergy);
         
-        GetFastNeutronsDistortionFunction(DistortFN,func_FN3);
-        
-        for(Int_t AD=(ADsEH1+ADsEH2);AD<(ADsEH1+ADsEH2+ADsEH3);AD++)
-        {
-            RandomFastNeutronsH[AD]->Multiply(func_FN3);
-            RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
-        }
         TFile* SaveFN = TFile::Open(("./RootOutputs/"+AnalysisString+Form("/Backgrounds/FNDistortions.root")).c_str(),"recreate");
         for(Int_t AD = 0; AD<NADs;AD++)
         {
@@ -1823,9 +2068,8 @@ void Oscillation :: LoadNominalBackgrounds()
     
     for (Int_t AD =0; AD<NADs; AD++)
     {
-        
         AccidentalsH[AD]=(TH1D*)gDirectory->Get(Form("Accidentals_AD%i",AD));
-        LiHeH[AD]=(TH1D*)gDirectory->Get(Form("LiHe_AD%i",AD));//Missing LiHe inputs so far in Hydrogen Analysis
+        LiHeH[AD]=(TH1D*)gDirectory->Get(Form("LiHe_AD%i",AD));
         FastNeutronsH[AD]=(TH1D*)gDirectory->Get(Form("FN_AD%i",AD));
         AmCH[AD]=(TH1D*)gDirectory->Get(Form("AmC_AD%i",AD));
         NominalAmCF = (TF1*)gDirectory->Get("AmCFunc");
@@ -1838,8 +2082,7 @@ void Oscillation :: LoadNominalBackgrounds()
         BackgroundSpectrumH[AD]->Add(AmCH[AD]);
     }
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* AccidentalsC = new TCanvas("AccidentalsC","AccidentalsC");
         AccidentalsC->Divide(NADs/2,2);
         for(Int_t AD=0; AD<NADs; AD++)
@@ -1893,7 +2136,7 @@ void Oscillation :: LoadNominalBackgrounds()
         
         delete FastNeutronsC;
         
-    }
+    #endif
     delete BackgroundsF;
 }
 

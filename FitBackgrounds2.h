@@ -204,24 +204,48 @@ void FitBackgrounds2 :: ReadHBackgrounds()
 //                std::cout << "evis_bins: " << evis_bins[visbin] << std::endl;
 
             }
-            
         }
         else
         {
             BackgroundsH[AD]=(TH1D*)AccidentalsH[AD]->Clone(Form("Accidentals_AD%i",AD+1));
         }
         AccidentalsF->Close();
-
     }
     
     FitFastNeutrons();//Pol0 and Pol1 fit
     
     FitAmc();//Exponential fit
     
-    //9Li8He missing
+    //9Li8He
+    TFile* LiF = TFile::Open("./BackgroundSpectrum/HBackground/Li9_beta_neutron.root");
+    TH1D* LithiumH = (TH1D*)LiF->Get("h");
+    delete LiF;//90%
     
-    BackgroundsH[NADs]=(TH1D*)BackgroundsH[NADs+1]->Clone("Fake LIHE");;//Need to implement this
+    TFile* HF = TFile::Open("./BackgroundSpectrum/HBackground/He8_beta_neutron.root");
+    TH1D* HeliumH = (TH1D*)HF->Get("h");
+    delete HF;//10%
     
+    TH1D* LiHeBackgroundH = (TH1D*)LithiumH->Clone();
+    LiHeBackgroundH->Scale(.9);
+    LiHeBackgroundH->Add(HeliumH,.1);
+    
+    BackgroundsH[NADs] = new TH1D("LiHe","LiHe",n_evis_bins,evis_bins);
+
+    for (Int_t visbin = 1; visbin <= n_evis_bins; visbin++)
+    {
+        BackgroundsH[NADs]->SetBinContent(visbin,LiHeBackgroundH->Interpolate(BackgroundsH[NADs]->GetXaxis()->GetBinCenter(visbin)));
+        
+        //                std::cout << "Vis Bin: " << visbin << " - Center Bin: " << BackgroundsH[AD]->GetXaxis()->GetBinCenter(visbin) << std::endl;
+        //                std::cout << "interpolation value: " << AccidentalsH[AD]->Interpolate(BackgroundsH[AD]->GetXaxis()->GetBinCenter(visbin)) << std::endl;
+        //                std::cout << "evis_bins: " << evis_bins[visbin] << std::endl;
+        
+    }
+    
+    delete LithiumH;
+    delete HeliumH;
+    delete LiHeBackgroundH;
+    
+    #ifdef PrintEps
     TCanvas* BGNDC = new TCanvas("","");
     BGNDC->Divide(3,3);
     
@@ -234,6 +258,7 @@ void FitBackgrounds2 :: ReadHBackgrounds()
     BGNDC->Print("./Images/BackgroundVariations/HydrogenBackgrounds.eps");
     
     delete BGNDC;
+    #endif
 }
 
 void FitBackgrounds2 :: ReadGdBackgrounds()
@@ -300,9 +325,7 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
     BackgroundsH[NADs+2]->Add(GdAmCFunc);
     BackgroundsF3->Close();
     
-    if(Print)
-    {
-        
+    #ifdef PrintEps
         TCanvas* GdAmCC = new TCanvas ("AmCC","AmCC");
         GdAmCFunc->SetTitle("AmC Background");
         GdAmCFunc->SetLineColor(kBlue);
@@ -319,8 +342,7 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
         BackgroundsH[NADs]->Draw();
         GdLiHeC->Print("./Images/Gadolinium/BackgroundVariations/LinearBinningLiHe.eps");
         delete GdLiHeC;
-
-    }
+    #endif
     
     std::cout << "Finished Reading Gadollinium Backgroudns" << std::endl;
     
@@ -328,7 +350,6 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
 
 void FitBackgrounds2::SaveAndDelete()
 {
-
     //Save Backgrounds
     for(Int_t BGND = 0; BGND < BGNDs; BGND++)
     {
@@ -423,11 +444,9 @@ void FitBackgrounds2::SaveAndDelete()
     BackgroundsF4->Close();
     
     //print
-    if(Print)
-    {
+    #ifdef PrintEps
         PrintBackgrounds();
-    }
-    
+    #endif
     //delete
     
     for (Int_t AD = 0; AD<NADs; AD++)
@@ -462,32 +481,43 @@ void FitBackgrounds2::SaveAndDelete()
 
 void FitBackgrounds2::FitFastNeutrons()
 {
-    
-    TFile* FastNeutronF = TFile::Open(("./BackgroundSpectrum/"+SaveString+"/Bkg_FastNeutron_EH1_MC.root").c_str());
-    TH1D* FastNeutronH=(TH1D*)gDirectory->Get("hist_FastNeutron");
-    FastNeutronF->Close();
-    
-    FastNeutronH->Fit("pol0","Q0","",10,100);
-    TF1* FitFNResult = FastNeutronH->GetFunction("pol0");
-    Double_t AveragePol0 = FitFNResult->GetParameter(0);
-    
-    FastNeutronH->Fit("pol1","+Q0","",10,100);
-    TF1* polynomial = FastNeutronH->GetFunction("pol1");
-    
-    Double_t ConstantPol1 = polynomial->GetParameter(0);
-    Double_t SlopePol1 = polynomial->GetParameter(1);
-    Double_t AveragePol1=ConstantPol1+SlopePol1*55; //Value of the function in the middle point of the range 55 = ((100-10)/2)
-    
-    Double_t TotalAverage = (AveragePol0 + AveragePol1)/2;
-    
-    BackgroundsH[NADs+1] = new TH1D("FN","FN",n_evis_bins,evis_bins);//60 so the bins are 0.2
-    
-    for(Int_t i=1;i<=n_evis_bins;i++)
+    bool FlatNeutron = 0;
+    if(FlatNeutron)
     {
-        BackgroundsH[NADs+1]->SetBinContent(i,TotalAverage);
+        TFile* FastNeutronF = TFile::Open(("./BackgroundSpectrum/"+SaveString+"/Bkg_FastNeutron_EH1_MC.root").c_str());
+        TH1D* FastNeutronH=(TH1D*)gDirectory->Get("hist_FastNeutron");
+        FastNeutronF->Close();
+        
+        FastNeutronH->Fit("pol0","Q0","",10,100);
+        TF1* FitFNResult = FastNeutronH->GetFunction("pol0");
+        Double_t AveragePol0 = FitFNResult->GetParameter(0);
+        
+        FastNeutronH->Fit("pol1","+Q0","",10,100);
+        TF1* polynomial = FastNeutronH->GetFunction("pol1");
+        
+        Double_t ConstantPol1 = polynomial->GetParameter(0);
+        Double_t SlopePol1 = polynomial->GetParameter(1);
+        Double_t AveragePol1=ConstantPol1+SlopePol1*55; //Value of the function in the middle point of the range 55 = ((100-10)/2)
+        
+        Double_t TotalAverage = (AveragePol0 + AveragePol1)/2;
+        
+        BackgroundsH[NADs+1] = new TH1D("FN","FN",n_evis_bins,evis_bins);//60 so the bins are 0.2
+        
+        for(Int_t i=1;i<=n_evis_bins;i++)
+        {
+            BackgroundsH[NADs+1]->SetBinContent(i,TotalAverage);
+        }
+        
+        delete FastNeutronH;
     }
-    
-    delete FastNeutronH;
+    else
+    {
+        TF1* FNCurve = new TF1("FastNeutron","pow(x,[0])",InitialVisibleEnergy,FinalVisibleEnergy);
+        FNCurve->SetParameter(0,-0.639);//From Xiang Pan Fast Neutron = E^{-P} where P = 0.639±0.036
+        BackgroundsH[NADs+1] = new TH1D("FN","FN",n_evis_bins,evis_bins);
+        BackgroundsH[NADs+1]->Add(FNCurve);
+        delete FNCurve;
+    }
 //    delete polynomial;
 //    delete FitFNResult;
 }
@@ -569,7 +599,6 @@ void FitBackgrounds2 :: FitAmc()
 
 void FitBackgrounds2::PrintBackgrounds()
 {
-
         TCanvas* AccidentalC = new TCanvas("AccidentalC","Accidental Backgrounds", NADs*400/2,400*2);
         for (Int_t week = 0; week<Nweeks; week++)
         {

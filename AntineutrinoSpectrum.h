@@ -151,14 +151,13 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
 //        CrossSectionH->Write();
 //    delete CrossSecF;
     
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* crossc = new TCanvas("CrossC","CrossC");
         CrossSectionH->SetStats(0);
         CrossSectionH->Draw();
         crossc->Print(Form(("./Images/"+AnalysisString+"/CrossSection.eps").c_str()),".eps");
         delete crossc;
-    }
+    #endif
 }
 
 

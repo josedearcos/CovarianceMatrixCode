@@ -516,7 +516,7 @@ void CreateEnergyMatrix :: GenerateEnergyMatrix(Double_t sin22t13, Double_t dm2_
         EnergyMatrixIAVH = new TH2D("EvisEnuIAV","EvisEnuIAV",LimitTrue,enu_bins,LimitVis,evis_bins);
         EnergyMatrixNLH = new TH2D("EvisEnuNL","EvisEnuNL",LimitTrue,enu_bins,LimitVis,evis_bins);
         EnergyMatrixResoH = new TH2D("EvisEnuReso","EvisEnuReso",LimitTrue,enu_bins,LimitVis,evis_bins);
-        RowEnergyMatrixH = new TH2D("EnuEvis","EnuEvis", LimitTrue,enu_bins,LimitVis,evis_bins);
+        RowEnergyMatrixH = new TH2D("EnuEvis","EnuEvis",LimitVis,evis_bins,LimitTrue,enu_bins);
         
         for (Int_t i = 0; i < n_etrue_bins; i++)
         {
@@ -553,11 +553,7 @@ void CreateEnergyMatrix :: GenerateEnergyMatrix(Double_t sin22t13, Double_t dm2_
         {
             for (Int_t j = 0; j < n_evis_bins; j++)
             {
-                RowEnergyMatrixH->SetBinContent(i+1,j+1,EnergyMatrixH->GetBinContent(i+1,j+1));
-                
-                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-                //                          Maybe instead of transposing the correct option is to invert it. Study this!!
-                ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+                RowEnergyMatrixH->SetBinContent(j+1,i+1,EnergyMatrixH->GetBinContent(i+1,j+1));
             }
         }
     }
@@ -664,7 +660,7 @@ void CreateEnergyMatrix :: GenerateEnergyMatrix(Double_t sin22t13, Double_t dm2_
         NormaTrans[i]=0;
         for(Int_t j=0;j<LimitTrue;j++)
         {
-            NormaTrans[i] = NormaTrans[i]+RowEnergyMatrixH->GetBinContent(j+1,i+1);
+            NormaTrans[i] = NormaTrans[i]+RowEnergyMatrixH->GetBinContent(i+1,j+1);
         }
     }
     
@@ -694,7 +690,7 @@ void CreateEnergyMatrix :: GenerateEnergyMatrix(Double_t sin22t13, Double_t dm2_
             }
             if(NormaTrans[i]!=0)
             {
-                RowEnergyMatrixH->SetBinContent(j+1,i+1,RowEnergyMatrixH->GetBinContent(j+1,i+1)/NormaTrans[i]);
+                RowEnergyMatrixH->SetBinContent(i+1,j+1,RowEnergyMatrixH->GetBinContent(i+1,j+1)/NormaTrans[i]);
             }
         }
     }
@@ -708,8 +704,7 @@ void CreateEnergyMatrix :: GenerateEnergyMatrix(Double_t sin22t13, Double_t dm2_
     RowEnergyMatrixH->Write();
     
     EnergyMatrixDataF->Close();
-    if(Print)
-    {
+    #ifdef PrintEps
         TCanvas* EnergyC = new TCanvas("EnergyC","EnergyC");
         EnergyC->SetLogz();
         EnergyMatrixH->SetStats(0);
@@ -719,7 +714,7 @@ void CreateEnergyMatrix :: GenerateEnergyMatrix(Double_t sin22t13, Double_t dm2_
         EnergyC->Print(("./Images/"+AnalysisString+"/Detector/ResponseMatrix.eps").c_str(),".eps");
         
         delete EnergyC;
-    }
+    #endif
     delete NoNormalizedEnergyMatrixPosH;
     delete NoNormalizedEnergyMatrixIAVH;
     delete NoNormalizedEnergyMatrixNLH;

@@ -789,8 +789,7 @@ void Fitter :: SaveSin1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
         TF1* fitcurve = (TF1*)ASinChiSquareH[week]->GetFunction("fitpol2");
         s2t_error_min[week] = (fitcurve->GetX(1.,0,s2t_min[week])-s2t_min[week]);
         
-        if(Print)
-        {
+        #ifdef PrintEps
             TCanvas* SinC = new TCanvas("SinC","SinC");
             ASinChiSquareH[week]->SetTitle("#chi^{2} distribution");
             ASinChiSquareH[week]->GetXaxis()->SetTitleSize(0.03);
@@ -816,8 +815,7 @@ void Fitter :: SaveSin1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
                 SinC->Print(("./Images/"+AnalysisString+Form("/ChiSquareResults/Combine%d_DataSinChi2Period_%d.eps",Combine,week)).c_str(),".eps");
             }
             delete SinC;
-        }
-        
+#endif
         delete ASinChiSquareH[week];
         delete fitpol2;
         std::cout << FileName << " sigma: " << s2t_error_min[week] << " min: " << s2t_min[week] << std::endl;
@@ -1089,8 +1087,7 @@ void Fitter :: SaveDM1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
 
         std::cout << FileName << " sigma: " << dm2_ee_error_min[week] << " min: " << s2t_min[week] << std::endl;
         
-        if(Print)
-        {
+        #ifdef PrintEps
             TCanvas* DmC = new TCanvas("DmC","DmC");
             
             ADeltaChiSquareH[week]->SetTitle("#chi^{2} distribution");
@@ -1117,8 +1114,7 @@ void Fitter :: SaveDM1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
             }
             
             delete DmC;
-        }
-        
+#endif
         delete ADeltaChiSquareH[week];
         delete fitpol1;
     }
@@ -1207,8 +1203,7 @@ void Fitter :: Save2DFit(Int_t sample)
         
         ChiSquare2DH[week]->Write();
         
-        if(Print)
-        {
+        #ifdef PrintEps
             TCanvas* Fit2DC = new TCanvas("2DC","2DC");
 
             ChiSquare2DH[week]->SetStats(0);
@@ -1229,7 +1224,7 @@ void Fitter :: Save2DFit(Int_t sample)
             }
             
             delete Fit2DC;
-        }
+#endif
         
         delete ChiSquare2DH[week];
 

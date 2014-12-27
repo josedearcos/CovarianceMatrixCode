@@ -72,8 +72,8 @@ int plot_flux_fractions()
                 
                 FluxH[near][reactor][week]->SetLineColor(colors[reactor]);
                 FluxH[near][reactor][week]->GetXaxis()->SetTitle("E_{true} (MeV)");
-                FluxH[near][reactor][week]->GetXaxis()->SetTitleSize(0.05);
-                FluxH[near][reactor][week]->GetYaxis()->SetTitleSize(0.05);
+                FluxH[near][reactor][week]->GetXaxis()->SetTitleSize(0.04);
+                FluxH[near][reactor][week]->GetYaxis()->SetTitleSize(0.045);
                 //            FluxH[near][reactor][week]->GetYaxis()->SetTitleOffset(1.35);
                 FluxH[near][reactor][week]->GetXaxis()->SetLabelSize(0.045);
                 FluxH[near][reactor][week]->GetYaxis()->SetLabelSize(0.045);
@@ -90,18 +90,18 @@ int plot_flux_fractions()
                 if(near==0)
                 {
                     leg->AddEntry(FluxH[near][reactor][week],labels[reactor].c_str(),"l");
+                    leg->Draw("same");
                 }
             }
-            leg->Draw("same");
         }
     }
-    c1->Print("../Images/FluxFractions.eps");
+    c1->Print("../Images/Gadolinium/FluxFractions.eps");
     
     PlotF1->Close();
     
     TFile* PlotF2 = TFile::Open("../RootOutputs/Gadolinium/FactorStudies.root");
     
-    TCanvas *c2 = new TCanvas("Extrapolation","Extrapolation",800,800);
+    TCanvas *c2 = new TCanvas("Extrapolation","Extrapolation",900,900);
     c2->Divide(3,3);
     
     int cont=0;
@@ -120,8 +120,8 @@ int plot_flux_fractions()
                 
                 ExtraH[near][far][reactor]->SetLineColor(colors[reactor]);
                 ExtraH[near][far][reactor]->GetXaxis()->SetTitle("E_{true} (MeV)");
-                ExtraH[near][far][reactor]->GetXaxis()->SetTitleSize(0.06);
-                ExtraH[near][far][reactor]->GetYaxis()->SetTitleSize(0.07);
+                ExtraH[near][far][reactor]->GetXaxis()->SetTitleSize(0.040);
+                ExtraH[near][far][reactor]->GetYaxis()->SetTitleSize(0.045);
                 //                ExtraH[near][far][reactor]->GetYaxis()->SetTitleOffset(1.15);
                 ExtraH[near][far][reactor]->GetXaxis()->SetLabelSize(0.045);
                 ExtraH[near][far][reactor]->GetYaxis()->SetLabelSize(0.045);
