@@ -68,8 +68,10 @@ public:
     void LUDecomp();
     void LBNLPredictions();
     void FitterMainTests();
-    void TestAllPredictions();
+    void TestAllPredictions(bool);
     void TestSuperHistograms();//Superhistograms in LBNL are the same between different ADs, I don't understand this! It doesn't agree with their definition
+    void LoganCrossCheck();
+    
 private:
     Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
     Double_t enu_bins[MaxNbins+1]; // 39 bins between 1.8 and 9.6 MeV +1 for the 9.6 limit.
@@ -1325,7 +1327,7 @@ void Test::FitterMainTests()
     delete f1;
 }
 
-void Test::TestAllPredictions()
+void Test::TestAllPredictions(bool Analysis)
 {
     //Antineutrino
     
@@ -1338,13 +1340,13 @@ void Test::TestAllPredictions()
     bool ToyMC = 1;
     bool CovMatrix=1;
     
-    NominalData* Data = new NominalData(0,2);//Gadollinium
+    NominalData* Data = new NominalData(Analysis,2);//Gadollinium
     
     Data->SetCombineMode(0); //0 is 9x9, 1 is 1x1 and 2 is 2x2f
 
     //    Data->SetSin22t12(0);
     //Parameters of the model
-    Data->SetAnalysis(0);//  Gd or H data
+    Data->SetAnalysis(Analysis);//  Gd or H data
     Data->SetBinning(0);//  0 for LBNL binning or 1 for Linear binning
     Data->SetWeeks(1); //   1 or 20 so far
     
@@ -1865,3 +1867,71 @@ void Test :: TestCovarianceMatrixSamples()//A test to decide how many samples ar
     }
 }
 
+void Test::LoganCrossCheck()
+{
+    
+    //Load spectra
+    TFile* LoganSpectrumF = new TFile("./CrossChecks/roofile_rawE.root");
+    TH1D* LoganPromptH = (TH1D*)LoganSpectrumF->Get("hEp");//prompt spectrum
+    TH1D* LoganDelayH = (TH1D*)LoganSpectrumF->Get("hEd");//delay spectrum
+    delete LoganSpectrumF;
+    
+    TFile* MySpectrumF = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root");
+    
+    TH2D* NominalResponseMatrixH = (TH2D*)MySpectrumF->Get("FineEvisEnu1");
+    
+    delete MySpectrumF;
+    TH1D* TrueADH;
+    
+    TFile* MyTrueADF = TFile::Open("./RootOutputs/Hydrogen/NominalOutputs/Oscillation.root");
+    MyTrueADF->cd("Total AD Spectra after oscillation");
+    
+    TrueADH = (TH1D*)gDirectory->Get("Total spectrum after oscillation at AD1");
+    
+    MyTrueADF->Close();;
+    
+    TH1D* VisibleSpectrumH = new TH1D("VisibleH","VisibleH",NominalResponseMatrixH->GetYaxis()->GetNbins(),0,12);
+    
+    for(Int_t i=0; i<NominalResponseMatrixH->GetYaxis()->GetNbins(); i++)//visible
+    {
+        for(Int_t j=0; j<NominalResponseMatrixH->GetXaxis()->GetNbins(); j++)//true
+        {
+            //[True_0 ... True_n] = [0,0]  [...] [0,m]  * [Vis_0]
+            //                      [0,n]  [...] [n,m]     [...]
+            //                                            [Vis_m]
+            
+            // [nx1] = [n x m] x [mx1]
+            
+            std::cout << "Visible: " <<  VisibleSpectrumH->GetBinContent(i+1) << " - True: " << TrueADH->GetBinContent(j+1) << " - Visible bin: " << i <<  " - True bin: " << j << std::endl;
+            
+            VisibleSpectrumH->SetBinContent(i+1,VisibleSpectrumH->GetBinContent(i+1)+NominalResponseMatrixH->GetBinContent(j+1+(1.8/0.05),i+1)*TrueADH->GetBinContent(j+1));
+            
+        }
+    }
+    
+    //Compare spectra
+    
+    TH1D* ComparisonH = (TH1D*)LoganPromptH->Clone("Comparison");
+    
+    //normalize area
+  //  VisibleSpectrumH->Scale(LoganPromptH->Integral()/VisibleSpectrumH->Integral());
+    ComparisonH->Add(VisibleSpectrumH,-1);
+    
+    ComparisonH->Divide(LoganPromptH);
+    
+    TCanvas* ComparisonC = new TCanvas("PromptComparison","Prompt Comparison");
+    ComparisonC->Divide(3,1);
+    
+    ComparisonC->cd(1);
+    LoganPromptH->Draw();
+    
+    ComparisonC->cd(2);
+    VisibleSpectrumH->Draw();
+    
+    ComparisonC->cd(3);
+    ComparisonH->Draw();
+    
+    ComparisonC->Print("./Images/CrossChecks/LoganPrompt.eps");
+    delete ComparisonC;
+
+}

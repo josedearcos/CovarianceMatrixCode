@@ -698,7 +698,8 @@ void FitterGui::RunFitter()
     }
     
     // Generate SuperHistogram:
-    NominalData* FluxData = new NominalData(0,2);//Same for nH and nGd, difference is on efficiencies.
+    NominalData* FluxData = new NominalData(Analysis,2);//Same for nH and nGd, difference is on efficiencies.
+    std::cout << " Loading Flux Data: " << std::endl;
     FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
     Oscillation* FluxOsc= new Oscillation(FluxData);
     FluxOsc->GenerateFluxHisto();
@@ -710,7 +711,6 @@ void FitterGui::RunFitter()
     {
         if(DataSet==1) // P12E production data given by Xiang Pan
         {
-            
             if(1==Data->GetWeeks())
             {
                 std::cout << "\t Loading nH P12E Data" << std::endl;
@@ -1857,8 +1857,9 @@ void FitterGui::RunFlux()
     }
     
     // Generate SuperHistogram:
-    NominalData* FluxData = new NominalData(0,2);
+    NominalData* FluxData = new NominalData(Analysis,2);
     FluxData->CopyData(Data);
+    std::cout << "Loading Flux Data: " << std::endl;
     
     FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
     Oscillation* FluxOsc= new Oscillation(FluxData);

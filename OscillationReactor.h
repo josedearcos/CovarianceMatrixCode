@@ -1032,7 +1032,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             
             TotalOscillatedSpectrumAD[AD]->Draw();
         }
-        AntineutrinoSpectrumC->Print("./Images/ReactorSpectrumOscillatedInADs.eps");
+        AntineutrinoSpectrumC->Print("./Images/ReactorSpectrumOscillatedInADs_NotScaled.eps");
         delete AntineutrinoSpectrumC;
     #endif
     
@@ -1233,19 +1233,19 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         
         VisibleHisto[AD]=(TH1D*)VisibleHisto[AD]->Rebin(n_evis_bins,Form("Oscillation Prediction AD%d, week%d",AD+1,week),evis_bins);
         
-        //        if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depende on this scaling?
-        //        {
+        //if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depend on this scaling?
+        {
         //
         VisibleHisto[AD]->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());
         //Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
-        //        }
+        }
         
         //Add backgrounds:
         
         //Add nominal backgrounds here, this way the predictions in the far hall will carry the background variations when they are subsctracted there
         VisibleHisto[AD]->Add(BackgroundSpectrumH[AD]);
         
-        if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depende on this scaling?
+        if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depend on this scaling?
         {
             VisibleHisto[AD]->Scale(ObservedEvents[AD][week]/VisibleHisto[AD]->Integral());
         }

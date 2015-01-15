@@ -375,6 +375,7 @@ Prediction :: Prediction()
     StatisticalFluctuation = Data->GetStatisticalFluctuation();
     
     analysis = Data->GetAnalysis();
+    
     if(analysis)
     {
         AnalysisString = "Hydrogen";
@@ -444,7 +445,7 @@ Prediction :: Prediction(NominalData* data)
     firstNominalPrediction=0;
     firstRandomPrediction=0;
     
-    Data = new NominalData(0,2);
+    Data = new NominalData(data->GetAnalysis(),data->GetDataSet());
     
     Data->CopyData(data);
     
@@ -474,6 +475,7 @@ Prediction :: Prediction(NominalData* data)
     StatisticalFluctuation = Data->GetStatisticalFluctuation();
     
     analysis = Data->GetAnalysis();
+    
     if(analysis)
     {
         AnalysisString = "Hydrogen";
@@ -660,9 +662,13 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
         }
     }
     
-    Osc->SetDelayedEfficiency(OscRea->GetDelayedEfficiency());
-    Osc->SetEfficiency(OscRea->GetEfficiency());
+    //Possible flaw in the relative oscillation analysis as used right now. Efficiencies used in the so called superhistograms are nominal efficiencies, when variations are applied we get a residual error due to this difference.
     
+    if(analysis==0)
+    {
+        Osc->SetDelayedEfficiency(OscRea->GetDelayedEfficiency());
+        Osc->SetEfficiency(OscRea->GetEfficiency());
+    }
     for(Int_t AD =0;AD<NADs;AD++)
     {
         for(Int_t reactor =0;reactor<NReactors;reactor++)

@@ -225,15 +225,21 @@ void FitBackgrounds2 :: ReadHBackgrounds()
     TH1D* HeliumH = (TH1D*)HF->Get("h");
     delete HF;//10%
     
-    TH1D* LiHeBackgroundH = (TH1D*)LithiumH->Clone();
-    LiHeBackgroundH->Scale(.9);
-    LiHeBackgroundH->Add(HeliumH,.1);
+  //  TH1D* LiHeBackgroundH = (TH1D*)LithiumH->Clone();
+   // LiHeBackgroundH->Scale(.9);
+    
+
+    
+   // LiHeBackgroundH->Add(HeliumH,.1);
     
     BackgroundsH[NADs] = new TH1D("LiHe","LiHe",n_evis_bins,evis_bins);
 
     for (Int_t visbin = 1; visbin <= n_evis_bins; visbin++)
     {
-        BackgroundsH[NADs]->SetBinContent(visbin,LiHeBackgroundH->Interpolate(BackgroundsH[NADs]->GetXaxis()->GetBinCenter(visbin)));
+        BackgroundsH[NADs]->SetBinContent(visbin,(.9)*LithiumH->Interpolate(BackgroundsH[NADs]->GetXaxis()->GetBinCenter(visbin))+(.1)*HeliumH->Interpolate(HeliumH->GetXaxis()->GetBinCenter(visbin)));
+
+        
+      //  BackgroundsH[NADs]->SetBinContent(visbin,LiHeBackgroundH->Interpolate(BackgroundsH[NADs]->GetXaxis()->GetBinCenter(visbin)));
         
         //                std::cout << "Vis Bin: " << visbin << " - Center Bin: " << BackgroundsH[AD]->GetXaxis()->GetBinCenter(visbin) << std::endl;
         //                std::cout << "interpolation value: " << AccidentalsH[AD]->Interpolate(BackgroundsH[AD]->GetXaxis()->GetBinCenter(visbin)) << std::endl;
@@ -243,7 +249,7 @@ void FitBackgrounds2 :: ReadHBackgrounds()
     
     delete LithiumH;
     delete HeliumH;
-    delete LiHeBackgroundH;
+   // delete LiHeBackgroundH;
     
     #ifdef PrintEps
     TCanvas* BGNDC = new TCanvas("","");

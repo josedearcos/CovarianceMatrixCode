@@ -244,14 +244,6 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
     Combine = Data->GetCombineMode();
     NReactorPeriods=Data->GetNReactorPeriods();
 
-    if(Analysis&&!(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix||DistortLiHeMatrix||DistortFastNeutronsMatrix||DistortAmCMatrix||IsotopeMatrix||ReactorPowerMatrix||Sin22t12Matrix))
-    {
-        NSamples = 1;//nH Toy MC is made event by event, with a sufficiently dense number of events the random detector systematics can be applied to the whole spectrum at once. This is not the same for reactor or background systematics though.
-    }
-    else
-    {
-        NSamples = Data->GetNSamples();//LBNL produces ~500 samples per covariance matrix with a different random variation for each sample
-    }
     
     Sin22t13 = Data->GetSin22t13();
     Dm2_31 = Data->GetDm231();
@@ -275,6 +267,15 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
     ResolutionMatrix = Data->GetResolutionMatrix();
     Sin22t12Matrix = Data->GetSin22t12Matrix();
     EfficiencyMatrix = Data->GetEfficiencyMatrix();
+    
+    if(Analysis&&!(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix||DistortLiHeMatrix||DistortFastNeutronsMatrix||DistortAmCMatrix||IsotopeMatrix||ReactorPowerMatrix||Sin22t12Matrix))
+    {
+        NSamples = 1;//nH Toy MC is made event by event, with a sufficiently dense number of events the random detector systematics can be applied to the whole spectrum at once. This is not the same for reactor or background systematics though.
+    }
+    else
+    {
+        NSamples = Data->GetNSamples();//LBNL produces ~500 samples per covariance matrix with a different random variation for each sample
+    }
     
     Nweeks = Data->GetWeeks();
     NADs = Data->GetADs();
@@ -949,7 +950,7 @@ void CovarianceMatrix3 :: SaveCovarianceMatrix(Int_t week)
     
     DiagonalCov->Draw();
     
-    sigmaC->Print((Form("./Images/Sigma_Combine%d_",Combine)+CovString+".eps").c_str(),".eps");
+    sigmaC->Print(("./Images/"+AnalysisString+Form("/DiagionalCovarianceMatrices/Sigma_Combine%d_",Combine)+CovString+".eps").c_str(),".eps");
     
     delete sigmaC;
     

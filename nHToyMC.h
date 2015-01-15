@@ -147,6 +147,7 @@ private:
     Int_t  RootCellToVisCell(Int_t RootCell);
     TH1D* TruePredictionH[MaxDetectors];
     TH1D* VisiblePredictionH[MaxDetectors];
+    TH1D* DelayedVisiblePredictionH[MaxDetectors];
     TH2D* TransMatrixH[MaxDetectors];
     TH2D* HighResoTransMatrixH[MaxDetectors];
     TH2D* MatrixH[MaxDetectors];
@@ -230,6 +231,8 @@ nHToyMC :: nHToyMC(NominalData* Data)
         TruePredictionH[AD] = new TH1D(Form("PredAD%d",AD),Form("PredAD%d",AD), Nbins, InitialEnergy, FinalEnergy);
         
         VisiblePredictionH[AD] = new TH1D(Form("VisPredAD%d",AD),Form("VisPredAD%d",AD), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
+        
+        DelayedVisiblePredictionH[AD] = new TH1D(Form("DelayedVisPredAD%d",AD),Form("DelayedVisPredAD%d",AD), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
     }
 }
 
@@ -242,6 +245,7 @@ nHToyMC :: ~nHToyMC()
         delete MatrixH[AD];
         delete TransMatrixH[AD];
         delete VisiblePredictionH[AD];
+        delete DelayedVisiblePredictionH[AD];
     }
 }
 ///
@@ -1130,6 +1134,7 @@ void nHToyMC :: Toy(bool mode)
                 //Fill histograms:
                 TruePredictionH[AD]->Fill(cap_Ev);
                 VisiblePredictionH[AD]->Fill(Erec_P);
+                DelayedVisiblePredictionH[AD]->Fill(Erec_Ng);
                 HighResoMatrixH[AD]->Fill(cap_Ev,Erec_P);//Fine grid
                 MatrixH[AD]->Fill(cap_Ev,Erec_P);//neutrino energy vs visible energy
                 TransMatrixH[AD]->Fill(Erec_P,cap_Ev);
@@ -1278,7 +1283,10 @@ void nHToyMC :: Toy(bool mode)
             
             TCanvas* VisPredictionC = new TCanvas("VP","VP");
             VisPredictionC->Divide(NADs/2,2);
-            
+        
+            TCanvas* DelayedVisPredictionC = new TCanvas("DVP","DVP");
+            DelayedVisPredictionC->Divide(NADs/2,2);
+        
             TCanvas* TransC = new TCanvas("T","T");
             TransC->Divide(NADs/2,2);
             
@@ -1292,6 +1300,9 @@ void nHToyMC :: Toy(bool mode)
                 
                 VisPredictionC->cd(i+1);
                 VisiblePredictionH[i]->Draw();
+                
+                DelayedVisPredictionC->cd(i+1);
+                DelayedVisiblePredictionH[i]->Draw();
                 
                 MatrixC->cd(i+1);
                 MatrixH[i]->Draw("colz");
@@ -1309,6 +1320,7 @@ void nHToyMC :: Toy(bool mode)
             
             PredictionC->Print("./Images/ToyMCTrueHydrogenPrediction.eps");
             VisPredictionC->Print("./Images/ToyMCVisibleHydrogenPrediction.eps");
+            DelayedVisPredictionC->Print("./Images/ToyMCDelayedVisibleHydrogenPrediction.eps");
             FineMatrixC->Print("./Images/FineHydrogenResponseMatrix.eps");
             MatrixC->Print("./Images/HydrogenResponseMatrix.eps");
             TransC->Print("./Images/TransposeHydrogenMatrix.eps");
@@ -1316,7 +1328,7 @@ void nHToyMC :: Toy(bool mode)
             
             delete PredictionC;
             delete VisPredictionC;
-            
+            delete DelayedVisPredictionC;
             delete MatrixC;
             delete FineMatrixC;
             delete TransC;
