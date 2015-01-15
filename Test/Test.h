@@ -70,7 +70,8 @@ public:
     void FitterMainTests();
     void TestAllPredictions(bool);
     void TestSuperHistograms();//Superhistograms in LBNL are the same between different ADs, I don't understand this! It doesn't agree with their definition
-    void LoganCrossCheck();
+    void LoganCrossCheck();//Test logan Toy MC output and mine.
+    void Near_To_Far_Prediction_VS_Far_Prediction();
     
 private:
     Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
@@ -1934,4 +1935,9 @@ void Test::LoganCrossCheck()
     ComparisonC->Print("./Images/CrossChecks/LoganPrompt.eps");
     delete ComparisonC;
 
+}
+
+void Near_To_Far_Prediction_VS_Far_Prediction()
+{
+    //compare pure prediction and relative oscillation model outputs.
 }

@@ -1253,7 +1253,17 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         
         delete BackgroundSpectrumH[AD];
     }
+    
+    TFile* PredictionsFromReactorF = new TFile(("./RootOutputs/"+AnalysisString+"/NominaOutputs/PredictionsFromReactor.root").c_str(),"recreate");
+    
+    for(Int_t AD = 0; AD<NADs; AD++)
+    {
+        VisibleHisto[AD]->Write();
+    }
+    
+    delete PredictionsFromReactorF;
 }
+
 
 TH1D* OscillationReactor :: GetReactorOscillatedADSpectrum(Int_t AD,Int_t week)
 {

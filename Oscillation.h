@@ -483,8 +483,7 @@ Oscillation :: ~Oscillation()
 #ifdef UseLiHeToyMC
         if(DistortLiHeMatrix)
         {
-            delete m_tree_distortLi9Bg;
-            delete m_file_distortLi9Bg;
+            delete m_file_distortLi9Bg;//deletes the file and the tree
         }
 #endif
         delete NominalAmCF;

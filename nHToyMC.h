@@ -53,14 +53,11 @@ using namespace std;
 TString roostr;
 
 ///
-const Double_t DeltaM = 1.80433; //( (Mn+Me)^2-Mp^2 ) / (2Mp) =
+const double IBDthreshold = 1.80607;  //( (Mn+Me)^2-Mp^2 ) / (2Mp) =
 // = ( (939.565378+0.510998928)^2 - 938.272046^2 ) / (2*938.272046)
-//1.80433;
-
-//const double EnergyScale = 0.982;  // data_centercell/toy_centercell = 0.982 for nH gamma toy non-uniformity and AdSimple data
-
-const double EnergyScale = 1.023;  // data_centercell/toy_centercell = 1.02 when using same non-uniformity in both data and toy
-
+//1.80433;  // Mneutron+Mpositron-Mproton
+const double EnergyScale = 0.982;  // data_centercell/toy_centercell = 0.982 for nH gamma toy non-uniformity and AdSimple data
+//const double EnergyScale = 1.023;  // data_centercell/toy_centercell = 1.02 when using same non-uniformity in both data and toy
 const int MaxCellNum = 401;
 
 class nHToyMC
@@ -981,9 +978,9 @@ void nHToyMC :: Toy(bool mode)
                  usr_pmt_coverage_Ng  = 0;
                  */
                 /// prompt
-                usr_r2_P = (X_P*X_P+Y_P*Y_P) * 1e-6;  // mm2 ---> m2
-                usr_z_P  = Z_P * 1e-3;  // mm ---> m
-                /*
+                 usr_r2_P = (X_P*X_P+Y_P*Y_P) * 1e-6;  // mm2 ---> m2
+                 usr_z_P  = Z_P * 1e-3;  // mm ---> m
+                
                  global_bin_num = hist_findbin->FindBin(usr_r2_P, usr_z_P);
                  hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
                  
@@ -993,18 +990,17 @@ void nHToyMC :: Toy(bool mode)
                  usr_pmt_coverage_P  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
                  
                  Opt_E_P_Sum = LY_E_P_Sum * usr_opt_attenuation_P * usr_pmt_coverage_P;  // nH analysis
-                 */
-                
-                AdSimple_P = ( (7.84628 * (1 + 3.41294e-02*usr_r2_P) * (1 - 1.21750e-02*usr_z_P - 1.64275e-02*usr_z_P*usr_z_P + 7.33006e-04*pow(usr_z_P,3)))/8.05 );  // AdSimple
+                 
+                //AdSimple_P = ( (7.84628 * (1 + 3.41294e-02*usr_r2_P) * (1 - 1.21750e-02*usr_z_P - 1.64275e-02*usr_z_P*usr_z_P + 7.33006e-04*pow(usr_z_P,3)))/8.05 );  // AdSimple
                
                 // Doc7334(old function), updated from http://dayabay.ihep.ac.cn/tracs/dybsvn/browser/dybgaudi/trunk/Reconstruction/QsumEnergy/src/components/QsumEnergyTool.cc
                 
-                Opt_E_P_Sum = LY_E_P_Sum * AdSimple_P;
+               //Opt_E_P_Sum = LY_E_P_Sum * AdSimple_P;
                 
 #ifdef UseDelayInformation
-                usr_r2_Ng = (X_Ng*X_Ng+Y_Ng*Y_Ng) * 1e-6;  // mm2 ---> m2
-                usr_z_Ng  = Z_Ng * 1e-3;  // mm ---> m
-                /*
+                 usr_r2_Ng = (X_Ng*X_Ng+Y_Ng*Y_Ng) * 1e-6;  // mm2 ---> m2
+                 usr_z_Ng  = Z_Ng * 1e-3;  // mm ---> m
+                
                  global_bin_num = hist_findbin->FindBin(usr_r2_Ng, usr_z_Ng);
                  hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
                  
@@ -1014,11 +1010,11 @@ void nHToyMC :: Toy(bool mode)
                  usr_pmt_coverage_Ng  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
                  
                  Opt_E_Ng = LY_E_Ng * usr_opt_attenuation_Ng * usr_pmt_coverage_Ng;  // nH analysis
-                 */
-                AdSimple_Ng = ( (7.84628 * (1 + 3.41294e-02*usr_r2_Ng) * (1 - 1.21750e-02*usr_z_Ng - 1.64275e-02*usr_z_Ng*usr_z_Ng + 7.33006e-04*pow(usr_z_Ng,3)))/8.05 );  // AdSimple
+                 
+                // AdSimple_Ng = ( (7.84628 * (1 + 3.41294e-02*usr_r2_Ng) * (1 - 1.21750e-02*usr_z_Ng - 1.64275e-02*usr_z_Ng*usr_z_Ng + 7.33006e-04*pow(usr_z_Ng,3)))/8.05 );  // AdSimple
                 // Doc7334(old function), updated from http://dayabay.ihep.ac.cn/tracs/dybsvn/browser/dybgaudi/trunk/Reconstruction/QsumEnergy/src/components/QsumEnergyTool.cc
                 
-                Opt_E_Ng = LY_E_Ng * AdSimple_Ng;
+                //   Opt_E_Ng = LY_E_Ng * AdSimple_Ng;
                 
 #endif
                 ///////////////////////////// FEE
@@ -1067,8 +1063,8 @@ void nHToyMC :: Toy(bool mode)
                 /// Estimate an "Erec" on which to apply cuts
                 ///////////////////////////// Reconstructed Energy
                 /// prompt
-                //Erec_P = Res_E_P_Sum / (usr_opt_attenuation_P *usr_pmt_coverage_P);  // nH analysis
-                Erec_P = Res_E_P_Sum / AdSimple_P;  // AdSimple
+                Erec_P = Res_E_P_Sum / (usr_opt_attenuation_P *usr_pmt_coverage_P);  // nH analysis
+                //Erec_P = Res_E_P_Sum / AdSimple_P;  // AdSimple
                 
 #ifdef UseDelayInformation
                 /// delayed
@@ -1090,8 +1086,8 @@ void nHToyMC :: Toy(bool mode)
                 /// Estimate an "Erec" on which to apply cuts
                 ///////////////////////////// Reconstructed Energy
                 /// delayed
-                //Erec_Ng = Res_E_Ng / (usr_opt_attenuation_Ng * usr_pmt_coverage_Ng);  // nH analysis
-                Erec_Ng = Res_E_Ng / AdSimple_Ng;  // AdSimple
+                Erec_Ng = Res_E_Ng / (usr_opt_attenuation_Ng * usr_pmt_coverage_Ng);  // nH analysis
+                //Erec_Ng = Res_E_Ng / AdSimple_Ng;  // AdSimple
 #endif
                 ///////////////////////////// Cell
                 ///////////////////////////// Cell
