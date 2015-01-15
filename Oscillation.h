@@ -11,7 +11,9 @@
 #include <TMatrixD.h>
 #include <vector>
 #include "TRandom3.h"
+#include "TTree.h"
 
+#define UseLiHeToyMC
 // Originally: Given a reactor antineutrino spectrum I output the respective spectra for each AD after oscillation.
 // Updated: Class that is able to calculate the spectra in each AD either from Reactor Data or Near Hall Data. 5/3/13.
 //
@@ -38,6 +40,14 @@ class Oscillation
 {
 private:
     
+    //Using Pedro's MC for LiHe:
+#ifdef UseLiHeToyMC
+    TTree* m_tree_distortLi9Bg;
+    TFile* m_file_distortLi9Bg;//Trees need to keep the file open in memory
+    TH1F* func_LiHe;
+#else
+    TF1* func_LiHe;
+#endif
     std::string RandomString;
     //External classes used
     NominalData* Nom;
@@ -173,7 +183,11 @@ private:
     void LoadNearData(Int_t);
     
     //Functions to vary background shapes. So far the same ones than LBNL.
+#ifdef UseLiHeToyMC
+    void GetDistortionFunction(Double_t,TH1F*);
+#else
     void GetDistortionFunction(Double_t,TF1*);
+#endif
     void GetFastNeutronsDistortionFunction(Double_t,TF1*);
     void FluctuateBackgrounds(Int_t);
     void LoadNominalBackgrounds();
@@ -466,7 +480,13 @@ Oscillation :: ~Oscillation()
             delete AmCH[AD];
             delete FastNeutronsH[AD];
         }
-        
+#ifdef UseLiHeToyMC
+        if(DistortLiHeMatrix)
+        {
+            delete m_tree_distortLi9Bg;
+            delete m_file_distortLi9Bg;
+        }
+#endif
         delete NominalAmCF;
         for (Int_t ad = 0; ad<NADs; ad++)//far
         {
@@ -1740,8 +1760,6 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
     
     if(DistortLiHeMatrix)// Distort LiHe shape for all ADs in the same way
     {
-        TF1* func_LiHe;
-        
         if(Analysis)//Hydrogen
         {
             //9Li8He
@@ -1810,15 +1828,48 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
         }
         else
         {
-            func_LiHe = new TF1("func_LiHe","TMath::Abs([0]+[1]*x)",InitialVisibleEnergy,FinalVisibleEnergy);
-            
+            //function to obtaing distortion function or histogram:
             GetDistortionFunction(DistortLiHe,func_LiHe);
             
+#ifdef UseLiHeToyMC//If TOY MC generated histogram:
+            TFile* OriginalLiHeF = TFile::Open("./BackgroundSpectrum/GDBackground/li9_spectrum.root");
+            
+            TH1F* OriginalLiHeH=(TH1F*)gDirectory->Get("h_li9_smeared_toy");
+            
+            OriginalLiHeF->Close();
+            
+            TH1F* func_LiHe_interpolated = (TH1F*)OriginalLiHeH->Clone();//To solve different bin limits error
+            
+            func_LiHe_interpolated->Reset();
+            
+            for(Int_t i = 1; i<=func_LiHe_interpolated->GetXaxis()->GetNbins();i++)
+            {
+                func_LiHe_interpolated->SetBinContent(i,func_LiHe->Interpolate(func_LiHe_interpolated->GetXaxis()->GetBinCenter(i)));
+            }
+            
+            OriginalLiHeH->Multiply(func_LiHe_interpolated);
+
+            for(Int_t AD=0;AD<NADs;AD++)
+            {
+                RandomLiHeH[AD] = (TH1D*)OriginalLiHeH->Rebin(n_evis_bins,Form("Rebinned LiHe"),evis_bins);//Rebin to visible binning
+                
+                RandomLiHeH[AD]->Scale(LiHeH[AD]->Integral()/RandomLiHeH[AD]->Integral());
+            }
+            
+            delete func_LiHe_interpolated;
+            delete OriginalLiHeH;
+#else//If distortion function
+            
+            func_LiHe = new TF1("func_LiHe","TMath::Abs([0]+[1]*x)",InitialVisibleEnergy,FinalVisibleEnergy);
+
             for(Int_t AD=0;AD<NADs;AD++)
             {
                 RandomLiHeH[AD]->Multiply(func_LiHe);
                 RandomLiHeH[AD]->Scale(LiHeH[AD]->Integral()/RandomLiHeH[AD]->Integral());
+                
             }
+#endif
+
         }
         
         TFile* SaveLiHe = TFile::Open(("./RootOutputs/"+AnalysisString+Form("/Backgrounds/LiHeDistortions.root")).c_str(),"recreate");
@@ -1827,11 +1878,11 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             LiHeH[AD]->Write(Form("Nominal LiHe%d period%d",AD,week));
             RandomLiHeH[AD]->Write(Form("LiHeAD%d period%d",AD,week));
         }
-        if(!Analysis)//Gadolinium
-        {
-            func_LiHe->Write();
-            delete func_LiHe;
-        }
+
+        func_LiHe->Write();
+      
+        delete func_LiHe;
+        
         delete SaveLiHe;
         
         
@@ -2027,6 +2078,21 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
     }
 }
 
+#ifdef UseLiHeToyMC
+void Oscillation :: GetDistortionFunction(Double_t amount,TH1F* DistortionFunc)
+{
+    m_file_distortLi9Bg = new TFile("./Inputs/GdInputs/8he9li_distort_neutron100_alpha100_frac0.1_N250.root","READ");
+    m_tree_distortLi9Bg = (TTree*)m_file_distortLi9Bg->Get("tr_distort");
+    Int_t m_entries_distortLi9Bg = (Int_t)m_tree_distortLi9Bg->GetEntries();
+    cout << "The distortion tree has " << m_entries_distortLi9Bg << " entries" << endl;
+    Int_t entry = rand->Uniform(0,m_entries_distortLi9Bg);
+    m_tree_distortLi9Bg->SetBranchAddress("h_distort",&func_LiHe);
+    m_tree_distortLi9Bg->GetEntry(entry);
+    
+    cout << "Reading Li He entry : " << entry << endl;
+
+}
+#else
 void Oscillation :: GetDistortionFunction(Double_t amount,TF1* DistortionFunc)
 {
     rand->SetSeed(0);
@@ -2039,6 +2105,7 @@ void Oscillation :: GetDistortionFunction(Double_t amount,TF1* DistortionFunc)
     DistortionFunc->SetParameter(0,offset);
     DistortionFunc->SetParameter(1,slope);
 }
+#endif
 
 void Oscillation :: GetFastNeutronsDistortionFunction(Double_t amount,TF1* DistortionFunc)
 {
