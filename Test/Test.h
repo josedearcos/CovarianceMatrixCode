@@ -1915,7 +1915,7 @@ void Test::LoganCrossCheck()
     TH1D* ComparisonH = (TH1D*)LoganPromptH->Clone("Comparison");
     
     //normalize area
-  //  VisibleSpectrumH->Scale(LoganPromptH->Integral()/VisibleSpectrumH->Integral());
+    VisibleSpectrumH->Scale(LoganPromptH->Integral()/VisibleSpectrumH->Integral());
     ComparisonH->Add(VisibleSpectrumH,-1);
     
     ComparisonH->Divide(LoganPromptH);

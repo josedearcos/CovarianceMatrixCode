@@ -1770,16 +1770,16 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             TH1D* HeliumH = (TH1D*)HF->Get("h");
             delete HF;//10%
             
-            Double_t FractionError = 0.0;//This number is provisional
-            Double_t LiHeError = FractionError*rand->Gaus(0,1);
+            Double_t FractionError = 0.2;//This number is provisional
+            Double_t DistortLiHeError = FractionError*rand->Gaus(0,1);
            
-            if((.9+LiHeError)>1)
+            if((.9+DistortLiHeError)>1)
             {
-                LiHeError = 0.1;//maximum error to avoid positive fractions
+                DistortLiHeError = 0.1;//maximum error to avoid positive fractions
             }
-            else if((.9+LiHeError)<0)
+            else if((.9+DistortLiHeError)<0)
             {
-                LiHeError = 0.9;//maximum error to avoid negative fractions
+                DistortLiHeError = 0.9;//maximum error to avoid negative fractions
             }
             
             std::cout << LiHeError << std::endl;
@@ -1790,7 +1790,7 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             {
                 for (Int_t visbin = 1; visbin <= n_evis_bins; visbin++)
                 {
-                    RandomLiHeH[AD]->SetBinContent(visbin,(.9+LiHeError)*LithiumH->Interpolate(RandomLiHeH[AD]->GetXaxis()->GetBinCenter(visbin))+(.1-LiHeError)*HeliumH->Interpolate(RandomLiHeH[AD]->GetXaxis()->GetBinCenter(visbin)));
+                    RandomLiHeH[AD]->SetBinContent(visbin,(.9+DistortLiHeError)*LithiumH->Interpolate(RandomLiHeH[AD]->GetXaxis()->GetBinCenter(visbin))+(.1-DistortLiHeError)*HeliumH->Interpolate(RandomLiHeH[AD]->GetXaxis()->GetBinCenter(visbin)));
                 }
             }
             for(Int_t AD=0;AD<NADs;AD++)
@@ -2083,12 +2083,12 @@ void Oscillation :: GetDistortionFunction(Double_t amount,TH1F* DistortionFunc)
     m_file_distortLi9Bg = new TFile("./Inputs/GdInputs/8he9li_distort_neutron100_alpha100_frac0.1_N250.root","READ");
     m_tree_distortLi9Bg = (TTree*)m_file_distortLi9Bg->Get("tr_distort");
     Int_t m_entries_distortLi9Bg = (Int_t)m_tree_distortLi9Bg->GetEntries();
-    cout << "The distortion tree has " << m_entries_distortLi9Bg << " entries" << endl;
+    std::cout << "The distortion tree has " << m_entries_distortLi9Bg << " entries" << std::endl;
     Int_t entry = rand->Uniform(0,m_entries_distortLi9Bg);
     m_tree_distortLi9Bg->SetBranchAddress("h_distort",&func_LiHe);
     m_tree_distortLi9Bg->GetEntry(entry);
     
-    cout << "Reading Li He entry : " << entry << endl;
+    std::cout << "Reading Li He entry : " << entry << std::endl;
 
 }
 #else

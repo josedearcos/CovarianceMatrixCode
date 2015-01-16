@@ -43,7 +43,7 @@ using namespace std;
 #endif
 
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- Global
-//#define ReDoNominal // if you change binning use this to remake the nominal matrix
+#define ReDoNominal // if you change binning use this to remake the nominal matrix
 #define FullEnergyResolution
 #define UseDelayInformation
 //#define SaveTree // To save toy tree
