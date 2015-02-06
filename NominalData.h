@@ -14,7 +14,7 @@
 bool TestAllTheSame = 0;
 
 #define PrintEps//To save results in .eps files
-
+//#define BlindedAnalysis // To use blinded reactor model and distances. Not all the files are operative (only those coming from Christine's reactor model)
 const bool DeltaMee = 0;//Use Δm^2ee instead of Δm32 and Δm31 values
 
 const bool ADSimple = 1;
@@ -233,8 +233,10 @@ public:
     NominalData(bool,Int_t);
     void CopyData(NominalData*);
 
-    void ReadChristineCovMatrix();
+    void ReadChristineCovMatrix();//P12C
     void ReadChristineReactorSpectrum();
+    
+    void ReadIHEPReactorSpectrum();//P14A
     
     void SetDataSet(Int_t);
     void SetCombineMode(Int_t);
@@ -2186,10 +2188,11 @@ void NominalData :: LoadMainData(const Char_t* mainmatrixname)
 void NominalData :: ReadChristineReactorSpectrum()
 {
     std::cout << " READING CHRISTINE SPECTRUM " << std::endl;
-    
+#ifdef BlindedAnalysis
     std::ifstream fileData("./ReactorInputs/p12c_blinded/combined/nNu_Nom_combined.txt");
-    
-    std::string lines;
+#else
+    std::ifstream fileData("./ReactorInputs/p12c_unblinded/combined/nNu_Nom_combined.txt");
+#endif
     Double_t eMin=0;
     Double_t eMax=0;
     Double_t eNu=0;
@@ -2242,13 +2245,96 @@ void NominalData :: ReadChristineReactorSpectrum()
     m_nSamples = curSample;
 }
 
+void NominalData :: ReadIHEPReactorSpectrum()
+{
+    std::cout << " READING IHEP SPECTRUM " << std::endl;
+    
+    const Int_t NIHEPReactorBins = 32+1; // 1.5, 1.75, ..., 9.25, 9.5 in 0.25 MeV steps
+    Double_t eMin=1.5;
+    Double_t eMax=9.5;
+    binWidth = 0.25;
+    
+    Int_t curPeriod;
+    std::fstream fileData;
+    Double_t trash;
+
+    for (Int_t reactor = 0; reactor < NReactors; reactor++)
+    {
+        curPeriod = 0;
+        
+        switch(reactor)
+        {
+            case 0://Daya Bay A
+                fileData.open("./ReactorInputs/P14A/DayaBayA_2011-12-24_2013-11-27.txt",std::fstream::in);
+                break;
+            case 1://Daya Bay B
+                fileData.open("./ReactorInputs/P14A/DayaBayB_2011-12-24_2013-11-27.txt",std::fstream::in);
+                break;
+            case 2://LingAo IA
+                fileData.open("./ReactorInputs/P14A/LingAoIA_2011-12-24_2013-11-27.txt",std::fstream::in);
+                break;
+            case 3://LingAo IB
+                fileData.open("./ReactorInputs/P14A/LingAoIB_2011-12-24_2013-11-27.txt",std::fstream::in);
+                break;
+            case 4://LingAo IIA
+                fileData.open("./ReactorInputs/P14A/LingAoIIA_2011-12-24_2013-11-27.txt",std::fstream::in);
+                break;
+            case 5://LingAo IIB
+                fileData.open("./ReactorInputs/P14A/LingAoIIB_2011-12-24_2013-11-27.txt",std::fstream::in);
+                break;
+            default:
+                std::cout << "Reactor data file not found" << std::endl;
+                
+                exit(EXIT_FAILURE);
+        }
+        
+        if(!fileData.is_open())
+        {
+            std::cout << "P14A Reactor file not open" << std::endl;
+            
+            exit(EXIT_FAILURE);
+        }
+        
+        while(!fileData.eof())
+        {
+            for(Int_t idr = 0; idr<5; idr++)//first 5 columns are the reactor ID
+            {
+                fileData >> trash;
+                
+                //std::cout << trash << std::endl;
+
+            }
+            for (Int_t bin = 0; bin <=NIHEPReactorBins; bin++)
+            {
+                fileData >> m_dNdE_nom[reactor+NReactors*bin];
+                
+               // std::cout << "reactor : " << reactor << " bin: " << bin << ", reactor spectrum: "<< m_dNdE_nom[reactor+NReactors*bin] << std::endl;
+
+            }
+            curPeriod++;
+        }
+        curPeriod--;
+
+        fileData.close();
+   }
+    
+    m_eMin = eMin;
+    m_eMax = eMax;
+    m_nSamples = NIHEPReactorBins;
+    
+    NReactorPeriods = curPeriod;
+    
+}
 void NominalData :: ReadChristineCovMatrix()
 {
     std::cout << " READING CHRISTINE COVARIANCE MATRIX " << std::endl;
 
     // Read covarianvematrix
+#ifdef BlindedAnalysis
     std::ifstream fileData_mcov("./ReactorInputs/p12c_blinded/combined/nNu_Mcov_combined.txt");
-    
+#else
+    std::ifstream fileData_mcov("./ReactorInputs/p12c_unblinded/combined/nNu_Mcov_combined.txt");
+#endif
     for (Int_t i = 0; i < m_nSamples*NReactors; i++)
     {
         for (Int_t j = 0; j < m_nSamples*NReactors; j++)

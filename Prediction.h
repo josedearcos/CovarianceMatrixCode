@@ -25,6 +25,7 @@
 #include "TArrayD.h"
 #include "TTree.h"
 
+//#define UseChristineReactorModel
 #define Produce_Antineutrino_Spectrum_For_FirstTime
 const bool WriteROOT = 1;
 const bool ReadTxt = 0;//To use txt matrices or root files.
@@ -422,12 +423,23 @@ Prediction :: Prediction()
     if(IsotopeMatrix||ReactorPowerMatrix)
     {
 #endif
+        
+#ifdef UseChristineReactorModel
         Data->ReadChristineReactorSpectrum();
         
         if(IsotopeMatrix)
         {
             Data->ReadChristineCovMatrix();
         }
+#else
+        Data->ReadIHEPReactorSpectrum();
+        
+        if(IsotopeMatrix)
+        {
+        //Needed a covariance matrix or some way to vary the IHEP spectrum
+        }
+#endif
+
 #ifndef Produce_Antineutrino_Spectrum_For_FirstTime
     }
 #endif
@@ -523,12 +535,22 @@ Prediction :: Prediction(NominalData* data)
     if(IsotopeMatrix||ReactorPowerMatrix)
     {
 #endif
+#ifdef UseChristineReactorModel
         Data->ReadChristineReactorSpectrum();
         
         if(IsotopeMatrix)
         {
             Data->ReadChristineCovMatrix();
         }
+#else
+        Data->ReadIHEPReactorSpectrum();
+        
+        if(IsotopeMatrix)
+        {
+        //Needed a covariance matrix or some way to vary the IHEP spectrum
+        }
+#endif
+
 #ifndef Produce_Antineutrino_Spectrum_For_FirstTime
     }
 #endif

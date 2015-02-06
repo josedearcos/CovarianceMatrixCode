@@ -43,7 +43,7 @@ using namespace std;
 #endif
 
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- Global
-#define ReDoNominal // if you change binning use this to remake the nominal matrix
+//#define ReDoNominal // if you change binning use this to remake the nominal matrix
 #define FullEnergyResolution
 #define UseDelayInformation
 //#define SaveTree // To save toy tree
@@ -60,17 +60,29 @@ const double EnergyScale = 0.982;  // data_centercell/toy_centercell = 0.982 for
 //const double EnergyScale = 1.023;  // data_centercell/toy_centercell = 1.02 when using same non-uniformity in both data and toy
 const int MaxCellNum = 401;
 
+//double hEp_low = 0;
+//double hEp_hgh = 12;
+//int    hEp_bin = 120;
+//
+//double hEd_low = 0;
+//double hEd_hgh = 3.3; //12;
+//int    hEd_bin = 120; //1200;
+//
+//const int MaxColumnNum = 11; //11 = (R2_binnum+1)
+
 class nHToyMC
 {
 private:
     
     //Logan Plots:
     
-    TH1D *hEp_cc[MaxCellNum];
-    TH1D *hEd_cc[MaxCellNum];
-    TH1D *hEp_cc_clone[MaxCellNum];
-    TH1D *hEd_cc_clone[MaxCellNum];
-    
+//    TH1D *hEp_cc[MaxCellNum];
+//    TH1D *hEd_cc[MaxCellNum];
+//    TH1D *hEp_cc_clone[MaxCellNum];
+//    TH1D *hEd_cc_clone[MaxCellNum];
+//    
+//    TH1D *hEp_cl[MaxColumnNum];
+//    TH1D *hEd_cl[MaxColumnNum];
     
     Double_t GausRelative,GausIAV,GausNL,GausReso,GausResoCorr,GausEff;
     Double_t ResolutionError,ResolutionErrorUncorrelated;
@@ -160,7 +172,6 @@ public:
 // constructor:
 nHToyMC :: nHToyMC(NominalData* Data)
 {
-    
     R2_binnum = 10;                      // ---> set option: divide the volume to sub-regions
     R2_lower  = 0;// m2                  // ---> set option
     R2_upper  = 4;// m2                  // ---> set option
@@ -169,7 +180,7 @@ nHToyMC :: nHToyMC(NominalData* Data)
     Z_binnum  = 10;                      // ---> set option
     Z_lower   = -2;// m                  // ---> set option
     Z_upper   = 2;// m                   // ---> set option
-    
+
     /// find cell
     global_bin_num = 0;
     local_xbin     = 0;
@@ -179,7 +190,6 @@ nHToyMC :: nHToyMC(NominalData* Data)
     usr_z_P     = 0;
     usr_r2_Ng   = 0;
     usr_z_Ng    = 0;
-    
     
     InitialEnergy = Data->GetEmin();
     FinalEnergy = Data->GetEmax();
@@ -671,6 +681,7 @@ void nHToyMC :: Toy(bool mode)
         Double_t FEE_E_P_Sum;
         Double_t Scale_E_P_Sum;
         Double_t Res_E_P_Sum;
+        Double_t Eff_E_P_Sum;
         Double_t Erec_P;
 
 #ifdef UseDelayInformation
@@ -679,6 +690,7 @@ void nHToyMC :: Toy(bool mode)
         Double_t FEE_E_Ng;
         Double_t Scale_E_Ng;
         Double_t Res_E_Ng;
+        Double_t Eff_E_Ng;
         Double_t Erec_Ng;
 #endif
         
@@ -737,6 +749,7 @@ void nHToyMC :: Toy(bool mode)
         toy->Branch("FEE_E_P_Sum",   &FEE_E_P_Sum,   "FEE_E_P_Sum/D");
         toy->Branch("Scale_E_P_Sum", &Scale_E_P_Sum, "Scale_E_P_Sum/D");
         toy->Branch("Res_E_P_Sum",   &Res_E_P_Sum,   "Res_E_P_Sum/D");
+        toy->Branch("Eff_E_P_Sum",   &Eff_E_P_Sum,   "Eff_E_P_Sum/D");
         toy->Branch("Erec_P",   &Erec_P,   "Erec_P/D");
 
 #ifdef UseDelayInformation
@@ -745,6 +758,7 @@ void nHToyMC :: Toy(bool mode)
         toy->Branch("FEE_E_Ng",   &FEE_E_Ng,   "FEE_E_Ng/D");
         toy->Branch("Scale_E_Ng", &Scale_E_Ng, "Scale_E_Ng/D");
         toy->Branch("Res_E_Ng",   &Res_E_Ng,   "Res_E_Ng/D");
+        toy->Branch("Eff_E_Ng",   &Eff_E_Ng,   "Eff_E_Ng/D");
         toy->Branch("Erec_Ng",   &Erec_Ng,   "Erec_Ng/D");
 
 #endif
@@ -808,8 +822,48 @@ void nHToyMC :: Toy(bool mode)
         Double_t usr_opt_attenuation_P=0, usr_pmt_coverage_P=0, usr_opt_attenuation_Ng=0, usr_pmt_coverage_Ng=0;
         Double_t energy_sigma=0, R2_AA=0, R2_BB=0, R_average=0;
         
+        TFile *roofile_h2d_ep_ratio2center = new TFile("./Inputs/HInputs/Data/cell_eff/h2d_ep_ratio2center.root", "read");
+        TH2D *h2d_Ep_ratio2center = (TH2D*)roofile_h2d_ep_ratio2center->Get("h2d_ep_ratio2center");
+        
+        TFile *roofile_h2d_ed_ratio2center = new TFile("./Inputs/HInputs/Data/cell_eff/h2d_ed_ratio2center.root", "read");
+        TH2D *h2d_Ed_ratio2center = (TH2D*)roofile_h2d_ed_ratio2center->Get("h2d_ed_ratio2center");
         
         seed_generator_uncorr = 2863311530; //=(2*4294967295/3) for uncorrelated systematics, chose 2/3*(maxseed) to make it different to 'seed_generator' as a precaution so I don't use the same seeds.
+        
+//        for(int idx=0; idx<MaxColumnNum; idx++)
+//        {
+//            roostr = TString::Format("hEp_cl_%03d", idx);
+//            hEp_cl[idx] = new TH1D(roostr, roostr, hEp_bin, hEp_low, hEp_hgh);
+//            
+//            roostr = TString::Format("hEd_cl_%03d", idx);
+//            hEd_cl[idx] = new TH1D(roostr, roostr, hEd_bin, hEd_low, hEd_hgh);
+//        }
+//        
+//        for(int idx=0; idx<MaxCellNum; idx++)
+//        {
+//            roostr = TString::Format("hEp_cc_%03d",idx);
+//            hEp_cc[idx] = new TH1D(roostr, roostr, hEp_bin, hEp_low, hEp_hgh);
+//            
+//            roostr = TString::Format("hEd_cc_%03d",idx);
+//            hEd_cc[idx] = new TH1D(roostr, roostr, hEd_bin, hEd_low, hEd_hgh);
+//            
+//            
+//            roostr = TString::Format("hEp_cc_clone_%03d",idx);
+//            hEp_cc_clone[idx] = new TH1D(roostr, roostr, hEp_bin, hEp_low, hEp_hgh);
+//            
+//            roostr = TString::Format("hEd_cc_clone_%03d",idx);
+//            hEd_cc_clone[idx] = new TH1D(roostr, roostr, hEd_bin, hEd_low, hEd_hgh);
+//        }
+//        
+//        for(int idx=0; idx<MaxColumnNum; idx++)
+//        {
+//            roostr = TString::Format("hEp_cl_%03d", idx);
+//            hEp_cl[idx] = new TH1D(roostr, roostr, hEp_bin, hEp_low, hEp_hgh);
+//            
+//            roostr = TString::Format("hEd_cl_%03d", idx);
+//            hEd_cl[idx] = new TH1D(roostr, roostr, hEd_bin, hEd_low, hEd_hgh);
+//        }
+        
         
         //Use the loaded tree data in each AD in an independent way:
         for(Int_t AD = 0; AD<NADs;AD++)
@@ -1111,13 +1165,18 @@ void nHToyMC :: Toy(bool mode)
                     if( distPD>distCut ) continue;
                 }
                 
+                Double_t Eff_p_content,Eff_d_content;
                 ////// prompt
                 usr_r2_P = (X_P*X_P+Y_P*Y_P) * 1e-6;  // mm2 ---> m2
                 if( radialCut>0 && usr_r2_P>radialCut ) continue;
                 usr_z_P  = Z_P * 1e-3;  // mm ---> m
                 global_bin_num = hist_findbin->FindBin(usr_r2_P, usr_z_P);
                 hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
-                
+               // hEp_cc[global_bin_num]->Fill( Res_E_P_Sum );
+                if( local_zbin==0 && local_xbin>=1 && local_xbin<=R2_binnum && local_ybin>=1 && local_ybin<=Z_binnum )
+                {
+                    Eff_p_content = h2d_Ep_ratio2center->GetBinContent(local_xbin, local_ybin);
+                }
 #ifdef UseDelayInformation
                 ////// delayed
                 usr_r2_Ng = (X_Ng*X_Ng+Y_Ng*Y_Ng) * 1e-6;  // mm2 ---> m2
@@ -1125,22 +1184,102 @@ void nHToyMC :: Toy(bool mode)
                 usr_z_Ng  = Z_Ng * 1e-3;  // mm ---> m
                 global_bin_num = hist_findbin->FindBin(usr_r2_Ng, usr_z_Ng);
                 hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
+               // hEd_cc[global_bin_num]->Fill( Res_E_Ng );
+                if( local_zbin==0 && local_xbin>=1 && local_xbin<=R2_binnum && local_ybin>=1 && local_ybin<=Z_binnum )
+                {
+                    Eff_d_content = h2d_Ed_ratio2center->GetBinContent(local_xbin, local_ybin);
+                }
 #endif
                 
                 //Fill histograms:
-                TruePredictionH[AD]->Fill(cap_Ev);
-                VisiblePredictionH[AD]->Fill(Erec_P);
-                DelayedVisiblePredictionH[AD]->Fill(Erec_Ng);
-                HighResoMatrixH[AD]->Fill(cap_Ev,Erec_P);//Fine grid
-                MatrixH[AD]->Fill(cap_Ev,Erec_P);//neutrino energy vs visible energy
-                TransMatrixH[AD]->Fill(Erec_P,cap_Ev);
-                HighResoTransMatrixH[AD]->Fill(Erec_P,cap_Ev);//Fine grid
+                TruePredictionH[AD]->Fill(cap_Ev,Eff_p_content);
+                VisiblePredictionH[AD]->Fill(Res_E_P_Sum,Eff_p_content);
+                DelayedVisiblePredictionH[AD]->Fill(Res_E_Ng,Eff_d_content);
+                HighResoMatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum,Eff_p_content);//Fine grid
+                MatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum,Eff_p_content);//neutrino energy vs visible energy
+                TransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev,Eff_p_content);
+                HighResoTransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev,Eff_p_content);//Fine grid
                 
 #ifdef SaveTree
                 toy->Fill();
 #endif
             }//events
+            
+//            //Efficiency map:
+//            
+//            double entries=0, Effcontent=0;
+//            
+//            for(int idx=0; idx<MaxCellNum; idx++)
+//            {
+//                entries = 0;
+//                entries = hEp_cc[idx]->GetEntries();
+//                if( entries>10 )
+//                {
+//                    // hEp_cc[idx]->Write();
+//                    hEp_cc_clone[idx]->Add(hEp_cc[idx]);
+//                }
+//                
+//                entries = hEd_cc[idx]->GetEntries();
+//                if( entries>10 )
+//                {
+//                    // hEd_cc[idx]->Write();
+//                    hEd_cc_clone[idx]->Add(hEd_cc[idx]);
+//                }
+//                
+//                //////
+//                hist_findbin->GetBinXYZ(idx, local_xbin, local_ybin, local_zbin);
+//                if( local_zbin==0 && local_xbin>=1 && local_xbin<=R2_binnum && local_ybin>=1 && local_ybin<=Z_binnum )
+//                {
+//                    Effcontent = 0;
+//                    
+//                    //if(local_ybin<=1 || local_ybin>=Z_binnum)  continue;  // exclude bottom and top rows from columns
+//                    
+//                    entries = hEp_cc_clone[idx]->Integral(1,hEp_bin);
+//                    Effcontent = h2d_Ep_ratio2center->GetBinContent(local_xbin, local_ybin);
+//                    hEp_cc_clone[idx]->Scale(Effcontent/entries);
+//                    hEp_cl[local_xbin]->Add(hEp_cc_clone[idx]);//Efficiency corrected histogram
+//                    
+//                    entries = hEd_cc_clone[idx]->Integral(1,hEd_bin);
+//                    Effcontent = h2d_Ed_ratio2center->GetBinContent(local_xbin, local_ybin);
+//                    hEd_cc_clone[idx]->Scale(Effcontent/entries);
+//                    hEd_cl[local_xbin]->Add(hEd_cc_clone[idx]);//Efficiency corrected histogram
+//                }
+//            }
+//            
+//            //Reset histograms
+//            for(int idx=0; idx<MaxCellNum; idx++)
+//            {
+//                hEp_cc[idx]->Reset();
+//                hEd_cc[idx]->Reset();
+//                hEd_cc_clone[idx]->Reset();
+//                hEp_cc_clone[idx]->Reset();
+//            }
+//            for(int idx=0; idx<MaxColumnNum; idx++)
+//            {
+//                hEp_cl[idx]->Reset();
+//                hEd_cl[idx]->Reset();
+//            }
         }//ADs
+        
+        delete h2d_Ep_ratio2center;
+        delete h2d_Ed_ratio2center;
+        
+//        for(int idx=0; idx<MaxCellNum; idx++)
+//        {
+//            delete hEp_cc[idx];
+//            
+//            delete hEd_cc[idx];
+//            
+//            delete hEp_cc_clone[idx];
+//            
+//            delete hEd_cc_clone[idx];
+//        }
+//        for(int idx=0; idx<MaxColumnNum; idx++)
+//        {
+//            delete hEp_cl[idx];
+//            
+//            delete hEd_cl[idx];
+//        }
         
         if(mode!=0)
         {

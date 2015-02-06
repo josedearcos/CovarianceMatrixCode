@@ -42,8 +42,6 @@ private:
     
     //Using Pedro's MC for LiHe:
 #ifdef UseLiHeToyMC
-    TTree* m_tree_distortLi9Bg;
-    TFile* m_file_distortLi9Bg;//Trees need to keep the file open in memory
     TH1F* func_LiHe;
 #else
     TF1* func_LiHe;
@@ -265,14 +263,27 @@ Oscillation :: Oscillation()
     ADsEH1 = 2;
     ADsEH2 = 1;
     ADsEH3 = 3;
-    
+#ifdef BlindedAnalysis
+    sprintf(DistanceFileName,"./Distances/blinded_baseline.txt");
+    std::cout << " NEED TO ADD A BLINDED DISTANCE FILE" << std::endl;
+    exit(EXIT_FAILURE);
+#else
     sprintf(DistanceFileName,"./Distances/unblinded_baseline.txt");
+#endif
     
     if(NADs == 8) //ADs can only be 6 or 8
     {
         ADsEH2 = 2;
         ADsEH3 = 4;
+#ifdef BlindedAnalysis
+        sprintf(DistanceFileName,"./Distances/blinded_baseline.txt");
+        std::cout << " NEED TO ADD A BLINDED 8AD DISTANCE FILE" << std::endl;
+        exit(EXIT_FAILURE);
+#else
         sprintf(DistanceFileName,"./Distances/unblinded_baseline8ADs.txt");//change file to calculate distances to a file that has the information for the 8 ADs
+        std::cout << "NEED TO ADD A TXT FILE WITH THE 8AD DISTANCES" << std::endl;
+        exit(EXIT_FAILURE);
+#endif
     }
     
     DetectorProtons.resize(NADs);
@@ -376,14 +387,27 @@ Oscillation :: Oscillation(NominalData* OData)
     ADsEH1 = 2;
     ADsEH2 = 1;
     ADsEH3 = 3;
-    
+#ifdef BlindedAnalysis
+    sprintf(DistanceFileName,"./Distances/blinded_baseline.txt");
+    std::cout << " NEED TO ADD A BLINDED DISTANCE FILE" << std::endl;
+    exit(EXIT_FAILURE);
+#else
     sprintf(DistanceFileName,"./Distances/unblinded_baseline.txt");
+#endif
     
     if(NADs == 8) //ADs can only be 6 or 8
     {
         ADsEH2 = 2;
         ADsEH3 = 4;
+#ifdef BlindedAnalysis
+        sprintf(DistanceFileName,"./Distances/blinded_baseline.txt");
+        std::cout << " NEED TO ADD A BLINDED 8AD DISTANCE FILE" << std::endl;
+        exit(EXIT_FAILURE);
+#else
         sprintf(DistanceFileName,"./Distances/unblinded_baseline8ADs.txt");//change file to calculate distances to a file that has the information for the 8 ADs
+        std::cout << "NEED TO ADD A TXT FILE WITH THE 8AD DISTANCES" << std::endl;
+        exit(EXIT_FAILURE);
+#endif
     }
     
     DetectorProtons.resize(NADs);
@@ -480,12 +504,7 @@ Oscillation :: ~Oscillation()
             delete AmCH[AD];
             delete FastNeutronsH[AD];
         }
-#ifdef UseLiHeToyMC
-        if(DistortLiHeMatrix)
-        {
-            delete m_file_distortLi9Bg;//deletes the file and the tree
-        }
-#endif
+
         delete NominalAmCF;
         for (Int_t ad = 0; ad<NADs; ad++)//far
         {
@@ -1442,12 +1461,25 @@ void Oscillation :: GenerateFluxHisto()
         }
         else
         {
+#ifdef BlindedAnalysis
+            sprintf(ReactorData,Form("./ReactorInputs/WeeklyFlux_%dweek_blinded_inclusive.root",NReactorPeriods));
+            std::cout << " NEEDED A BLINDED WEEKLY INCLUSIVE FLUX FILE" << std::endl;
+            exit(EXIT_FAILURE);
+#else
             sprintf(ReactorData,Form("./ReactorInputs/WeeklyFlux_%dweek_unblinded_inclusive.root",NReactorPeriods));
+#endif
         }
     }
     else
     {
+        
+#ifdef BlindedAnalysis
+        sprintf(ReactorData, Form("./ReactorInputs/WeeklyFlux_%dweek_blinded.root",NReactorPeriods));
+        std::cout << " NEEDED A BLINDED WEEKLY FLUX FILE" << std::endl;
+        exit(EXIT_FAILURE);
+#else
         sprintf(ReactorData, Form("./ReactorInputs/WeeklyFlux_%dweek_unblinded.root",NReactorPeriods));
+#endif
     }
     
 #ifdef NoOscillation
@@ -2080,16 +2112,17 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
 #ifdef UseLiHeToyMC
 void Oscillation :: GetDistortionFunction(Double_t amount,TH1F* DistortionFunc)
 {
-    m_file_distortLi9Bg = new TFile("./Inputs/GdInputs/8he9li_distort_neutron100_alpha100_frac0.1_N250.root","READ");
-    m_tree_distortLi9Bg = (TTree*)m_file_distortLi9Bg->Get("tr_distort");
+    TH1F* LocalCopy;
+    TFile* m_file_distortLi9Bg = new TFile("./Inputs/GdInputs/8he9li_distort_neutron100_alpha100_frac0.1_N250.root","READ");
+    TTree* m_tree_distortLi9Bg = (TTree*)m_file_distortLi9Bg->Get("tr_distort");
+    m_tree_distortLi9Bg->SetBranchAddress("h_distort",&LocalCopy);
     Int_t m_entries_distortLi9Bg = (Int_t)m_tree_distortLi9Bg->GetEntries();
     std::cout << "The distortion tree has " << m_entries_distortLi9Bg << " entries" << std::endl;
     Int_t entry = rand->Uniform(0,m_entries_distortLi9Bg);
-    m_tree_distortLi9Bg->SetBranchAddress("h_distort",&func_LiHe);
-    m_tree_distortLi9Bg->GetEntry(entry);
-    
     std::cout << "Reading Li He entry : " << entry << std::endl;
-
+    m_tree_distortLi9Bg->GetEntry(entry);
+    func_LiHe = (TH1F*)LocalCopy->Clone();
+  //  delete m_file_distortLi9Bg;//deletes the file and the tree
 }
 #else
 void Oscillation :: GetDistortionFunction(Double_t amount,TF1* DistortionFunc)

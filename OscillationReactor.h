@@ -1254,7 +1254,8 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         delete BackgroundSpectrumH[AD];
     }
     
-    TFile* PredictionsFromReactorF = new TFile(("./RootOutputs/"+AnalysisString+"/NominaOutputs/PredictionsFromReactor.root").c_str(),"recreate");
+    TFile* PredictionsFromReactorF = new TFile(("./RootOutputs/"+AnalysisString+"/NominalOutputs/PredictionsFromReactor.root").c_str(),"recreate");
+
     
     for(Int_t AD = 0; AD<NADs; AD++)
     {
