@@ -3,6 +3,7 @@
 #include <math.h>
 
 //#define UseZhesCrossSection
+//#define SaveRootFileForComparison
 //
 //  AntineutrinoSpectrum.h
 //  I multiply the reactour spectrum by the neutrino cross section to get the True Energy Spectrum without oscillation.
@@ -31,8 +32,8 @@ private:
     TH1D* AntineutrinoSpectrumH[NReactors];
     TH1D* CrossSectionH;
 
-    Double_t EnergyM[MaxSamples];
-    Double_t CrossSection[MaxSamples];
+    Double_t EnergyM[MaxSamples+1];
+    Double_t CrossSection[MaxSamples+1];
     
     Double_t InitialEnergy;
     Double_t FinalVisibleEnergy;
@@ -100,14 +101,18 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
         //Read txt file with already calculated nGd cross section
         
             CrossSectionH = new TH1D("Cross Section","Cross Section", Nbins, InitialEnergy,FinalVisibleEnergy);
-    
+
 #ifndef UseZhesCrossSection
+    
+    Double_t OriginalInitialEnergy = 0;
+    Double_t OriginalFinalEnergy = 0;
+    
             std::string line;
             std::ifstream CrossF("./CrossSections/Xsec1_2011.dat");
             
             Int_t Samples=0;
             
-            while(Samples<MaxSamples)
+            while(!CrossF.eof())
             {
                 std::getline(CrossF,line);
                 std::string firstchar = line.substr(0,1);
@@ -116,30 +121,98 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
                 {
                     continue;//<-- ignore lines with comments
                 }
+                std::stringstream parse(line);//cannot use >> directly because getline and >> succesively skips a line
+                parse >> EnergyM[Samples] >> CrossSection[Samples];
                 
-                CrossF >> EnergyM[Samples] >> CrossSection[Samples];
+                if(Samples==0)
+                {
+                    OriginalInitialEnergy = EnergyM[Samples];
+                }
                 CrossSection[Samples]*=conv_s_per_day*conv_m2_per_cm2;// We will do the calculations in terms of days and m.
                 //            std::cout <<EnergyM[Samples] <<  CrossSection[Samples] << std::endl;
                 
                 Samples++;
             }
-            
-            //        std::cout << Samples << "Samples" << std::endl;
-            
-            //        Double_t BinWidth = ((FinalVisibleEnergy-InitialEnergy)/Nbins);
-            //        std::cout << BinWidth << " BinWidth" << std::endl;
-            
-            for (Int_t i= 0; i< Samples; i++)
-            {
-                //            std::cout <<  (fmod(EnergyM[i],BinWidth)) << " (fmod(EnergyM[i],BinWidth)" << std::endl;
-                
-                if((fmod(i,(Samples/Nbins))==0))
-                {
-                    //                std::cout <<(i/(Samples/Nbins))+1<< "(INDEX)" << std::endl;
-                    
-                    CrossSectionH->SetBinContent((i/(Samples/Nbins))+1,CrossSection[i]);
-                }
-            }
+    Samples--;
+
+    OriginalFinalEnergy = EnergyM[Samples-1];
+    
+    TH1D* OriginalCrossSectionH = new TH1D("OriginalCrossSection","OriginalCrossSection",Samples-1,OriginalInitialEnergy,OriginalFinalEnergy);
+    
+    Double_t OriginalBinWidth = (OriginalFinalEnergy-OriginalInitialEnergy)/(Samples-1);
+    
+    for (Int_t i= 0; i< Samples; i++)
+    {
+        //Double_t e_nu = i*OriginalBinWidth+OriginalInitialEnergy;
+        
+       // std::cout << " e_nu " << e_nu << "should be equal to" << EnergyM[i] << std::endl;
+        
+        Int_t binIdxLow = 0;
+        
+        if (EnergyM[i] > OriginalInitialEnergy)
+        {
+            binIdxLow = (Int_t)((EnergyM[i]-OriginalInitialEnergy)/OriginalBinWidth);
+        }
+        
+        Int_t binIdxHigh = binIdxLow+1;
+        
+        Double_t value_low = CrossSection[binIdxLow];
+        Double_t value_high = CrossSection[binIdxHigh];
+        Double_t value = value_low;
+        
+        Double_t binLowE = OriginalInitialEnergy + binIdxLow*OriginalBinWidth;
+        Double_t dE = EnergyM[i] - binLowE;
+        Double_t slope = (value_high - value_low)/OriginalBinWidth;
+        value += dE*slope;
+        
+        if(EnergyM[i]>=OriginalFinalEnergy)
+        {
+            value = 0.0;
+        }
+        if (value < 0)
+        {
+            value = 0.0;
+        }
+        if(i<Samples-1)
+        {
+            OriginalCrossSectionH->SetBinContent(i+1, value);
+        }
+    }
+    
+#ifdef PrintEps
+    TCanvas* originalcrossc = new TCanvas("OriginalCrossC","OriginalCrossC");
+    OriginalCrossSectionH->SetStats(0);
+    OriginalCrossSectionH->SetYTitle("Cross section / day / m^{2}");
+    OriginalCrossSectionH->SetXTitle("Energy [MeV]");
+    OriginalCrossSectionH->Draw();
+    originalcrossc->Print(Form(("./Images/"+AnalysisString+"/InterpolatedDataFileCrossSection.eps").c_str()),".eps");
+    delete originalcrossc;
+#endif
+    //        std::cout << Samples << "Samples" << std::endl;
+    
+    //        Double_t BinWidth = ((FinalVisibleEnergy-InitialEnergy)/Nbins);
+    //        std::cout << BinWidth << " BinWidth" << std::endl;
+    
+    //            for (Int_t i= 0; i< Samples; i++)
+    //            {
+    //                //            std::cout <<  (fmod(EnergyM[i],BinWidth)) << " (fmod(EnergyM[i],BinWidth)" << std::endl;
+    //
+    //                if((fmod(i,(Samples/Nbins))==0))
+    //                {
+    //                    //                std::cout <<(i/(Samples/Nbins))+1<< "(INDEX)" << std::endl;
+    //
+    //                    CrossSectionH->SetBinContent((i/(Samples/Nbins))+1,CrossSection[i]);
+    //                }
+    //            }
+    CrossSectionH = (TH1D*)OriginalCrossSectionH->Rebin((Samples/Nbins));
+#ifdef SaveRootFileForComparison
+    TFile* CrossSectionF = new TFile("./CrossSections/nGdCrossSection.root","recreate");//
+    OriginalCrossSectionH->SetYTitle("Cross section / seconds / cm^{2}");
+    CrossSectionH->Scale(1./(conv_s_per_day*conv_m2_per_cm2));
+    CrossSectionH->Write();// We will do the calculations in terms of the seconds and cm^2 for Comparison
+    delete CrossSectionF;
+#endif
+    
 #else
         TFile* CrossSectionF = new TFile("./CrossSections/nHCrossSection.root");
         CrossSectionH = (TH1D*)gDirectory->Get("CrossSection");
@@ -147,19 +220,16 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
         delete CrossSectionF;
 #endif
     
-//    TFile* CrossSecF = new TFile("./CrossSections/CheckCrossSection.root","recreate");
-//        CrossSectionH->Write();
-//    delete CrossSecF;
-    
     #ifdef PrintEps
         TCanvas* crossc = new TCanvas("CrossC","CrossC");
         CrossSectionH->SetStats(0);
+        CrossSectionH->SetYTitle("Cross section / day / m^{2}");
+        CrossSectionH->SetXTitle("Energy [MeV]");
         CrossSectionH->Draw();
         crossc->Print(Form(("./Images/"+AnalysisString+"/CrossSection.eps").c_str()),".eps");
         delete crossc;
     #endif
 }
-
 
 void AntineutrinoSpectrum :: AntineutrinoSpectrumMain(bool mode)
 {

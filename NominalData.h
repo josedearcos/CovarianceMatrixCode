@@ -2187,12 +2187,23 @@ void NominalData :: LoadMainData(const Char_t* mainmatrixname)
 
 void NominalData :: ReadChristineReactorSpectrum()
 {
-    std::cout << " READING CHRISTINE SPECTRUM " << std::endl;
+    
+    std::ifstream fileData;
+    
 #ifdef BlindedAnalysis
-    std::ifstream fileData("./ReactorInputs/p12c_blinded/combined/nNu_Nom_combined.txt");
+    fileData.open("./ReactorInputs/p12c_blinded/combined/nNu_Nom_combined.txt",std::fstream::in);
+    std::cout << " READING BLINDED CHRISTINE SPECTRUM " << std::endl;
 #else
-    std::ifstream fileData("./ReactorInputs/p12c_unblinded/combined/nNu_Nom_combined.txt");
+    fileData.open("./ReactorInputs/p12c_unblinded/combined/nNu_Nom_combined_huber-french.txt",std::fstream::in);
+    std::cout << " READING UNBLINDED CHRISTINE SPECTRUM " << std::endl;
 #endif
+    
+    if(!fileData.is_open())
+    {
+        std::cout << "Christine Reactor file not open" << std::endl;
+        
+        exit(EXIT_FAILURE);
+    }
     Double_t eMin=0;
     Double_t eMax=0;
     Double_t eNu=0;
@@ -2255,7 +2266,7 @@ void NominalData :: ReadIHEPReactorSpectrum()
     binWidth = 0.25;
     
     Int_t curPeriod;
-    std::fstream fileData;
+    std::fstream IHEPfileData;
     Double_t trash;
 
     for (Int_t reactor = 0; reactor < NReactors; reactor++)
@@ -2265,22 +2276,22 @@ void NominalData :: ReadIHEPReactorSpectrum()
         switch(reactor)
         {
             case 0://Daya Bay A
-                fileData.open("./ReactorInputs/P14A/DayaBayA_2011-12-24_2013-11-27.txt",std::fstream::in);
+                IHEPfileData.open("./ReactorInputs/P14A/DayaBayA_2011-12-24_2013-11-27.txt",std::fstream::in);
                 break;
             case 1://Daya Bay B
-                fileData.open("./ReactorInputs/P14A/DayaBayB_2011-12-24_2013-11-27.txt",std::fstream::in);
+                IHEPfileData.open("./ReactorInputs/P14A/DayaBayB_2011-12-24_2013-11-27.txt",std::fstream::in);
                 break;
             case 2://LingAo IA
-                fileData.open("./ReactorInputs/P14A/LingAoIA_2011-12-24_2013-11-27.txt",std::fstream::in);
+                IHEPfileData.open("./ReactorInputs/P14A/LingAoIA_2011-12-24_2013-11-27.txt",std::fstream::in);
                 break;
             case 3://LingAo IB
-                fileData.open("./ReactorInputs/P14A/LingAoIB_2011-12-24_2013-11-27.txt",std::fstream::in);
+                IHEPfileData.open("./ReactorInputs/P14A/LingAoIB_2011-12-24_2013-11-27.txt",std::fstream::in);
                 break;
             case 4://LingAo IIA
-                fileData.open("./ReactorInputs/P14A/LingAoIIA_2011-12-24_2013-11-27.txt",std::fstream::in);
+                IHEPfileData.open("./ReactorInputs/P14A/LingAoIIA_2011-12-24_2013-11-27.txt",std::fstream::in);
                 break;
             case 5://LingAo IIB
-                fileData.open("./ReactorInputs/P14A/LingAoIIB_2011-12-24_2013-11-27.txt",std::fstream::in);
+                IHEPfileData.open("./ReactorInputs/P14A/LingAoIIB_2011-12-24_2013-11-27.txt",std::fstream::in);
                 break;
             default:
                 std::cout << "Reactor data file not found" << std::endl;
@@ -2288,25 +2299,25 @@ void NominalData :: ReadIHEPReactorSpectrum()
                 exit(EXIT_FAILURE);
         }
         
-        if(!fileData.is_open())
+        if(!IHEPfileData.is_open())
         {
             std::cout << "P14A Reactor file not open" << std::endl;
             
             exit(EXIT_FAILURE);
         }
         
-        while(!fileData.eof())
+        while(!IHEPfileData.eof())
         {
             for(Int_t idr = 0; idr<5; idr++)//first 5 columns are the reactor ID
             {
-                fileData >> trash;
+                IHEPfileData >> trash;
                 
                 //std::cout << trash << std::endl;
 
             }
             for (Int_t bin = 0; bin <=NIHEPReactorBins; bin++)
             {
-                fileData >> m_dNdE_nom[reactor+NReactors*bin];
+                IHEPfileData >> m_dNdE_nom[reactor+NReactors*bin];
                 
                // std::cout << "reactor : " << reactor << " bin: " << bin << ", reactor spectrum: "<< m_dNdE_nom[reactor+NReactors*bin] << std::endl;
 
@@ -2315,7 +2326,7 @@ void NominalData :: ReadIHEPReactorSpectrum()
         }
         curPeriod--;
 
-        fileData.close();
+        IHEPfileData.close();
    }
     
     m_eMin = eMin;
@@ -2323,6 +2334,8 @@ void NominalData :: ReadIHEPReactorSpectrum()
     m_nSamples = NIHEPReactorBins;
     
     NReactorPeriods = curPeriod;
+    
+    std::cout << " P14A REACTOR PERIODS FROM IHEP TXT FILE: " << curPeriod << std::endl;
     
 }
 void NominalData :: ReadChristineCovMatrix()
@@ -2333,7 +2346,7 @@ void NominalData :: ReadChristineCovMatrix()
 #ifdef BlindedAnalysis
     std::ifstream fileData_mcov("./ReactorInputs/p12c_blinded/combined/nNu_Mcov_combined.txt");
 #else
-    std::ifstream fileData_mcov("./ReactorInputs/p12c_unblinded/combined/nNu_Mcov_combined.txt");
+    std::ifstream fileData_mcov("./ReactorInputs/p12c_unblinded/combined/nNu_Mcov_combined_huber-french_u238cor.txt");
 #endif
     for (Int_t i = 0; i < m_nSamples*NReactors; i++)
     {

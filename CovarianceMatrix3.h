@@ -243,7 +243,6 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
     
     Combine = Data->GetCombineMode();
     NReactorPeriods=Data->GetNReactorPeriods();
-
     
     Sin22t13 = Data->GetSin22t13();
     Dm2_31 = Data->GetDm231();
