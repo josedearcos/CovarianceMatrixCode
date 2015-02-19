@@ -1032,7 +1032,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             
             TotalOscillatedSpectrumAD[AD]->Draw();
         }
-        AntineutrinoSpectrumC->Print("./Images/ReactorSpectrumOscillatedInADs_NotScaled.eps");
+        AntineutrinoSpectrumC->Print(("./Images/"+AnalysisString+"ReactorSpectrumOscillatedInADs_NotScaled.eps").c_str());
         delete AntineutrinoSpectrumC;
     #endif
     

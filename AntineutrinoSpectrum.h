@@ -100,10 +100,10 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
 {
         //Read txt file with already calculated nGd cross section
         
-            CrossSectionH = new TH1D("Cross Section","Cross Section", Nbins, InitialEnergy,FinalVisibleEnergy);
-
-#ifndef UseZhesCrossSection
-    
+    CrossSectionH = new TH1D("Cross Section","Cross Section", Nbins, InitialEnergy,FinalVisibleEnergy);
+   
+    if(!Analysis)//Gadolinium
+    {
     Double_t OriginalInitialEnergy = 0;
     Double_t OriginalFinalEnergy = 0;
     
@@ -182,7 +182,7 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
 #ifdef PrintEps
     TCanvas* originalcrossc = new TCanvas("OriginalCrossC","OriginalCrossC");
     OriginalCrossSectionH->SetStats(0);
-    OriginalCrossSectionH->SetYTitle("Cross section / day / m^{2}");
+    OriginalCrossSectionH->SetYTitle("Cross section / s / cm^{2}");
     OriginalCrossSectionH->SetXTitle("Energy [MeV]");
     OriginalCrossSectionH->Draw();
     originalcrossc->Print(Form(("./Images/"+AnalysisString+"/InterpolatedDataFileCrossSection.eps").c_str()),".eps");
@@ -212,13 +212,14 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
     CrossSectionH->Write();// We will do the calculations in terms of the seconds and cm^2 for Comparison
     delete CrossSectionF;
 #endif
-    
-#else
+    }
+    else
+    {
         TFile* CrossSectionF = new TFile("./CrossSections/nHCrossSection.root");
         CrossSectionH = (TH1D*)gDirectory->Get("CrossSection");
         CrossSectionH->Scale(10e-42*conv_s_per_day*conv_m2_per_cm2);// We will do the calculations in terms of the # days and m. //DetectorProtons
         delete CrossSectionF;
-#endif
+    }
     
     #ifdef PrintEps
         TCanvas* crossc = new TCanvas("CrossC","CrossC");

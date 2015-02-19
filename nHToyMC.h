@@ -822,6 +822,7 @@ void nHToyMC :: Toy(bool mode)
         Double_t usr_opt_attenuation_P=0, usr_pmt_coverage_P=0, usr_opt_attenuation_Ng=0, usr_pmt_coverage_Ng=0;
         Double_t energy_sigma=0, R2_AA=0, R2_BB=0, R_average=0;
         
+        //Efficiency maps:
         TFile *roofile_h2d_ep_ratio2center = new TFile("./Inputs/HInputs/Data/cell_eff/h2d_ep_ratio2center.root", "read");
         TH2D *h2d_Ep_ratio2center = (TH2D*)roofile_h2d_ep_ratio2center->Get("h2d_ep_ratio2center");
         
@@ -1164,8 +1165,8 @@ void nHToyMC :: Toy(bool mode)
                     distPD = sqrt( (X_Ng-X_P)*(X_Ng-X_P) + (Y_Ng-Y_P)*(Y_Ng-Y_P) + (Z_Ng-Z_P)*(Z_Ng-Z_P) );
                     if( distPD>distCut ) continue;
                 }
-                
-                Double_t Eff_p_content,Eff_d_content;
+                //Efficiency correction:
+                Double_t Eff_p_content;
                 ////// prompt
                 usr_r2_P = (X_P*X_P+Y_P*Y_P) * 1e-6;  // mm2 ---> m2
                 if( radialCut>0 && usr_r2_P>radialCut ) continue;
@@ -1178,6 +1179,8 @@ void nHToyMC :: Toy(bool mode)
                     Eff_p_content = h2d_Ep_ratio2center->GetBinContent(local_xbin, local_ybin);
                 }
 #ifdef UseDelayInformation
+                //Efficiency correction:
+                Double_t Eff_d_content;
                 ////// delayed
                 usr_r2_Ng = (X_Ng*X_Ng+Y_Ng*Y_Ng) * 1e-6;  // mm2 ---> m2
                 if( radialCut>0 && usr_r2_Ng>radialCut ) continue;
@@ -1194,7 +1197,9 @@ void nHToyMC :: Toy(bool mode)
                 //Fill histograms:
                 TruePredictionH[AD]->Fill(cap_Ev,Eff_p_content);
                 VisiblePredictionH[AD]->Fill(Res_E_P_Sum,Eff_p_content);
+#ifdef UseDelayInformation
                 DelayedVisiblePredictionH[AD]->Fill(Res_E_Ng,Eff_d_content);
+#endif
                 HighResoMatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum,Eff_p_content);//Fine grid
                 MatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum,Eff_p_content);//neutrino energy vs visible energy
                 TransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev,Eff_p_content);
