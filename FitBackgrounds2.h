@@ -165,7 +165,7 @@ FitBackgrounds2 :: FitBackgrounds2(NominalData* Data)
 //This works for the current given Backgrounds and 6 ADs, will have to be changed in the case of 8 ADs or diverse inputs.
 void FitBackgrounds2 :: ReadHBackgrounds()
 {
-    std::cout << "Reading Hydrogen Backgroudns" << std::endl;
+    std::cout << "Reading Hydrogen Backgrounds" << std::endl;
     
     Int_t j=0;
     
@@ -350,7 +350,7 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
         delete GdLiHeC;
     #endif
     
-    std::cout << "Finished Reading Gadollinium Backgroudns" << std::endl;
+    std::cout << "Finished Reading Gadolinium Backgrounds" << std::endl;
     
 }
 
@@ -541,7 +541,7 @@ void FitBackgrounds2 :: FitAmc()
         for(Int_t i=1;i<=n_evis_bins;i++)
         {
             AmCH->SetBinContent(i,(OriginalAmCH->Interpolate(AmCH->GetXaxis()->GetBinCenter(i))));
-            std::cout << AmCH->GetBinContent(i) << std::endl;
+            // std::cout << AmCH->GetBinContent(i) << std::endl;
             if((AmCH->GetBinContent(i))<0)
             {
                 AmCH->SetBinContent(i,-1*AmCH->GetBinContent(i)); //Invert negative bins??

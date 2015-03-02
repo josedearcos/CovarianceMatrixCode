@@ -18,13 +18,12 @@
 //const Int_t NIsotopes=4;
 const Double_t conv_mev_per_s_gw = 6.2415e21;
 //const Int_t m_bcw_nbins = 26;
-const bool ChristineReactorModel = 1;
+const bool ExternalReactorModel = 1;
 //const Int_t Nbins=240-36;
 
 class ReactorSpectrumMultiple
 {
 private:
-    //    std::vector<TH1D*> Prueba;
     std::vector<TH1D*> NominalSpectra;
     //    TH2D* CovMatrixM;
     //    TH2D* CovMatrixLM;
@@ -89,6 +88,7 @@ private:
     void RandomIsotopes();
     void RandomPower();
     
+    bool IHEPReactorModel;
 public:
     
     ReactorSpectrumMultiple();
@@ -108,7 +108,8 @@ ReactorSpectrumMultiple :: ReactorSpectrumMultiple()
     rand = new TRandom3(0);
     
     std::setprecision(40);
-    
+    IHEPReactorModel = Nom->UsingIHEPReactorModel();
+
     //Binning variables
     OriginalNbins = 820;
     InitialEnergy = Nom->GetEmin();
@@ -169,6 +170,7 @@ ReactorSpectrumMultiple :: ReactorSpectrumMultiple(NominalData* Data)
 {
     rand = new TRandom3(0);
     
+    IHEPReactorModel = Data->UsingIHEPReactorModel();
     //Binning variables
     OriginalNbins = 820;
     InitialEnergy = Data->GetEmin();
@@ -249,19 +251,20 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
         sprintf(FileName,"./RootOutputs/Reactor/NominalOutputs/ReactorSpectrum.root");
     }
     
-    if(ChristineReactorModel)
+    if(ExternalReactorModel)
     {
         NominalSpectra.resize(NReactors);
         
         for (Int_t reactor = 0; reactor < NReactors; reactor++)
         {
-            NominalSpectra[reactor] = new TH1D(Form("Nominal%d",reactor),Form("Nominal%d",reactor),218,1.85,12.75);
+            NominalSpectra[reactor] = new TH1D(Form("Nominal%d",reactor),Form("Nominal%d",reactor),m_nSamples,m_eMin,m_eMax);
+            //218,1.85,12.75
         }
         for(Int_t curSample = 0; curSample<m_nSamples;curSample++)
         {
             for (Int_t reactor = 0; reactor < NReactors; reactor++)
             {
-                NominalSpectra[reactor]->SetBinContent(curSample+1,m_dNdE[reactor][curSample] * 1.0e18);
+                NominalSpectra[reactor]->SetBinContent(curSample+1,m_dNdE[reactor][curSample]);
             }
         }
         //        CovMatrixM = new TH2D("COV","COV",m_nSamples*NReactors,0,72,m_nSamples*NReactors,0,72);
@@ -309,7 +312,6 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
         Double_t slope;
         
         TotalReactorSpectrumH.resize(NReactors);
-        //        Prueba.resize(NReactors);
         
         if(ReactorPowerMatrix&&Mode==1)
         {
@@ -318,19 +320,10 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
         
         for (Int_t reactor = 0; reactor < NReactors; reactor++)
         {
-            //            Prueba[reactor] = new TH1D(Form("Prueba%d",reactor+1),Form("Prueba%d",reactor+1),m_nSamples,InitialEnergy,FinalVisibleEnergy);
-            
-            //            for (Int_t i = 0; i < m_nSamples; i++)
-            //            {
-            //                Prueba[reactor]->SetBinContent(i+1,m_dNdE[reactor][i] * 1.0e18);
-            //            }
-            
-            //  Apply power variations in all reactors
-            
-            
             TotalReactorSpectrumH[reactor] = new TH1D(Form("SpectrumFromReactor%d",reactor+1),Form("SpectrumFromReactor%d",reactor+1),Nbins,InitialEnergy,FinalVisibleEnergy);
             
             //  Interpolate for missing points and write reactor spectrum
+
             for (Int_t i = 0; i < Nbins; i++)
             {
                 e_nu = i*BinWidth+InitialEnergy;
@@ -368,7 +361,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
                     value = 0.0;
                 }
                 
-                TotalReactorSpectrumH[reactor]->SetBinContent(i+1, value * ReactorPower[reactor]/NominalReactorPower[reactor] * 1.0e18);
+                TotalReactorSpectrumH[reactor]->SetBinContent(i+1, value * ReactorPower[reactor]/NominalReactorPower[reactor]);
             }
             std::cout << " Reactor factor " <<  reactor << " " << ReactorPower[reactor]/NominalReactorPower[reactor] << std::endl;
             
@@ -379,9 +372,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
         for(Int_t reactor=0; reactor<NReactors;reactor++)
         {
             TotalReactorSpectrumH[reactor]->Write();
-            //            Prueba[reactor]->Write();
             NominalSpectra[reactor]->Write();
-            //                delete Prueba[reactor];
         }
         delete ReactorFile;
 
@@ -412,8 +403,14 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
                 SaveReactor->Modified();
             }
             SaveReactor->Update();
-            
+        if(IHEPReactorModel)
+        {
+            SaveReactor->Print("./Images/Reactor/IHEPReactorSpectrum.eps",".eps");
+        }
+        else
+        {
             SaveReactor->Print("./Images/Reactor/ChristineReactorSpectrum.eps",".eps");
+        }
             delete SaveReactor;
         #endif
         

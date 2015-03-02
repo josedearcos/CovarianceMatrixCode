@@ -52,14 +52,6 @@ using namespace std;
 ///
 TString roostr;
 
-///
-const double IBDthreshold = 1.80607;  //( (Mn+Me)^2-Mp^2 ) / (2Mp) =
-// = ( (939.565378+0.510998928)^2 - 938.272046^2 ) / (2*938.272046)
-//1.80433;  // Mneutron+Mpositron-Mproton
-const double EnergyScale = 0.982;  // data_centercell/toy_centercell = 0.982 for nH gamma toy non-uniformity and AdSimple data
-//const double EnergyScale = 1.023;  // data_centercell/toy_centercell = 1.02 when using same non-uniformity in both data and toy
-const int MaxCellNum = 401;
-
 //double hEp_low = 0;
 //double hEp_hgh = 12;
 //int    hEp_bin = 120;
@@ -107,19 +99,7 @@ private:
     
     //AD configuration parameters:
     Int_t NADs;
-    
 
-    
-    /// vetex region
-    Int_t    R2_binnum  ;                      // ---> set option: divide the volume to sub-regions
-    Double_t R2_lower   ;// m2                  // ---> set option
-    Double_t R2_upper   ;// m2                  // ---> set option
-    Double_t R2_binwidth;                   // ---> set option
-    
-    Int_t    Z_binnum  ;                      // ---> set option
-    Double_t Z_lower   ;// m                  // ---> set option
-    Double_t Z_upper   ;// m                   // ---> set option
-    
     /// find cell
     TH2D *hist_findbin;
     Int_t global_bin_num;
@@ -154,33 +134,24 @@ private:
     Double_t func_EnergyResolution(double*,double*);
     void func_initialization();
     Int_t  RootCellToVisCell(Int_t RootCell);
-    TH1D* TruePredictionH[MaxDetectors];
-    TH1D* VisiblePredictionH[MaxDetectors];
-    TH1D* DelayedVisiblePredictionH[MaxDetectors];
-    TH2D* TransMatrixH[MaxDetectors];
-    TH2D* HighResoTransMatrixH[MaxDetectors];
-    TH2D* MatrixH[MaxDetectors];
+    TH1D* TruePredictionH[MaxDetectors][R2_binnum][Z_binnum];
+    TH1D* VisiblePredictionH[MaxDetectors][R2_binnum][Z_binnum];
+    TH1D* DelayedVisiblePredictionH[MaxDetectors][R2_binnum][Z_binnum];
+    TH2D* TransMatrixH[MaxDetectors][R2_binnum][Z_binnum];
+    TH2D* HighResoTransMatrixH[MaxDetectors][R2_binnum][Z_binnum];
+    TH2D* MatrixH[MaxDetectors][R2_binnum][Z_binnum];
 public:
     nHToyMC(NominalData*);//constructor
     ~nHToyMC();//destructor
     void Toy(bool);//main
-    TH2D* LoadnHMatrix(Int_t);
+    TH2D* LoadnHMatrix(Int_t,Int_t,Int_t);
     void GeneratenHResponseMatrix();
-    TH2D* HighResoMatrixH[MaxDetectors];
+    TH2D* HighResoMatrixH[MaxDetectors][R2_binnum][Z_binnum];
 };
 
 // constructor:
 nHToyMC :: nHToyMC(NominalData* Data)
 {
-    R2_binnum = 10;                      // ---> set option: divide the volume to sub-regions
-    R2_lower  = 0;// m2                  // ---> set option
-    R2_upper  = 4;// m2                  // ---> set option
-    R2_binwidth = 4.0/R2_binnum;                  // ---> set option
-    
-    Z_binnum  = 10;                      // ---> set option
-    Z_lower   = -2;// m                  // ---> set option
-    Z_upper   = 2;// m                   // ---> set option
-
     /// find cell
     global_bin_num = 0;
     local_xbin     = 0;
@@ -225,21 +196,28 @@ nHToyMC :: nHToyMC(NominalData* Data)
     ResolutionErrorUncorrelated = Data->GetResoUncorrelatedError();
     
     NADs = Data->GetADs();
+    
     for(Int_t AD = 0; AD < NADs; AD++)
     {
-        HighResoMatrixH[AD] = new TH2D(Form("Fine_nHResponseMatrix_AD%d",AD+1),Form("Fine_nHResponseMatrix_AD%d",AD+1),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from true to visible
-        
-        MatrixH[AD] = new TH2D(Form("nHResponseMatrix_AD%d",AD+1),Form("nHResponseMatrix_AD%d",AD+1),n_etrue_bins,enu_bins,n_evis_bins,evis_bins);//from true to visible
-        
-        TransMatrixH[AD] = new TH2D(Form("nHTransResponseMatrix_AD%d",AD+1),Form("nHTransResponseMatrix_AD%d",AD+1),n_evis_bins,evis_bins,n_etrue_bins,enu_bins);//from visible to true
-        
-        HighResoTransMatrixH[AD] = new TH2D(Form("Fine_nHTransResponseMatrix_AD%d",AD+1),Form("Fine_nHTransResponseMatrix_AD%d",AD+1),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from visible to true
-        
-        TruePredictionH[AD] = new TH1D(Form("PredAD%d",AD),Form("PredAD%d",AD), Nbins, InitialEnergy, FinalEnergy);
-        
-        VisiblePredictionH[AD] = new TH1D(Form("VisPredAD%d",AD),Form("VisPredAD%d",AD), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
-        
-        DelayedVisiblePredictionH[AD] = new TH1D(Form("DelayedVisPredAD%d",AD),Form("DelayedVisPredAD%d",AD), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
+        for(int idx=0; idx<R2_binnum; idx++)
+        {
+            for(int idy=0; idy<Z_binnum; idy++)
+            {
+                HighResoMatrixH[AD][idx][idy] = new TH2D(Form("Fine_nHResponseMatrix_AD%d",AD+1),Form("Fine_nHResponseMatrix_AD%d",AD+1),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from true to visible
+                
+                MatrixH[AD][idx][idy] = new TH2D(Form("nHResponseMatrix_AD%d",AD+1),Form("nHResponseMatrix_AD%d",AD+1),n_etrue_bins,enu_bins,n_evis_bins,evis_bins);//from true to visible
+                
+                TransMatrixH[AD][idx][idy] = new TH2D(Form("nHTransResponseMatrix_AD%d",AD+1),Form("nHTransResponseMatrix_AD%d",AD+1),n_evis_bins,evis_bins,n_etrue_bins,enu_bins);//from visible to true
+                
+                HighResoTransMatrixH[AD][idx][idy] = new TH2D(Form("Fine_nHTransResponseMatrix_AD%d",AD+1),Form("Fine_nHTransResponseMatrix_AD%d",AD+1),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from visible to true
+                
+                TruePredictionH[AD][idx][idy] = new TH1D(Form("PredAD%d",AD),Form("PredAD%d",AD), Nbins, InitialEnergy, FinalEnergy);
+                
+                VisiblePredictionH[AD][idx][idy] = new TH1D(Form("VisPredAD%d",AD),Form("VisPredAD%d",AD), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
+                
+                DelayedVisiblePredictionH[AD][idx][idy] = new TH1D(Form("DelayedVisPredAD%d",AD),Form("DelayedVisPredAD%d",AD), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
+            }
+        }
     }
 }
 
@@ -247,12 +225,18 @@ nHToyMC :: ~nHToyMC()
 {
     for(Int_t AD = 0; AD < NADs; AD++)
     {
-        delete TruePredictionH[AD];
-        delete HighResoMatrixH[AD];
-        delete MatrixH[AD];
-        delete TransMatrixH[AD];
-        delete VisiblePredictionH[AD];
-        delete DelayedVisiblePredictionH[AD];
+        for(int idx=0; idx<R2_binnum; idx++)
+        {
+            for(int idy=0; idy<Z_binnum; idy++)
+            {
+                delete TruePredictionH[AD][idx][idy];
+                delete HighResoMatrixH[AD][idx][idy];
+                delete MatrixH[AD][idx][idy];
+                delete TransMatrixH[AD][idx][idy];
+                delete VisiblePredictionH[AD][idx][idy];
+                delete DelayedVisiblePredictionH[AD][idx][idy];
+            }
+        }
     }
 }
 ///
@@ -499,9 +483,7 @@ void nHToyMC :: Toy(bool mode)
 #endif
         }
         
-        ///////// Uncomment to include reactor shape in the toy:
-        
-#ifdef ReactorShapeinToy
+#ifdef ReactorShapeinToy        ///////// Uncomment #ReactorShapeinToy to include reactor shape in the toy:
         
         Double_t max_h_Ev_toyMC_input = h_Ev_toyMC_input->GetBinContent( h_Ev_toyMC_input->GetMaximumBin() );
         Double_t max_h_Ev_normal = h_Ev_normal->GetBinContent( h_Ev_normal->GetMaximumBin() );
@@ -1195,15 +1177,15 @@ void nHToyMC :: Toy(bool mode)
 #endif
                 
                 //Fill histograms:
-                TruePredictionH[AD]->Fill(cap_Ev,Eff_p_content);
-                VisiblePredictionH[AD]->Fill(Res_E_P_Sum,Eff_p_content);
+                TruePredictionH[AD][local_xbin][local_ybin]->Fill(cap_Ev,Eff_p_content);
+                VisiblePredictionH[AD][local_xbin][local_ybin]->Fill(Res_E_P_Sum,Eff_p_content);
 #ifdef UseDelayInformation
-                DelayedVisiblePredictionH[AD]->Fill(Res_E_Ng,Eff_d_content);
+                DelayedVisiblePredictionH[AD][local_xbin][local_ybin]->Fill(Res_E_Ng,Eff_d_content);
 #endif
-                HighResoMatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum,Eff_p_content);//Fine grid
-                MatrixH[AD]->Fill(cap_Ev,Res_E_P_Sum,Eff_p_content);//neutrino energy vs visible energy
-                TransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev,Eff_p_content);
-                HighResoTransMatrixH[AD]->Fill(Res_E_P_Sum,cap_Ev,Eff_p_content);//Fine grid
+                HighResoMatrixH[AD][local_xbin][local_ybin]->Fill(cap_Ev,Res_E_P_Sum,Eff_p_content);//Fine grid
+                MatrixH[AD][local_xbin][local_ybin]->Fill(cap_Ev,Res_E_P_Sum,Eff_p_content);//neutrino energy vs visible energy
+                TransMatrixH[AD][local_xbin][local_ybin]->Fill(Res_E_P_Sum,cap_Ev,Eff_p_content);
+                HighResoTransMatrixH[AD][local_xbin][local_ybin]->Fill(Res_E_P_Sum,cap_Ev,Eff_p_content);//Fine grid
                 
 #ifdef SaveTree
                 toy->Fill();
@@ -1309,16 +1291,16 @@ void nHToyMC :: Toy(bool mode)
             for(Int_t i = 0; i<NADs;i++)
             {
                 NNMatrixC->cd(i+1);
-                MatrixH[i]->Draw("colz");
+                MatrixH[i][0][0]->Draw("colz");
                 
                 NNFineMatrixC->cd(i+1);
-                HighResoMatrixH[i]->Draw("colz");
+                HighResoMatrixH[i][0][0]->Draw("colz");
                 
                 NNTransC->cd(i+1);
-                TransMatrixH[i]->Draw("colz");
+                TransMatrixH[i][0][0]->Draw("colz");
                 
                 NNFineTransC->cd(i+1);
-                HighResoTransMatrixH[i]->Draw("colz");
+                HighResoTransMatrixH[i][0][0]->Draw("colz");
             }
             
             NNFineMatrixC->Print("./Images/NoNormFineHydrogenResponseMatrix.eps");
@@ -1337,188 +1319,209 @@ void nHToyMC :: Toy(bool mode)
         Double_t NormaTrans[n_evis_bins];//vis->true
         Double_t HighResoNormaTrans[MatrixBins];//vis->true
         //Normalize the Matrix
-        for(Int_t AD = 0; AD<NADs;AD++)
+        for(int idx=0; idx<R2_binnum; idx++)
         {
-            for(Int_t i=0;i<n_etrue_bins;i++)
+            for(int idy=0; idy<Z_binnum; idy++)
             {
-                Norma[i]=0;
-                for(Int_t j=0;j<n_evis_bins;j++)
+                for(Int_t AD = 0; AD<NADs;AD++)
                 {
-                    Norma[i] = Norma[i]+MatrixH[AD]->GetBinContent(i+1,j+1);// true->vis
-                }
-            }
-            
-            for(Int_t i=0;i<n_evis_bins;i++)
-            {
-                NormaTrans[i]=0;
-                
-                for(Int_t j=0;j<n_etrue_bins;j++)
-                {
-                    NormaTrans[i] = NormaTrans[i]+TransMatrixH[AD]->GetBinContent(i+1,j+1);// vis->true
-                }
-            }
-            
-            for (Int_t i = 0; i < n_etrue_bins; i++)
-            {
-                for (Int_t j = 0; j < n_evis_bins; j++)
-                {
-                    if(Norma[i]!=0)
+                    for(Int_t i=0;i<n_etrue_bins;i++)
                     {
-                        MatrixH[AD]->SetBinContent(i+1,j+1,MatrixH[AD]->GetBinContent(i+1,j+1)/Norma[i]);//true->vis
-                    }
-                }
-            }
-            
-            for (Int_t i = 0; i < n_evis_bins; i++)
-            {
-                for (Int_t j = 0; j < n_etrue_bins; j++)
-                {
-                    if(NormaTrans[i]!=0)
-                    {
-                        TransMatrixH[AD]->SetBinContent(i+1,j+1,TransMatrixH[AD]->GetBinContent(i+1,j+1)/NormaTrans[i]);
+                        Norma[i]=0;
+                        for(Int_t j=0;j<n_evis_bins;j++)
+                        {
+                            Norma[i] = Norma[i]+MatrixH[AD][idx][idy]->GetBinContent(i+1,j+1);// true->vis
+                        }
                     }
                     
-                }
-            }
-            
-            for(Int_t i=0;i<MatrixBins;i++)
-            {
-                HighResoNorma[i]=0;
-                HighResoNormaTrans[i]=0;
-                
-                for(Int_t j=0;j<MatrixBins;j++)
-                {
-                    HighResoNorma[i] = HighResoNorma[i]+HighResoMatrixH[AD]->GetBinContent(i+1,j+1);// true->vis
-                    HighResoNormaTrans[i] = HighResoNormaTrans[i]+HighResoTransMatrixH[AD]->GetBinContent(i+1,j+1);// vis->true
-                    
-                }
-            }
-            
-            for(Int_t i=0;i<MatrixBins;i++)
-            {
-                for(Int_t j=0;j<MatrixBins;j++)
-                {
-                    if(HighResoNorma[i]!=0)
+                    for(Int_t i=0;i<n_evis_bins;i++)
                     {
-                        HighResoMatrixH[AD]->SetBinContent(i+1,j+1,HighResoMatrixH[AD]->GetBinContent(i+1,j+1)/HighResoNorma[i]);//true->vis
+                        NormaTrans[i]=0;
+                        
+                        for(Int_t j=0;j<n_etrue_bins;j++)
+                        {
+                            NormaTrans[i] = NormaTrans[i]+TransMatrixH[AD][idx][idy]->GetBinContent(i+1,j+1);// vis->true
+                        }
                     }
                     
-                    if(HighResoNormaTrans[i]!=0)
+                    for (Int_t i = 0; i < n_etrue_bins; i++)
                     {
-                        HighResoTransMatrixH[AD]->SetBinContent(i+1,j+1,HighResoTransMatrixH[AD]->GetBinContent(i+1,j+1)/HighResoNormaTrans[i]);
+                        for (Int_t j = 0; j < n_evis_bins; j++)
+                        {
+                            if(Norma[i]!=0)
+                            {
+                                MatrixH[AD][idx][idy]->SetBinContent(i+1,j+1,MatrixH[AD][idx][idy]->GetBinContent(i+1,j+1)/Norma[i]);//true->vis
+                            }
+                        }
+                    }
+                    
+                    for (Int_t i = 0; i < n_evis_bins; i++)
+                    {
+                        for (Int_t j = 0; j < n_etrue_bins; j++)
+                        {
+                            if(NormaTrans[i]!=0)
+                            {
+                                TransMatrixH[AD][idx][idy]->SetBinContent(i+1,j+1,TransMatrixH[AD][idx][idy]->GetBinContent(i+1,j+1)/NormaTrans[i]);
+                            }
+                            
+                        }
+                    }
+                    
+                    for(Int_t i=0;i<MatrixBins;i++)
+                    {
+                        HighResoNorma[i]=0;
+                        HighResoNormaTrans[i]=0;
+                        
+                        for(Int_t j=0;j<MatrixBins;j++)
+                        {
+                            HighResoNorma[i] = HighResoNorma[i]+HighResoMatrixH[AD][idx][idy]->GetBinContent(i+1,j+1);// true->vis
+                            HighResoNormaTrans[i] = HighResoNormaTrans[i]+HighResoTransMatrixH[AD][idx][idy]->GetBinContent(i+1,j+1);// vis->true
+                            
+                        }
+                    }
+                    
+                    for(Int_t i=0;i<MatrixBins;i++)
+                    {
+                        for(Int_t j=0;j<MatrixBins;j++)
+                        {
+                            if(HighResoNorma[i]!=0)
+                            {
+                                HighResoMatrixH[AD][idx][idy]->SetBinContent(i+1,j+1,HighResoMatrixH[AD][idx][idy]->GetBinContent(i+1,j+1)/HighResoNorma[i]);//true->vis
+                            }
+                            
+                            if(HighResoNormaTrans[i]!=0)
+                            {
+                                HighResoTransMatrixH[AD][idx][idy]->SetBinContent(i+1,j+1,HighResoTransMatrixH[AD][idx][idy]->GetBinContent(i+1,j+1)/HighResoNormaTrans[i]);
+                            }
+                        }
                     }
                 }
+#ifdef PrintEps
+                if(idx==0&&idy==0)
+                {
+                    TCanvas* FineMatrixC = new TCanvas("F","F");
+                    FineMatrixC->Divide(NADs/2,2);
+                    
+                    TCanvas* MatrixC = new TCanvas("","");
+                    MatrixC->Divide(NADs/2,2);
+                    
+                    TCanvas* PredictionC = new TCanvas("P","P");
+                    PredictionC->Divide(NADs/2,2);
+                    
+                    TCanvas* VisPredictionC = new TCanvas("VP","VP");
+                    VisPredictionC->Divide(NADs/2,2);
+                    
+                    TCanvas* DelayedVisPredictionC = new TCanvas("DVP","DVP");
+                    DelayedVisPredictionC->Divide(NADs/2,2);
+                    
+                    TCanvas* TransC = new TCanvas("T","T");
+                    TransC->Divide(NADs/2,2);
+                    
+                    TCanvas* FineTransC = new TCanvas("FT","FT");
+                    FineTransC->Divide(NADs/2,2);
+                    
+                    for(Int_t i = 0; i<NADs;i++)
+                    {
+                        PredictionC->cd(i+1);
+                        TruePredictionH[i][idx][idy]->Draw();
+                        
+                        VisPredictionC->cd(i+1);
+                        VisiblePredictionH[i][idx][idy]->Draw();
+                        
+                        DelayedVisPredictionC->cd(i+1);
+                        DelayedVisiblePredictionH[i][idx][idy]->Draw();
+                        
+                        MatrixC->cd(i+1);
+                        MatrixH[i][idx][idy]->Draw("colz");
+                        
+                        FineMatrixC->cd(i+1);
+                        HighResoMatrixH[i][idx][idy]->Draw("colz");
+                        
+                        TransC->cd(i+1);
+                        TransMatrixH[i][idx][idy]->Draw("colz");
+                        
+                        FineTransC->cd(i+1);
+                        HighResoTransMatrixH[i][idx][idy]->Draw("colz");
+                    }
+                    
+                    PredictionC->Print("./Images/ToyMCTrueHydrogenPrediction.eps");
+                    VisPredictionC->Print("./Images/ToyMCVisibleHydrogenPrediction.eps");
+                    DelayedVisPredictionC->Print("./Images/ToyMCDelayedVisibleHydrogenPrediction.eps");
+                    FineMatrixC->Print("./Images/FineHydrogenResponseMatrix.eps");
+                    MatrixC->Print("./Images/HydrogenResponseMatrix.eps");
+                    TransC->Print("./Images/TransposeHydrogenMatrix.eps");
+                    FineTransC->Print("./Images/FineTransposeHydrogenMatrix.eps");
+                    
+                    delete PredictionC;
+                    delete VisPredictionC;
+                    delete DelayedVisPredictionC;
+                    delete MatrixC;
+                    delete FineMatrixC;
+                    delete TransC;
+                    delete FineTransC;
+                }
+#endif
             }
         }
-        
-        #ifdef PrintEps
-            TCanvas* FineMatrixC = new TCanvas("F","F");
-            FineMatrixC->Divide(NADs/2,2);
-            
-            TCanvas* MatrixC = new TCanvas("","");
-            MatrixC->Divide(NADs/2,2);
-            
-            TCanvas* PredictionC = new TCanvas("P","P");
-            PredictionC->Divide(NADs/2,2);
-            
-            TCanvas* VisPredictionC = new TCanvas("VP","VP");
-            VisPredictionC->Divide(NADs/2,2);
-        
-            TCanvas* DelayedVisPredictionC = new TCanvas("DVP","DVP");
-            DelayedVisPredictionC->Divide(NADs/2,2);
-        
-            TCanvas* TransC = new TCanvas("T","T");
-            TransC->Divide(NADs/2,2);
-            
-            TCanvas* FineTransC = new TCanvas("FT","FT");
-            FineTransC->Divide(NADs/2,2);
-            
-            for(Int_t i = 0; i<NADs;i++)
-            {
-                PredictionC->cd(i+1);
-                TruePredictionH[i]->Draw();
-                
-                VisPredictionC->cd(i+1);
-                VisiblePredictionH[i]->Draw();
-                
-                DelayedVisPredictionC->cd(i+1);
-                DelayedVisiblePredictionH[i]->Draw();
-                
-                MatrixC->cd(i+1);
-                MatrixH[i]->Draw("colz");
-                
-                FineMatrixC->cd(i+1);
-                HighResoMatrixH[i]->Draw("colz");
-                
-                TransC->cd(i+1);
-                TransMatrixH[i]->Draw("colz");
-                
-                FineTransC->cd(i+1);
-                HighResoTransMatrixH[i]->Draw("colz");
-                
-            }
-            
-            PredictionC->Print("./Images/ToyMCTrueHydrogenPrediction.eps");
-            VisPredictionC->Print("./Images/ToyMCVisibleHydrogenPrediction.eps");
-            DelayedVisPredictionC->Print("./Images/ToyMCDelayedVisibleHydrogenPrediction.eps");
-            FineMatrixC->Print("./Images/FineHydrogenResponseMatrix.eps");
-            MatrixC->Print("./Images/HydrogenResponseMatrix.eps");
-            TransC->Print("./Images/TransposeHydrogenMatrix.eps");
-            FineTransC->Print("./Images/FineTransposeHydrogenMatrix.eps");
-            
-            delete PredictionC;
-            delete VisPredictionC;
-            delete DelayedVisPredictionC;
-            delete MatrixC;
-            delete FineMatrixC;
-            delete TransC;
-            delete FineTransC;
-        #endif
-        
         if(mode==0)
         {
             TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root","recreate");
             
-            for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+            for(int idx=0; idx<R2_binnum; idx++)
             {
-                HighResoMatrixH[AD]->Write(Form("FineEvisEnu%d",AD+1));//Save the matrices.
-                MatrixH[AD]->Write(Form("EvisEnu%d",AD+1));//Save the matrices.
+                for(int idy=0; idy<Z_binnum; idy++)
+                {
+                    for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+                    {
+                        HighResoMatrixH[AD][idx][idy]->Write(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                        MatrixH[AD][idx][idy]->Write(Form("EvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                        TransMatrixH[AD][idx][idy]->Write(Form("EnuEvis%i,Cell%i,%i",AD+1,idx,idy));
+                    }
+                    
+                }
             }
-            
-            TransMatrixH[0]->Write("EnuEvis");//All ADs are "identical", only need 1
-            
             delete SaveMatrix;
         }
         else
         {
             TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/RandomResponseMatrix.root","recreate");
-            
-            for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+           
+            for(int idx=0; idx<R2_binnum; idx++)
             {
-                HighResoMatrixH[AD]->Write(Form("FineEvisEnu%d",AD+1));//Save the matrices.
-                MatrixH[AD]->Write(Form("EvisEnu%d",AD+1));//Save the matrices.
+                for(int idy=0; idy<Z_binnum; idy++)
+                {
+                    for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+                    {
+                        HighResoMatrixH[AD][idx][idy]->Write(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                        MatrixH[AD][idx][idy]->Write(Form("EvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                        TransMatrixH[AD][idx][idy]->Write(Form("EnuEvis%i,Cell%i,%i",AD+1,idx,idy));
+                    }
+                    
+                }
             }
-            
-            TransMatrixH[0]->Write("EnuEvis");//All ADs are "identical", only need 1
-            
             delete SaveMatrix;
         }
 #ifdef SaveTree
         toy->Write();
         roofile_toy->Close();
 #endif
-        
+
 #ifndef ReDoNominal
     }
     else//if mode == 0
     {
         TFile* NominalMatrixF = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root");
         
-        for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+        for(int idx=0; idx<R2_binnum; idx++)
         {
-            HighResoMatrixH[AD] = (TH2D*)NominalMatrixF->Get(Form("FineEvisEnu%d",AD+1));//Save the matrices.
+            for(int idy=0; idy<Z_binnum; idy++)
+            {
+                for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+                {
+                    HighResoMatrixH[AD][idx][idy] = (TH2D*)NominalMatrixF->Get(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                }
+            }
         }
-        
         delete NominalMatrixF;
     }
     
@@ -1542,9 +1545,6 @@ void nHToyMC :: func_initialization()
         printf("\n\n MaxCellNum = %d, but must be >= %d\n\n", MaxCellNum, (R2_binnum+2)*(Z_binnum+2) );
         return;
     }
-
-    
-
     
     ////// ~/WORK/jixp/hapy/usr_job/work_mc_Ep/Production/process/plot_obj.cc
 #ifdef ReactorShapeinToy
@@ -1575,7 +1575,7 @@ void nHToyMC :: func_initialization()
     roofunc_EnergyResolution = new TF1("roofunc_EnergyResolution", this, &nHToyMC::func_EnergyResolution, 0,20, 1,"nHToyMC","func_EnergyResolution");
 }
 
-TH2D* nHToyMC :: LoadnHMatrix(Int_t AD)
+TH2D* nHToyMC :: LoadnHMatrix(Int_t AD,Int_t idx, Int_t idy)
 {
-    return HighResoMatrixH[AD];
+    return HighResoMatrixH[AD][idx][idy];
 }

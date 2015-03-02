@@ -24,7 +24,7 @@ const Double_t m_eMin = 0;
 
 //const bool NormalizeRow = 0; // Column normalization is the correct one
 const bool RebinEnergyMatrix = 1; // To check that the fine matrix multiplication works in the same way than the coarse one. There's difference, and it seems best to apply the rebin version. 
-const bool FlatEnergyMatrix = 1;// This one shouldn't make any change since the matrix is normalized. DayaBay asked to use a flat spectrum to produce the EvisEnu matrix. Yasu says that for the kind of apporach we use it is more accurate to use the best predictiondetector shape.
+const bool FlatEnergyMatrix = 0;// This one shouldn't make any change since the matrix is normalized. DayaBay asked to use a flat spectrum to produce the EvisEnu matrix. Yasu says that for the kind of apporach we use it is more accurate to use the best predictiondetector shape.
 
 ////NL
 //const Int_t n_bcw_positron_nl = 1000;
@@ -245,8 +245,8 @@ public:
     void GenerateEnergyMatrix(Double_t, Double_t, Int_t);
     void GenerateLBNLEnergyMatrix(Double_t, Double_t, Int_t);
     
-    void GetOscEnergyShift(Int_t,Int_t);
-    void GetOscIAVShift(Int_t,Int_t);
+    void GetOscEnergyShift(Int_t,Int_t,Int_t);
+    void GetOscIAVShift(Int_t,Int_t,Int_t);
     void GetOscNLShift(Int_t,Int_t);
     void GetOscResolutionShift(Int_t,Int_t);
     void updatePositronTrue(Double_t,Double_t);
@@ -478,253 +478,270 @@ void CreateEnergyMatrix :: GenerateEnergyMatrix(Double_t sin22t13, Double_t dm2_
     
     LoadADSpectrum();
     
-    for(Int_t TrueEnergyIndex=0; TrueEnergyIndex<MatrixBins; TrueEnergyIndex++)
-    {
-        GetOscEnergyShift(TrueEnergyIndex,week);
-        GetOscIAVShift(TrueEnergyIndex,week);
-        GetOscNLShift(TrueEnergyIndex,week);
-        GetOscResolutionShift(TrueEnergyIndex,week);
-    }
-    
-    
-    TH2D* EnergyMatrixPosH;
-    TH2D* EnergyMatrixIAVH;
-    TH2D* EnergyMatrixNLH;
-    TH2D* EnergyMatrixResoH;
-    
     std::cout << "\t Generating Energy Matrix" << std::endl;
-    
-    Char_t EnergyMatrixC[50];
-    
-    sprintf(EnergyMatrixC,("./ResponseMatrices/"+AnalysisString+"/NominalResponseMatrix.root").c_str());
-    
-    TFile* EnergyMatrixDataF = TFile::Open(EnergyMatrixC,"recreate");
-    
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //                          Matrices with the original 240x240 binning
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    
-    if(RebinEnergyMatrix)
-    {
-        std::cout << "\t Rebin Matrix from Fine to Coarse binning" << std::endl;
-        
-        LimitVis = n_evis_bins;
-        LimitTrue = n_etrue_bins;
-        
-        EnergyMatrixH = new TH2D("EvisEnu","EvisEnu",LimitTrue,enu_bins,LimitVis,evis_bins);
-        EnergyMatrixPosH = new TH2D("EvisEnuPos","EvisEnuPos",LimitTrue,enu_bins,LimitVis,evis_bins);
-        EnergyMatrixIAVH = new TH2D("EvisEnuIAV","EvisEnuIAV",LimitTrue,enu_bins,LimitVis,evis_bins);
-        EnergyMatrixNLH = new TH2D("EvisEnuNL","EvisEnuNL",LimitTrue,enu_bins,LimitVis,evis_bins);
-        EnergyMatrixResoH = new TH2D("EvisEnuReso","EvisEnuReso",LimitTrue,enu_bins,LimitVis,evis_bins);
-        RowEnergyMatrixH = new TH2D("EnuEvis","EnuEvis",LimitVis,evis_bins,LimitTrue,enu_bins);
-        
-        for (Int_t i = 0; i < n_etrue_bins; i++)
-        {
-            OscDeltaPositronSpectrumSumH[i] = new TH1D(Form("Fine Positron Spectrum Vis for True Energy Index %d",i),Form("Fine Positron Spectrum Vis for True Energy Index %d",i),MatrixBins,0,FinalVisibleEnergy);
-            OscDeltaIAVSpectrumSumH[i]= new TH1D(Form("Fine IAV Spectrum Vis for True Energy Index %d",i),Form("Fine Spectrum IAV Vis for True Energy Index %d",i),MatrixBins,0,FinalVisibleEnergy);
-            OscDeltaNLSpectrumSumH[i]= new TH1D(Form("Fine NL Spectrum Vis for True Energy Index %d",i),Form("Fine Spectrum NL Vis for True Energy Index %d",i),MatrixBins,0,FinalVisibleEnergy);
-            
-            OscDeltaVisibleSpectrumSumH[i]= new TH1D(Form("Fine Visible Spectrum Vis for True Energy Index %d",i),Form("Fine Visible Spectrum Vis for True Energy Index %d",i),MatrixBins,0,FinalVisibleEnergy);
-            
-            for (Int_t TrueEnergyIndex = Int_t(enu_bins[i]*MatrixBins/FinalVisibleEnergy); TrueEnergyIndex < Int_t(enu_bins[i+1]*MatrixBins/FinalVisibleEnergy); TrueEnergyIndex++)//Although the results are integers I need to add Int_t() if I don't want the precision errors to mess up the rebinning.
-            {
-                OscDeltaPositronSpectrumSumH[i]->Add(OscDeltaPositronSpectrumH[TrueEnergyIndex]);
-                OscDeltaIAVSpectrumSumH[i]->Add(OscDeltaIAVSpectrumH[TrueEnergyIndex]);
-                OscDeltaNLSpectrumSumH[i]->Add(OscDeltaNLSpectrumH[TrueEnergyIndex]);
-                OscDeltaVisibleSpectrumSumH[i]->Add(OscDeltaVisibleSpectrumH[TrueEnergyIndex]);
-            }
-            
-            RebinnedOscDeltaPositronSpectrumSumH[i]=(TH1D*)OscDeltaPositronSpectrumSumH[i]->Rebin(n_evis_bins,Form("Rebinned Positron Spectrum Vis for True Energy Index %d",i),evis_bins);
-            RebinnedOscDeltaIAVSpectrumSumH[i]=(TH1D*)OscDeltaIAVSpectrumSumH[i]->Rebin(n_evis_bins,Form("Rebinned IAV Spectrum Vis for True Energy Index %d",i),evis_bins);
-            RebinnedOscDeltaNLSpectrumSumH[i]=(TH1D*)OscDeltaNLSpectrumSumH[i]->Rebin(n_evis_bins,Form("Rebinned NL Spectrum Vis for True Energy Index %d",i),evis_bins);
-            RebinnedOscDeltaVisibleSpectrumSumH[i]=(TH1D*)OscDeltaVisibleSpectrumSumH[i]->Rebin(n_evis_bins,Form("Rebinned Visible Spectrum Vis for True Energy Index %d",i),evis_bins);
-            
-            for (Int_t j = 0; j < n_evis_bins; j++)
-            {
-                EnergyMatrixH->SetBinContent(i+1,j+1, RebinnedOscDeltaVisibleSpectrumSumH[i]->GetBinContent(j+1));
-                EnergyMatrixPosH->SetBinContent(i+1,j+1,RebinnedOscDeltaPositronSpectrumSumH[i]->GetBinContent(j+1));
-                EnergyMatrixIAVH->SetBinContent(i+1,j+1,RebinnedOscDeltaIAVSpectrumSumH[i]->GetBinContent(j+1));
-                EnergyMatrixNLH->SetBinContent(i+1,j+1,RebinnedOscDeltaNLSpectrumSumH[i]->GetBinContent(j+1));
-                EnergyMatrixResoH->SetBinContent(i+1,j+1,RebinnedOscDeltaVisibleSpectrumSumH[i]->GetBinContent(j+1));
 
-            }
-        }
-        for (Int_t i = 0; i < n_etrue_bins; i++)
-        {
-            for (Int_t j = 0; j < n_evis_bins; j++)
-            {
-                RowEnergyMatrixH->SetBinContent(j+1,i+1,EnergyMatrixH->GetBinContent(i+1,j+1));
-            }
-        }
-    }
-    else
+    for(Int_t AD=0;AD<NADs;AD++)
     {
-        LimitVis = MatrixBins;
-        LimitTrue = MatrixBins;
-        
-        EnergyMatrixH= new TH2D("EvisEnu","EvisEnu",LimitTrue,0,LimitTrue,LimitVis,0,LimitVis);
-        EnergyMatrixPosH= new TH2D("EvisEnuPos","EvisEnuPos",LimitTrue,0,LimitTrue,LimitVis,0,LimitVis);
-        EnergyMatrixIAVH= new TH2D("EvisEnuIAV","EvisEnuIAV",LimitTrue,0,LimitTrue,LimitVis,0,LimitVis);
-        EnergyMatrixNLH= new TH2D("EvisEnuNL","EvisEnuNL",LimitTrue,0,LimitTrue,LimitVis,0,LimitVis);
-        EnergyMatrixResoH= new TH2D("EvisEnuReso","EvisEnuReso",LimitTrue,0,LimitTrue,LimitVis,0,LimitVis);
-        RowEnergyMatrixH= new TH2D("EnuEvis","EnuEvis",LimitVis,0,LimitVis, LimitTrue,0,LimitTrue);
-        
-        for (Int_t i = 0; i < MatrixBins; i++)
+        for(Int_t TrueEnergyIndex=0; TrueEnergyIndex<MatrixBins; TrueEnergyIndex++)
         {
-            for (Int_t j = 0; j < MatrixBins; j++)
-            {
-                EnergyMatrixH->SetBinContent(i+1,j+1,EnergyMatrixH->GetBinContent(i+1,j+1)+OscDeltaVisibleSpectrumH[i]->GetBinContent(j+1));
-                
-                EnergyMatrixPosH->SetBinContent(i+1,j+1,EnergyMatrixPosH->GetBinContent(i+1,j+1)+OscDeltaPositronSpectrumH[i]->GetBinContent(j+1));
-                
-                EnergyMatrixIAVH->SetBinContent(i+1,j+1,EnergyMatrixIAVH->GetBinContent(i+1,j+1)+OscDeltaIAVSpectrumH[i]->GetBinContent(j+1));
-                
-                EnergyMatrixNLH->SetBinContent(i+1,j+1,EnergyMatrixNLH->GetBinContent(i+1,j+1)+OscDeltaNLSpectrumH[i]->GetBinContent(j+1));
-                
-                EnergyMatrixResoH->SetBinContent(i+1,j+1,EnergyMatrixResoH->GetBinContent(i+1,j+1)+OscDeltaVisibleSpectrumH[i]->GetBinContent(j+1));
-            }
-        }
-        for (Int_t i = 0; i < MatrixBins; i++)
-        {
-            for (Int_t j = 0; j < MatrixBins; j++)
-            {
-                RowEnergyMatrixH->SetBinContent(j+1,i+1,EnergyMatrixH->GetBinContent(i+1,j+1));
-            }
+            GetOscEnergyShift(AD,TrueEnergyIndex,week);//Energy spectrum is different for each AD.
+            GetOscIAVShift(AD,TrueEnergyIndex,week);//IAV Matrix identical for each AD though..
+            GetOscNLShift(TrueEnergyIndex,week);
+            GetOscResolutionShift(TrueEnergyIndex,week);
         }
         
-    }
-    
-    // UNCOMMENT FOLLOWING LINES TO SAVE ENERGY MATRIX SLICES IN EACH PRODUCTION STEP
-    //    for(Int_t TrueEnergyIndex = 0; TrueEnergyIndex<MatrixBins; TrueEnergyIndex++)
-    //    {
-    //        OscDeltaPositronSpectrumH[TrueEnergyIndex]->Write();
-    //        OscDeltaIAVSpectrumH[TrueEnergyIndex]->Write();
-    //        OscDeltaNLSpectrumH[TrueEnergyIndex]->Write();
-    //        OscDeltaVisibleSpectrumH[TrueEnergyIndex]->Write();
-    //    }
-    if(RebinEnergyMatrix)
-    {
-        for(Int_t TrueEnergyIndex = 0; TrueEnergyIndex<n_etrue_bins; TrueEnergyIndex++)
+        
+        TH2D* EnergyMatrixPosH;
+        TH2D* EnergyMatrixIAVH;
+        TH2D* EnergyMatrixNLH;
+        TH2D* EnergyMatrixResoH;
+        
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        //                          Matrices with the original 240x240 binning
+        ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        
+        if(RebinEnergyMatrix)
         {
-            //        OscDeltaPositronSpectrumSumH[TrueEnergyIndex]->Write();
-            //        OscDeltaIAVSpectrumSumH[TrueEnergyIndex]->Write();
-            //        OscDeltaNLSpectrumSumH[TrueEnergyIndex]->Write();
-            //        OscDeltaVisibleSpectrumSumH[TrueEnergyIndex]->Write();
+            std::cout << "\t Rebin Matrix from Fine to Coarse binning" << std::endl;
             
-            delete OscDeltaPositronSpectrumSumH[TrueEnergyIndex];
-            delete OscDeltaIAVSpectrumSumH[TrueEnergyIndex];
-            delete OscDeltaNLSpectrumSumH[TrueEnergyIndex];
-            delete OscDeltaVisibleSpectrumSumH[TrueEnergyIndex];
+            LimitVis = n_evis_bins;
+            LimitTrue = n_etrue_bins;
             
-            delete RebinnedOscDeltaPositronSpectrumSumH[TrueEnergyIndex];
-            delete RebinnedOscDeltaIAVSpectrumSumH[TrueEnergyIndex];
-            delete RebinnedOscDeltaNLSpectrumSumH[TrueEnergyIndex];
-            delete RebinnedOscDeltaVisibleSpectrumSumH[TrueEnergyIndex];
+            EnergyMatrixH = new TH2D("EvisEnu","EvisEnu",LimitTrue,enu_bins,LimitVis,evis_bins);
+            EnergyMatrixPosH = new TH2D("EvisEnuPos","EvisEnuPos",LimitTrue,enu_bins,LimitVis,evis_bins);
+            EnergyMatrixIAVH = new TH2D("EvisEnuIAV","EvisEnuIAV",LimitTrue,enu_bins,LimitVis,evis_bins);
+            EnergyMatrixNLH = new TH2D("EvisEnuNL","EvisEnuNL",LimitTrue,enu_bins,LimitVis,evis_bins);
+            EnergyMatrixResoH = new TH2D("EvisEnuReso","EvisEnuReso",LimitTrue,enu_bins,LimitVis,evis_bins);
+            RowEnergyMatrixH = new TH2D("EnuEvis","EnuEvis",LimitVis,evis_bins,LimitTrue,enu_bins);
+            
+            for (Int_t i = 0; i < n_etrue_bins; i++)
+            {
+                OscDeltaPositronSpectrumSumH[i] = new TH1D(Form("Fine Positron Spectrum Vis for True Energy Index %d",i),Form("Fine Positron Spectrum Vis for True Energy Index %d",i),MatrixBins,0,FinalVisibleEnergy);
+                OscDeltaIAVSpectrumSumH[i]= new TH1D(Form("Fine IAV Spectrum Vis for True Energy Index %d",i),Form("Fine Spectrum IAV Vis for True Energy Index %d",i),MatrixBins,0,FinalVisibleEnergy);
+                OscDeltaNLSpectrumSumH[i]= new TH1D(Form("Fine NL Spectrum Vis for True Energy Index %d",i),Form("Fine Spectrum NL Vis for True Energy Index %d",i),MatrixBins,0,FinalVisibleEnergy);
+                
+                OscDeltaVisibleSpectrumSumH[i]= new TH1D(Form("Fine Visible Spectrum Vis for True Energy Index %d",i),Form("Fine Visible Spectrum Vis for True Energy Index %d",i),MatrixBins,0,FinalVisibleEnergy);
+                
+                for (Int_t TrueEnergyIndex = Int_t(enu_bins[i]*MatrixBins/FinalVisibleEnergy); TrueEnergyIndex < Int_t(enu_bins[i+1]*MatrixBins/FinalVisibleEnergy); TrueEnergyIndex++)//Although the results are integers I need to add Int_t() if I don't want the precision errors to mess up the rebinning.
+                {
+                    OscDeltaPositronSpectrumSumH[i]->Add(OscDeltaPositronSpectrumH[TrueEnergyIndex]);
+                    OscDeltaIAVSpectrumSumH[i]->Add(OscDeltaIAVSpectrumH[TrueEnergyIndex]);
+                    OscDeltaNLSpectrumSumH[i]->Add(OscDeltaNLSpectrumH[TrueEnergyIndex]);
+                    OscDeltaVisibleSpectrumSumH[i]->Add(OscDeltaVisibleSpectrumH[TrueEnergyIndex]);
+                }
+                
+                RebinnedOscDeltaPositronSpectrumSumH[i]=(TH1D*)OscDeltaPositronSpectrumSumH[i]->Rebin(n_evis_bins,Form("Rebinned Positron Spectrum Vis for True Energy Index %d",i),evis_bins);
+                RebinnedOscDeltaIAVSpectrumSumH[i]=(TH1D*)OscDeltaIAVSpectrumSumH[i]->Rebin(n_evis_bins,Form("Rebinned IAV Spectrum Vis for True Energy Index %d",i),evis_bins);
+                RebinnedOscDeltaNLSpectrumSumH[i]=(TH1D*)OscDeltaNLSpectrumSumH[i]->Rebin(n_evis_bins,Form("Rebinned NL Spectrum Vis for True Energy Index %d",i),evis_bins);
+                RebinnedOscDeltaVisibleSpectrumSumH[i]=(TH1D*)OscDeltaVisibleSpectrumSumH[i]->Rebin(n_evis_bins,Form("Rebinned Visible Spectrum Vis for True Energy Index %d",i),evis_bins);
+                
+                for (Int_t j = 0; j < n_evis_bins; j++)
+                {
+                    EnergyMatrixH->SetBinContent(i+1,j+1, RebinnedOscDeltaVisibleSpectrumSumH[i]->GetBinContent(j+1));
+                    EnergyMatrixPosH->SetBinContent(i+1,j+1,RebinnedOscDeltaPositronSpectrumSumH[i]->GetBinContent(j+1));
+                    EnergyMatrixIAVH->SetBinContent(i+1,j+1,RebinnedOscDeltaIAVSpectrumSumH[i]->GetBinContent(j+1));
+                    EnergyMatrixNLH->SetBinContent(i+1,j+1,RebinnedOscDeltaNLSpectrumSumH[i]->GetBinContent(j+1));
+                    EnergyMatrixResoH->SetBinContent(i+1,j+1,RebinnedOscDeltaVisibleSpectrumSumH[i]->GetBinContent(j+1));
+                    
+                }
+            }
+            for (Int_t i = 0; i < n_etrue_bins; i++)
+            {
+                for (Int_t j = 0; j < n_evis_bins; j++)
+                {
+                    RowEnergyMatrixH->SetBinContent(j+1,i+1,EnergyMatrixH->GetBinContent(i+1,j+1));
+                }
+            }
         }
-    }
-    //
-    NoNormalizedEnergyMatrixH = (TH2D*)EnergyMatrixH->Clone("NoNormalizedEvisEnu");
-    NoNormalizedEnergyMatrixPosH = (TH2D*)EnergyMatrixPosH->Clone("PosNoNormalizedEvisEnu");
-    NoNormalizedEnergyMatrixIAVH = (TH2D*)EnergyMatrixIAVH->Clone("IAVNoNormalizedEvisEnu");
-    NoNormalizedEnergyMatrixNLH = (TH2D*)EnergyMatrixNLH->Clone("NLNoNormalizedEvisEnu");
-    NoNormalizedEnergyMatrixResoH = (TH2D*)EnergyMatrixResoH->Clone("ResoNoNormalizedEvisEnu");
-    
-    NoNormalizedEnergyMatrixPosH->Write();
-    NoNormalizedEnergyMatrixIAVH->Write();
-    NoNormalizedEnergyMatrixNLH->Write();
-    NoNormalizedEnergyMatrixResoH->Write();
-    
-    NoNormalizedEnergyMatrixH->Write();//Save Matrix before rebinning
-    RowEnergyMatrixH->Write("NoNormalizedEnuEvis");//Save Matrix before rebinning
-    
-    //Normalize the Matrix
-    for(Int_t j=0;j<LimitTrue;j++)
-    {
-        Norma[j]=0;
-        NormaPos[j]=0;
-        NormaIAV[j]=0;
-        NormaNL[j]=0;
-        NormaReso[j]=0;
-        for(Int_t i=0;i<LimitVis;i++)
+        else
         {
-            Norma[j] = Norma[j]+EnergyMatrixH->GetBinContent(j+1,i+1);
-            NormaPos[j] = NormaPos[j]+EnergyMatrixPosH->GetBinContent(j+1,i+1);
-            NormaIAV[j] = NormaIAV[j]+EnergyMatrixIAVH->GetBinContent(j+1,i+1);
-            NormaNL[j] = NormaNL[j]+EnergyMatrixNLH->GetBinContent(j+1,i+1);
-            NormaReso[j] = NormaReso[j]+EnergyMatrixResoH->GetBinContent(j+1,i+1);
+            LimitVis = MatrixBins;
+            LimitTrue = MatrixBins;
+            
+            EnergyMatrixH= new TH2D("EvisEnu","EvisEnu",LimitTrue,0,LimitTrue,LimitVis,0,LimitVis);
+            EnergyMatrixPosH= new TH2D("EvisEnuPos","EvisEnuPos",LimitTrue,0,LimitTrue,LimitVis,0,LimitVis);
+            EnergyMatrixIAVH= new TH2D("EvisEnuIAV","EvisEnuIAV",LimitTrue,0,LimitTrue,LimitVis,0,LimitVis);
+            EnergyMatrixNLH= new TH2D("EvisEnuNL","EvisEnuNL",LimitTrue,0,LimitTrue,LimitVis,0,LimitVis);
+            EnergyMatrixResoH= new TH2D("EvisEnuReso","EvisEnuReso",LimitTrue,0,LimitTrue,LimitVis,0,LimitVis);
+            RowEnergyMatrixH= new TH2D("EnuEvis","EnuEvis",LimitVis,0,LimitVis, LimitTrue,0,LimitTrue);
+            
+            for (Int_t i = 0; i < MatrixBins; i++)
+            {
+                for (Int_t j = 0; j < MatrixBins; j++)
+                {
+                    EnergyMatrixH->SetBinContent(i+1,j+1,EnergyMatrixH->GetBinContent(i+1,j+1)+OscDeltaVisibleSpectrumH[i]->GetBinContent(j+1));
+                    
+                    EnergyMatrixPosH->SetBinContent(i+1,j+1,EnergyMatrixPosH->GetBinContent(i+1,j+1)+OscDeltaPositronSpectrumH[i]->GetBinContent(j+1));
+                    
+                    EnergyMatrixIAVH->SetBinContent(i+1,j+1,EnergyMatrixIAVH->GetBinContent(i+1,j+1)+OscDeltaIAVSpectrumH[i]->GetBinContent(j+1));
+                    
+                    EnergyMatrixNLH->SetBinContent(i+1,j+1,EnergyMatrixNLH->GetBinContent(i+1,j+1)+OscDeltaNLSpectrumH[i]->GetBinContent(j+1));
+                    
+                    EnergyMatrixResoH->SetBinContent(i+1,j+1,EnergyMatrixResoH->GetBinContent(i+1,j+1)+OscDeltaVisibleSpectrumH[i]->GetBinContent(j+1));
+                }
+            }
+            for (Int_t i = 0; i < MatrixBins; i++)
+            {
+                for (Int_t j = 0; j < MatrixBins; j++)
+                {
+                    RowEnergyMatrixH->SetBinContent(j+1,i+1,EnergyMatrixH->GetBinContent(i+1,j+1));
+                }
+            }
+            
         }
-    }
-    
-    for(Int_t i=0;i<LimitVis;i++)
-    {
-        NormaTrans[i]=0;
+        
+        // UNCOMMENT FOLLOWING LINES TO SAVE ENERGY MATRIX SLICES IN EACH PRODUCTION STEP
+        //    for(Int_t TrueEnergyIndex = 0; TrueEnergyIndex<MatrixBins; TrueEnergyIndex++)
+        //    {
+        //        OscDeltaPositronSpectrumH[TrueEnergyIndex]->Write();
+        //        OscDeltaIAVSpectrumH[TrueEnergyIndex]->Write();
+        //        OscDeltaNLSpectrumH[TrueEnergyIndex]->Write();
+        //        OscDeltaVisibleSpectrumH[TrueEnergyIndex]->Write();
+        //    }
+        if(RebinEnergyMatrix)
+        {
+            for(Int_t TrueEnergyIndex = 0; TrueEnergyIndex<n_etrue_bins; TrueEnergyIndex++)
+            {
+                //        OscDeltaPositronSpectrumSumH[TrueEnergyIndex]->Write();
+                //        OscDeltaIAVSpectrumSumH[TrueEnergyIndex]->Write();
+                //        OscDeltaNLSpectrumSumH[TrueEnergyIndex]->Write();
+                //        OscDeltaVisibleSpectrumSumH[TrueEnergyIndex]->Write();
+                
+                delete OscDeltaPositronSpectrumSumH[TrueEnergyIndex];
+                delete OscDeltaIAVSpectrumSumH[TrueEnergyIndex];
+                delete OscDeltaNLSpectrumSumH[TrueEnergyIndex];
+                delete OscDeltaVisibleSpectrumSumH[TrueEnergyIndex];
+                
+                delete RebinnedOscDeltaPositronSpectrumSumH[TrueEnergyIndex];
+                delete RebinnedOscDeltaIAVSpectrumSumH[TrueEnergyIndex];
+                delete RebinnedOscDeltaNLSpectrumSumH[TrueEnergyIndex];
+                delete RebinnedOscDeltaVisibleSpectrumSumH[TrueEnergyIndex];
+            }
+        }
+        
+        Char_t EnergyMatrixC[50];
+        
+        sprintf(EnergyMatrixC,("./ResponseMatrices/"+AnalysisString+"/NominalResponseMatrix.root").c_str());
+        
+        Char_t OptionS[20];
+        
+        if(AD==0)
+        {
+            sprintf(OptionS,"recreate");
+        }
+        else
+        {
+            sprintf(OptionS,"update");
+        }
+        
+        TFile* EnergyMatrixDataF = TFile::Open(EnergyMatrixC,OptionS);
+        
+        NoNormalizedEnergyMatrixH = (TH2D*)EnergyMatrixH->Clone("NoNormalizedEvisEnu");
+        NoNormalizedEnergyMatrixPosH = (TH2D*)EnergyMatrixPosH->Clone("PosNoNormalizedEvisEnu");
+        NoNormalizedEnergyMatrixIAVH = (TH2D*)EnergyMatrixIAVH->Clone("IAVNoNormalizedEvisEnu");
+        NoNormalizedEnergyMatrixNLH = (TH2D*)EnergyMatrixNLH->Clone("NLNoNormalizedEvisEnu");
+        NoNormalizedEnergyMatrixResoH = (TH2D*)EnergyMatrixResoH->Clone("ResoNoNormalizedEvisEnu");
+        
+        NoNormalizedEnergyMatrixPosH->Write();
+        NoNormalizedEnergyMatrixIAVH->Write();
+        NoNormalizedEnergyMatrixNLH->Write();
+        NoNormalizedEnergyMatrixResoH->Write();
+        
+        NoNormalizedEnergyMatrixH->Write();//Save Matrix before rebinning
+        RowEnergyMatrixH->Write("NoNormalizedEnuEvis");//Save Matrix before rebinning
+        
+        //Normalize the Matrix
         for(Int_t j=0;j<LimitTrue;j++)
         {
-            NormaTrans[i] = NormaTrans[i]+RowEnergyMatrixH->GetBinContent(i+1,j+1);
+            Norma[j]=0;
+            NormaPos[j]=0;
+            NormaIAV[j]=0;
+            NormaNL[j]=0;
+            NormaReso[j]=0;
+            for(Int_t i=0;i<LimitVis;i++)
+            {
+                Norma[j] = Norma[j]+EnergyMatrixH->GetBinContent(j+1,i+1);
+                NormaPos[j] = NormaPos[j]+EnergyMatrixPosH->GetBinContent(j+1,i+1);
+                NormaIAV[j] = NormaIAV[j]+EnergyMatrixIAVH->GetBinContent(j+1,i+1);
+                NormaNL[j] = NormaNL[j]+EnergyMatrixNLH->GetBinContent(j+1,i+1);
+                NormaReso[j] = NormaReso[j]+EnergyMatrixResoH->GetBinContent(j+1,i+1);
+            }
         }
-    }
-    
-    for (Int_t i = 0; i < LimitVis; i++)
-    {
-        for (Int_t j = 0; j < LimitTrue; j++)
+        
+        for(Int_t i=0;i<LimitVis;i++)
         {
-            if(Norma[j]!=0)
+            NormaTrans[i]=0;
+            for(Int_t j=0;j<LimitTrue;j++)
             {
-                EnergyMatrixH->SetBinContent(j+1,i+1,EnergyMatrixH->GetBinContent(j+1,i+1)/Norma[j]);//Normalization so Σj E(i,j) = 1; (Σ(y axis) =1)
-            }
-            if(NormaPos[j]!=0)
-            {
-                EnergyMatrixPosH->SetBinContent(j+1,i+1,EnergyMatrixPosH->GetBinContent(j+1,i+1)/NormaPos[j]);
-            }
-            if(NormaIAV[j]!=0)
-            {
-                EnergyMatrixIAVH->SetBinContent(j+1,i+1,EnergyMatrixIAVH->GetBinContent(j+1,i+1)/NormaIAV[j]);
-            }
-            if(NormaNL[j]!=0)
-            {
-                EnergyMatrixNLH->SetBinContent(j+1,i+1,EnergyMatrixNLH->GetBinContent(j+1,i+1)/NormaNL[j]);
-            }
-            if(NormaReso[j]!=0)
-            {
-                EnergyMatrixResoH->SetBinContent(j+1,i+1,EnergyMatrixResoH->GetBinContent(j+1,i+1)/NormaReso[j]);
-            }
-            if(NormaTrans[i]!=0)
-            {
-                RowEnergyMatrixH->SetBinContent(i+1,j+1,RowEnergyMatrixH->GetBinContent(i+1,j+1)/NormaTrans[i]);
+                NormaTrans[i] = NormaTrans[i]+RowEnergyMatrixH->GetBinContent(i+1,j+1);
             }
         }
-    }
-    
-    //Save Matrix after rebinning
-    EnergyMatrixH->Write();
-    EnergyMatrixPosH->Write();
-    EnergyMatrixIAVH->Write();
-    EnergyMatrixNLH->Write();
-    EnergyMatrixResoH->Write();
-    RowEnergyMatrixH->Write();
-    
-    EnergyMatrixDataF->Close();
-    #ifdef PrintEps
+        
+        for (Int_t i = 0; i < LimitVis; i++)
+        {
+            for (Int_t j = 0; j < LimitTrue; j++)
+            {
+                if(Norma[j]!=0)
+                {
+                    EnergyMatrixH->SetBinContent(j+1,i+1,EnergyMatrixH->GetBinContent(j+1,i+1)/Norma[j]);//Normalization so Σj E(i,j) = 1; (Σ(y axis) =1)
+                }
+                if(NormaPos[j]!=0)
+                {
+                    EnergyMatrixPosH->SetBinContent(j+1,i+1,EnergyMatrixPosH->GetBinContent(j+1,i+1)/NormaPos[j]);
+                }
+                if(NormaIAV[j]!=0)
+                {
+                    EnergyMatrixIAVH->SetBinContent(j+1,i+1,EnergyMatrixIAVH->GetBinContent(j+1,i+1)/NormaIAV[j]);
+                }
+                if(NormaNL[j]!=0)
+                {
+                    EnergyMatrixNLH->SetBinContent(j+1,i+1,EnergyMatrixNLH->GetBinContent(j+1,i+1)/NormaNL[j]);
+                }
+                if(NormaReso[j]!=0)
+                {
+                    EnergyMatrixResoH->SetBinContent(j+1,i+1,EnergyMatrixResoH->GetBinContent(j+1,i+1)/NormaReso[j]);
+                }
+                if(NormaTrans[i]!=0)
+                {
+                    RowEnergyMatrixH->SetBinContent(i+1,j+1,RowEnergyMatrixH->GetBinContent(i+1,j+1)/NormaTrans[i]);
+                }
+            }
+        }
+        
+        //Save Matrix after rebinning
+        EnergyMatrixH->Write(Form("EvisEnu%i,Cell0,0",AD+1));
+        EnergyMatrixPosH->Write(Form("EvisEnuPos%i,Cell0,0",AD+1));
+        EnergyMatrixIAVH->Write(Form("EvisEnuIAV%i,Cell0,0",AD+1));
+        EnergyMatrixNLH->Write(Form("EvisEnuNL%i,Cell0,0",AD+1));
+        EnergyMatrixResoH->Write(Form("EvisEnuReso%i,Cell0,0",AD+1));
+        RowEnergyMatrixH->Write(Form("EnuEvis%i,Cell0,0",AD+1));
+        
+        EnergyMatrixDataF->Close();
+        
+#ifdef PrintEps
+
         TCanvas* EnergyC = new TCanvas("EnergyC","EnergyC");
         EnergyC->SetLogz();
         EnergyMatrixH->SetStats(0);
         EnergyMatrixH->SetTitle("E_{vis} - E_{#nu}");
         EnergyMatrixH->Draw("colz");
         
-        EnergyC->Print(("./Images/"+AnalysisString+"/Detector/ResponseMatrix.eps").c_str(),".eps");
+        EnergyC->Print(("./Images/"+AnalysisString+Form("/Detector/ResponseMatrixAD%i.eps",AD+1)).c_str(),".eps");
         
         delete EnergyC;
-    #endif
-    delete NoNormalizedEnergyMatrixPosH;
-    delete NoNormalizedEnergyMatrixIAVH;
-    delete NoNormalizedEnergyMatrixNLH;
-    delete NoNormalizedEnergyMatrixResoH;
-    delete NoNormalizedEnergyMatrixH;
-    
-    delete EnergyMatrixIAVH;
-    delete EnergyMatrixNLH;
-    delete EnergyMatrixPosH;
-    delete EnergyMatrixResoH;
+        
+#endif
+        delete NoNormalizedEnergyMatrixPosH;
+        delete NoNormalizedEnergyMatrixIAVH;
+        delete NoNormalizedEnergyMatrixNLH;
+        delete NoNormalizedEnergyMatrixResoH;
+        delete NoNormalizedEnergyMatrixH;
+        
+        delete EnergyMatrixIAVH;
+        delete EnergyMatrixNLH;
+        delete EnergyMatrixPosH;
+        delete EnergyMatrixResoH;
+    }
     delete ResoF;
     std::cout << "\t Finished Generating Energy Matrix" << std::endl;
 }
@@ -811,10 +828,10 @@ void CreateEnergyMatrix :: Interpolation(TF1* func)
     }
 }
 
-void CreateEnergyMatrix :: GetOscEnergyShift(Int_t TrueEnergyIndex, Int_t week)
+void CreateEnergyMatrix :: GetOscEnergyShift(Int_t AD, Int_t TrueEnergyIndex, Int_t week)
 {
     
-    OscDeltaPositronSpectrumH[TrueEnergyIndex] = new TH1D(Form("PositronTrueSpectrum,W%d%d",week,TrueEnergyIndex),Form("PositronTrueSpectrum,W%d%d",week,TrueEnergyIndex), MatrixBins,InitialVisibleEnergy,FinalVisibleEnergy);
+    OscDeltaPositronSpectrumH[TrueEnergyIndex] = new TH1D(Form("PositronTrueSpectrum, W%d%d",week,TrueEnergyIndex),Form("PositronTrueSpectrum, W%d%d",week,TrueEnergyIndex), MatrixBins,InitialVisibleEnergy,FinalVisibleEnergy);
 
 //    PositronEnergy = TrueEnergyIndex*BinWidth;
 //    
@@ -922,18 +939,18 @@ void CreateEnergyMatrix :: GetOscEnergyShift(Int_t TrueEnergyIndex, Int_t week)
     
     if(e_nu_Idx==MatrixBins-1)
     {
-        dNdE = TotalOscillatedSpectrumAD[0]->GetBinContent(e_nu_Idx-Int_t(Limit/BinWidth)+1);//substract 1.8 in the index because the histogram starts in 1.8 MeV instead of 0 MeV.
+        dNdE = TotalOscillatedSpectrumAD[AD]->GetBinContent(e_nu_Idx-Int_t(Limit/BinWidth)+1);//substract 1.8 in the index because the histogram starts in 1.8 MeV instead of 0 MeV.
     }
     else
     {
-        dNdE = (TMath::Abs(dE)/BinWidth) * TotalOscillatedSpectrumAD[0]->GetBinContent(e_nu_Idx-Int_t(Limit/BinWidth)+sign+1)
-        +(1 - TMath::Abs(dE)/BinWidth) * TotalOscillatedSpectrumAD[0]->GetBinContent(e_nu_Idx-Int_t(Limit/BinWidth)+1);
+        dNdE = (TMath::Abs(dE)/BinWidth) * TotalOscillatedSpectrumAD[AD]->GetBinContent(e_nu_Idx-Int_t(Limit/BinWidth)+sign+1)
+        +(1 - TMath::Abs(dE)/BinWidth) * TotalOscillatedSpectrumAD[AD]->GetBinContent(e_nu_Idx-Int_t(Limit/BinWidth)+1);
     }
     
     OscDeltaPositronSpectrumH[TrueEnergyIndex]->SetBinContent(TrueEnergyIndex+1,dNdE/binScaling);
 }
 
-void CreateEnergyMatrix :: GetOscIAVShift(Int_t TrueEnergyIndex, Int_t week)
+void CreateEnergyMatrix :: GetOscIAVShift(Int_t AD, Int_t TrueEnergyIndex, Int_t week)
 {
     //IAV
     OscDeltaIAVSpectrumH[TrueEnergyIndex] = new TH1D(Form("IAVSpectrumW%d%d",week,TrueEnergyIndex),Form("IAVSpectrum,W%d%d",week,TrueEnergyIndex), MatrixBins,InitialVisibleEnergy,FinalVisibleEnergy);
@@ -943,7 +960,7 @@ void CreateEnergyMatrix :: GetOscIAVShift(Int_t TrueEnergyIndex, Int_t week)
     {
         for(Int_t VisibleEnergyIndex=0; VisibleEnergyIndex<TrueEnergyIndex+1; VisibleEnergyIndex++)
         {
-            OscDeltaIAVSpectrumH[TrueEnergyIndex]->SetBinContent(VisibleEnergyIndex+1, OscDeltaIAVSpectrumH[TrueEnergyIndex]->GetBinContent(VisibleEnergyIndex+1) + IAVMatrix[0][TrueEnergyIndex-Int_t(1.022/BinWidth)][VisibleEnergyIndex] * OscDeltaPositronSpectrumH[TrueEnergyIndex]->GetBinContent(TrueEnergyIndex+1));
+            OscDeltaIAVSpectrumH[TrueEnergyIndex]->SetBinContent(VisibleEnergyIndex+1, OscDeltaIAVSpectrumH[TrueEnergyIndex]->GetBinContent(VisibleEnergyIndex+1) + IAVMatrix[AD][TrueEnergyIndex-Int_t(1.022/BinWidth)][VisibleEnergyIndex] * OscDeltaPositronSpectrumH[TrueEnergyIndex]->GetBinContent(TrueEnergyIndex+1));
         }
     }
 }
@@ -1666,14 +1683,15 @@ void CreateEnergyMatrix :: GenerateLBNLEnergyMatrix(Double_t sin22t13, Double_t 
     
     TFile* EnergyMatrixDataF = new TFile(("./ResponseMatrices/"+AnalysisString+"/NominalResponseMatrix.root").c_str(),"recreate");
     
-    RebinHist->Write("EnuEvis");
-    RebinHistpos->Write("EvisEnuPos");
-    RebinHistiav->Write("EvisEnuIAV");
-    RebinHistnl->Write("EvisEnuNL");
-    RebinHistreso->Write("EvisEnuReso");
-    
-    h_evis_vs_enu->Write();
-    
+    for(Int_t AD=0;AD<NADs;AD++)//For nGD detectors are identical and only one fidutial volume is used
+    {
+        RebinHist->Write(Form("EnuEvis%i,Cell0,0",AD+1));
+        RebinHistpos->Write(Form("EvisEnuPos%i,Cell0,0",AD+1));
+        RebinHistiav->Write(Form("EvisEnuIAV%i,Cell0,0",AD+1));
+        RebinHistnl->Write(Form("EvisEnuNL%i,Cell0,0",AD+1));
+        RebinHistreso->Write(Form("EvisEnuReso%i,Cell0,0",AD+1));
+        h_evis_vs_enu->Write(Form("EvisEnu%i,Cell0,0",AD+1));
+    }
     
     delete EnergyMatrixDataF;
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1923,6 +1941,7 @@ void CreateEnergyMatrix::updatePositronTrue(Double_t eNu_min,Double_t eNu_max)
         EnergyVector[idx] = (0.5+idx)*m_binWidth+m_eMin;
         
         double e_positron = EnergyVector[idx];
+        
         if (e_positron < 1.022){
             m_positronTrueSpectrum[idx] = 0;
             continue;
@@ -1975,10 +1994,7 @@ void CreateEnergyMatrix::updatePositronTrue(Double_t eNu_min,Double_t eNu_max)
             m_positronIavDistortedSpectrum[jdx]
             += IAVMatrix[0][idx][jdx] * m_positronTrueSpectrum[idx];
         }
-        
     }
-    
-    
     
     for(int idx=0; idx<m_nSamples; idx++)
     {
@@ -2056,13 +2072,28 @@ void CreateEnergyMatrix::updatePositronTrue(Double_t eNu_min,Double_t eNu_max)
 
 void CreateEnergyMatrix::LoadADSpectrum()
 {
-    TFile* OutputFile = new TFile(("./RootOutputs/"+AnalysisString+"/NominalOutputs/Oscillation.root").c_str());
-
-    OutputFile->cd("Total AD Spectra after oscillation");
-
-    for(Int_t AD = 0; AD<NADs; AD++)
+    if(FlatEnergyMatrix)
     {
-        TotalOscillatedSpectrumAD[AD] = (TH1D*)gDirectory->Get(Form("Total spectrum after oscillation at AD%i",AD+1));
+        for(Int_t AD = 0; AD<NADs; AD++)
+        {
+            TotalOscillatedSpectrumAD[AD] = new TH1D("Flat Spectrum","Flat Spectrum",n_etrue_bins,enu_bins[0],enu_bins[n_etrue_bins]);
+            
+            for(Int_t bin = 1; bin<=MatrixBins; bin++)
+            {
+                TotalOscillatedSpectrumAD[AD]->SetBinContent(bin,1);
+            }
+        }
     }
-    delete OutputFile;
+    else
+    {
+        TFile* OutputFile = new TFile(("./RootOutputs/"+AnalysisString+"/NominalOutputs/Oscillation.root").c_str());
+        
+        OutputFile->cd("Total AD Spectra after oscillation");
+        
+        for(Int_t AD = 0; AD<NADs; AD++)
+        {
+            TotalOscillatedSpectrumAD[AD] = (TH1D*)gDirectory->Get(Form("Total spectrum after oscillation at AD%i",AD+1));
+        }
+        delete OutputFile;
+    }
 }

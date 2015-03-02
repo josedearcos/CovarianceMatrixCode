@@ -17,11 +17,21 @@ void LoganCrossCheck()
     delete MySpectrumF;
     TH1D* TrueADH;
     
-    TFile* MyTrueADF = TFile::Open("../RootOutputs/Hydrogen/NominalOutputs/Oscillation.root");
-    MyTrueADF->cd("Total AD Spectra after oscillation");
+    const bool UseADAntineutrinoSpectrum;
+    TFile* MyTrueADF;
+    if(UseADAntineutrinoSpectrum){
+        //this includes oscillation effect
+        MyTrueADF = TFile::Open("../RootOutputs/Hydrogen/NominalOutputs/Oscillation.root");
+        MyTrueADF->cd("Total AD Spectra after oscillation");
   
-    TrueADH = (TH1D*)gDirectory->Get("Total spectrum after oscillation at AD1");
-
+        TrueADH = (TH1D*)gDirectory->Get("Total spectrum after oscillation at AD1");
+    }
+    else
+    {
+        //reactor
+        MyTrueADF = TFile::Open("../RootOutputs/Reactor/NominalOutputs/ReactorSpectrum.root");
+        TrueADH = (TH1D*)gDirectory->Get("SpectrumFromReactor1");
+    }
     MyTrueADF->Close();;
     
     TH1D* VisibleSpectrumH = new TH1D("VisibleH","VisibleH",NominalResponseMatrixH->GetYaxis()->GetNbins(),0,12);

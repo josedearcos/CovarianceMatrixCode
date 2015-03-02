@@ -93,6 +93,12 @@ private:
     
     Int_t NSteps;
     
+    //Cell parameters:
+    Int_t NumberOfCells;
+    Int_t XCellLimit;
+    Int_t YCellLimit;
+    
+    
     TRandom3* rand;
     OscillationReactor* OscRea;
     Oscillation* Osc;
@@ -380,11 +386,18 @@ Prediction :: Prediction()
     if(analysis)
     {
         AnalysisString = "Hydrogen";
+        NumberOfCells = R2_binnum*Z_binnum;
+        XCellLimit = R2_binnum;
+        YCellLimit = Z_binnum;
     }
     else
     {
         AnalysisString = "Gadolinium";
+        NumberOfCells = 1;//Gadollinium analysis has only 1 fidutial volume
+        XCellLimit = 1;
+        YCellLimit = 1;
     }
+    
     Combine = Data->GetCombineMode();
     DataSet = Data->GetDataSet();
     
@@ -491,10 +504,16 @@ Prediction :: Prediction(NominalData* data)
     if(analysis)
     {
         AnalysisString = "Hydrogen";
+        NumberOfCells = R2_binnum*Z_binnum;
+        XCellLimit = R2_binnum;
+        YCellLimit = Z_binnum;
     }
     else
     {
         AnalysisString = "Gadolinium";
+        NumberOfCells = 1;//Gadollinium analysis has only 1 fidutial volume
+        XCellLimit = 1;
+        YCellLimit = 1;
     }
     
     Combine = Data->GetCombineMode();
@@ -1033,11 +1052,29 @@ void Prediction :: GetOscillationPrediction(Int_t far, Int_t near, Int_t week)
 
 void Prediction :: GetReactorOscillationPrediction(Int_t AD, Int_t week)
 {
-    TH1D* CopyOriginalPredictionH;
+    TH1D* SumCopyOriginalPredictionH;
+
+    for(Int_t idx=0; idx<XCellLimit; idx++)
+    {
+        for(Int_t idy=0; idy<YCellLimit; idy++)
+        {
+            TH1D* CopyOriginalPredictionH;
+
+            CopyOriginalPredictionH = OscRea->GetReactorOscillatedADSpectrum(AD,week,idx,idy);    //Given in Visible Energy already;
+            
+            if(idx==0&&idy==0)
+            {
+                SumCopyOriginalPredictionH=(TH1D*)CopyOriginalPredictionH->Clone();
+            }
+            else
+            {
+                SumCopyOriginalPredictionH->Add(CopyOriginalPredictionH);//Add all cells
+            }
+        }
+    }
+    ReactorPredictionVisH[AD]=(TH1D*)SumCopyOriginalPredictionH->Clone();
     
-    CopyOriginalPredictionH = OscRea->GetReactorOscillatedADSpectrum(AD,week);    //Given in Visible Energy already;
-    
-    ReactorPredictionVisH[AD]=(TH1D*)CopyOriginalPredictionH->Clone();
+    delete SumCopyOriginalPredictionH;
 }
 
 void Prediction :: SetRandomS22t12(bool randomSin22t12)

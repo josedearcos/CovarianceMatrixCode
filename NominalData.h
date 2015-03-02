@@ -41,6 +41,24 @@ const Int_t Nbins=240-36;
 const bool Fake_Experiments = 0;
 const bool CholeskyVariations = 0;
 
+/// For the nH Toy MC:
+const double IBDthreshold = 1.80607;  //( (Mn+Me)^2-Mp^2 ) / (2Mp) =
+// = ( (939.565378+0.510998928)^2 - 938.272046^2 ) / (2*938.272046)
+//1.80433;  // Mneutron+Mpositron-Mproton
+const double EnergyScale = 0.982;  // data_centercell/toy_centercell = 0.982 for nH gamma toy non-uniformity and AdSimple data
+//const double EnergyScale = 1.023;  // data_centercell/toy_centercell = 1.02 when using same non-uniformity in both data and toy
+const int MaxCellNum = 401;
+
+/// vetex region
+const Int_t R2_binnum = 10;                      // ---> set option: divide the volume to sub-regions
+const Double_t R2_lower  = 0;// m2                  // ---> set option
+const Double_t R2_upper  = 4;// m2                  // ---> set option
+const Double_t R2_binwidth = 4.0/R2_binnum;                  // ---> set option
+
+const Int_t Z_binnum  = 10;                      // ---> set option
+const Double_t Z_lower   = -2;// m                  // ---> set option
+const Double_t Z_upper   = 2;// m                   // ---> set option
+
 class NominalData
 {
 private:
@@ -237,7 +255,8 @@ public:
     void ReadChristineReactorSpectrum();
     
     void ReadIHEPReactorSpectrum();//P14A
-    
+    bool IHEPReactorModel;
+    bool UsingIHEPReactorModel();
     void SetDataSet(Int_t);
     void SetCombineMode(Int_t);
     void SetWeeks(Int_t);
@@ -465,8 +484,8 @@ public:
     Double_t GetFNError(Int_t,Int_t);
     Double_t GetAmCError(Int_t,Int_t);
     
-    Double_t GetIBDEvents(Int_t, Int_t);
-    Double_t GetObservedEvents(Int_t,Int_t);
+    Double_t GetIBDEvents(Int_t, Int_t,Int_t, Int_t);
+    Double_t GetObservedEvents(Int_t,Int_t,Int_t, Int_t);
 
     Double_t GetAccidentalRate(Int_t,Int_t);
     Double_t GetLiHeRate(Int_t,Int_t);
@@ -575,7 +594,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     Emax = 9.6;
     EVisMax = 12;
     LinearBinning=0;
-    CalculateBinning();//default
+    //CalculateBinning();//Calculated in setbinning
     
     //Nominal isotope fraction errors:
     for(Int_t i=0;i<NIsotopes;i++)
@@ -956,6 +975,8 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     //IAV thickness relative error
     
     IAVError=0.04;
+    
+    IHEPReactorModel=0;
 }
 
 void NominalData :: CopyData(NominalData * data)
@@ -1009,7 +1030,6 @@ void NominalData :: CopyData(NominalData * data)
      sin_end = data->sin_end;
      dmee_start = data->dmee_start;
      dmee_end = data->dmee_end;
-     NReactorPeriods = data->NReactorPeriods;
     
     //Reactor parameters
     std::copy(std::begin(data->IsotopeFrac), std::end(data->IsotopeFrac), std::begin(IsotopeFrac));
@@ -1018,6 +1038,8 @@ void NominalData :: CopyData(NominalData * data)
     std::copy(std::begin(data->ReactorPowerError), std::end(data->ReactorPowerError), std::begin(ReactorPowerError));
     std::copy(std::begin(data->EnergyPerFission), std::end(data->EnergyPerFission), std::begin(EnergyPerFission));
     std::copy(std::begin(data->EnergyPerFissionError), std::end(data->EnergyPerFissionError), std::begin(EnergyPerFissionError));
+    IHEPReactorModel = data->IHEPReactorModel;
+
     //Background relative errors, rates and events:
     std::copy(std::begin(data->AccidentalError), std::end(data->AccidentalError), std::begin(AccidentalError));
     std::copy(std::begin(data->LiHeError), std::end(data->LiHeError), std::begin(LiHeError));
@@ -1065,6 +1087,7 @@ void NominalData :: CopyData(NominalData * data)
     
     //Binning variables:
      Nweeks = data->Nweeks;
+     NReactorPeriods = data->NReactorPeriods;
      NBins = data->NBins;
      Emin = data->Emin;
      Emax = data->Emax;
@@ -1950,7 +1973,7 @@ Double_t NominalData :: GetAmCRate(Int_t ad,Int_t week)
     return AmCRate[ad+week*MaxDetectors];
 }
 
-Double_t NominalData :: GetIBDEvents(Int_t ad,Int_t week)
+Double_t NominalData :: GetIBDEvents(Int_t ad,Int_t week,Int_t idx, Int_t idy)
 {
     return ((ObservedEvents[ad+week*MaxDetectors]/(FullTime[ad+week*MaxDetectors]*MuonEff[ad+week*MaxDetectors]*MultiEff[ad+week*MaxDetectors]))-(AccidentalRate[ad+week*MaxDetectors]+LiHeRate[ad+week*MaxDetectors]+FastNeutronRate[ad+week*MaxDetectors]+AmCRate[ad+week*MaxDetectors]))*FullTime[ad+week*MaxDetectors]*MuonEff[ad+week*MaxDetectors]*MultiEff[ad+week*MaxDetectors];//Apply background suppression for corrected events, then uncorrect it.
 }
@@ -2241,7 +2264,7 @@ void NominalData :: ReadChristineReactorSpectrum()
         }
         for (Int_t reactor = 0; reactor < NReactors; reactor++)
         {
-            m_dNdE_nom[reactor+NReactors*curSample] = dNdE[reactor];
+            m_dNdE_nom[reactor+NReactors*curSample] = dNdE[reactor]* 1.0e18;
         }
         
         curSample++;
@@ -2254,6 +2277,11 @@ void NominalData :: ReadChristineReactorSpectrum()
     m_eMin = eMin;
     m_eMax = eMax;
     m_nSamples = curSample;
+    
+    std::cout << " P12C REACTOR FROM CHRISTINE'S TXT FILE: " << std::endl;
+    std::cout << " MINIMUM ENERGY: " << m_eMin << std::endl;
+    std::cout << " MAX ENERGY: " << m_eMax << std::endl;
+    std::cout << " SAMPLES: " << m_nSamples << std::endl;
 }
 
 void NominalData :: ReadIHEPReactorSpectrum()
@@ -2268,11 +2296,14 @@ void NominalData :: ReadIHEPReactorSpectrum()
     Int_t curPeriod;
     std::fstream IHEPfileData;
     Double_t trash;
-
+    
     for (Int_t reactor = 0; reactor < NReactors; reactor++)
     {
         curPeriod = 0;
         
+        Double_t activePeriods = 0;//Account for the number of weeks it's been on.
+        Double_t m_dNdE_temporal = 0;
+
         switch(reactor)
         {
             case 0://Daya Bay A
@@ -2315,18 +2346,38 @@ void NominalData :: ReadIHEPReactorSpectrum()
                 //std::cout << trash << std::endl;
 
             }
-            for (Int_t bin = 0; bin <=NIHEPReactorBins; bin++)
+            for (Int_t bin = 0; bin <NIHEPReactorBins; bin++)
             {
-                IHEPfileData >> m_dNdE_nom[reactor+NReactors*bin];
+                IHEPfileData >> m_dNdE_temporal;
                 
+                m_dNdE_nom[reactor+NReactors*bin] = m_dNdE_temporal+m_dNdE_nom[reactor+NReactors*bin];
                // std::cout << "reactor : " << reactor << " bin: " << bin << ", reactor spectrum: "<< m_dNdE_nom[reactor+NReactors*bin] << std::endl;
-
             }
+            
+            //Last value seems to be way off.
+            IHEPfileData >> trash;
+            
+            
+            if(m_dNdE_temporal!=0)
+            {
+                activePeriods++;
+            }
+
             curPeriod++;
         }
+        
+        IHEPfileData.close();
+
         curPeriod--;
 
-        IHEPfileData.close();
+        //Average p14A nominal reactor:
+        for (Int_t bin = 0; bin <=NIHEPReactorBins; bin++)
+        {
+            m_dNdE_nom[reactor+NReactors*bin] = m_dNdE_nom[reactor+NReactors*bin]/activePeriods;
+        }
+        
+        std::cout << "Reactor " << reactor << " has been active for: " << activePeriods << " periods" << std::endl;
+        
    }
     
     m_eMin = eMin;
@@ -2335,8 +2386,18 @@ void NominalData :: ReadIHEPReactorSpectrum()
     
     NReactorPeriods = curPeriod;
     
-    std::cout << " P14A REACTOR PERIODS FROM IHEP TXT FILE: " << curPeriod << std::endl;
-    
+    std::cout << " P14A REACTOR FROM IHEP TXT FILE: " << std::endl;
+    std::cout << " PERIODS: " << curPeriod << std::endl;
+    std::cout << " MINIMUM ENERGY: " << m_eMin << std::endl;
+    std::cout << " MAX ENERGY: " << m_eMax << std::endl;
+    std::cout << " SAMPLES: " << m_nSamples << std::endl;
+
+    IHEPReactorModel = 1;
+}
+
+bool NominalData :: UsingIHEPReactorModel()
+{
+    return IHEPReactorModel;
 }
 void NominalData :: ReadChristineCovMatrix()
 {
@@ -2558,7 +2619,7 @@ Double_t NominalData :: GetDmeeEnd()
     return dmee_end;
 }
 
-Double_t NominalData :: GetObservedEvents(Int_t i,Int_t j)
+Double_t NominalData :: GetObservedEvents(Int_t i,Int_t j,Int_t idx, Int_t idy)
 {
     return ObservedEvents[i+j*MaxDetectors];
 }
@@ -2650,6 +2711,13 @@ void NominalData :: CalculateBinning()
                 evis_bins[i+1] = 0.2 * i + 1.0;
             }
             evis_bins[n_evis_bins] = 12;
+        }
+        else
+        {
+            
+            std::cout << " NEED A NON LINEAR BINNING FOR THE HYDROGEN ANALYSIS " << std::endl;
+
+            exit(EXIT_FAILURE);
         }
     }
     

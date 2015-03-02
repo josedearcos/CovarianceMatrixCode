@@ -1906,7 +1906,7 @@ void FitterGui::DoCombine()
 void FitterGui::DoBinning()
 {
     Binning = BinningBox->GetSelected();
-    std::cout << "BINNING MODE : " << Binning << " ( 0 is LBNL binning, 1 is linear binning )" << std::endl;
+    std::cout << "BINNING MODE CHANGED TO: " << Binning << " ( 0 is LBNL binning, 1 is linear binning )" << std::endl;
     CalculateBinning();
 }
 
@@ -4006,7 +4006,12 @@ string FitterGui :: delSpaces(string &str)
 
 void FitterGui::PlotResponseMatrix()
 {
-    RunResponseMatrix();
+   
+    if(Analysis==0)//Run gadollinium code to produce the new matrices and show them
+    {
+        
+        RunResponseMatrix();
+    }
     
     TGMainFrame *fPlotResponseFrame = new TGMainFrame(gClient->GetRoot(),800,800,kMainFrame | kVerticalFrame);
     fPlotResponseFrame->SetName("fResponse");
@@ -4020,31 +4025,42 @@ void FitterGui::PlotResponseMatrix()
     
     ResponseBox = new TGComboBox(fPlotResponseFrame,-1,kHorizontalFrame | kSunkenFrame | kDoubleBorder | kOwnBackground);
     ResponseBox->SetName("ResponseBox");
-    ResponseBox->AddEntry("Evis-Enu Matrix",0);
-    ResponseBox->AddEntry("Enu-Evis Matrix",1);
-    ResponseBox->AddEntry("Evis-Enu Positron Matrix",2);
-    ResponseBox->AddEntry("Evis-Enu IAV Matrix",3);
-    ResponseBox->AddEntry("Evis-Enu NL Matrix ",4);
-    ResponseBox->AddEntry("Evis-Enu Resolution Matrix",5);
-    ResponseBox->Resize(180,20);
-    ResponseBox->Connect("Selected(Int_t)", "FitterGui", this, "ChooseResponseMatrix()");
-    ResponseBox->Select(1);//Enu-Evis Default right now.
     
-    hframe->AddFrame(ResponseBox, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
-    
-    hframe->MoveResize(0,800,800,40);
-    
-    fPlotResponseFrame->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX,2,2,2,2));
-    fPlotResponseFrame->AddFrame(fResponseCanvas, new TGLayoutHints(kLHintsExpandX| kLHintsExpandY, 10,10,10,1));
-    
-    // Map all subwindows of main frame
-    fPlotResponseFrame->MapSubwindows();
-    
-    // Initialize the layout algorithm
-    fPlotResponseFrame->Resize(fPlotResponseFrame->GetDefaultSize());
-    
-    // Map main frame
-    fPlotResponseFrame->MapWindow();
+    if(Analysis==0)//Run gadollinium code to produce the new matrices and show them
+    {
+        ResponseBox->AddEntry("Evis-Enu Matrix",0);
+        ResponseBox->AddEntry("Enu-Evis Matrix",1);
+        ResponseBox->AddEntry("Evis-Enu Positron Matrix",2);
+        ResponseBox->AddEntry("Evis-Enu IAV Matrix",3);
+        ResponseBox->AddEntry("Evis-Enu NL Matrix ",4);
+        ResponseBox->AddEntry("Evis-Enu Resolution Matrix",5);
+    }
+    else
+    {
+        ResponseBox->AddEntry("Evis-Enu Matrix",0);
+        ResponseBox->AddEntry("Enu-Evis Matrix",1);
+        ResponseBox->AddEntry("Fine Enu-Evis Matrix",0);
+    }
+        ResponseBox->Resize(180,20);
+        ResponseBox->Connect("Selected(Int_t)", "FitterGui", this, "ChooseResponseMatrix()");
+        ResponseBox->Select(1);//Enu-Evis Default right now.
+        
+        hframe->AddFrame(ResponseBox, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
+        
+        hframe->MoveResize(0,800,800,40);
+        
+
+        fPlotResponseFrame->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX,2,2,2,2));
+        fPlotResponseFrame->AddFrame(fResponseCanvas, new TGLayoutHints(kLHintsExpandX| kLHintsExpandY, 10,10,10,1));
+        
+        // Map all subwindows of main frame
+        fPlotResponseFrame->MapSubwindows();
+        
+        // Initialize the layout algorithm
+        fPlotResponseFrame->Resize(fPlotResponseFrame->GetDefaultSize());
+        
+        // Map main frame
+        fPlotResponseFrame->MapWindow();
 }
 
 void FitterGui :: ChooseResponseMatrix()
@@ -4053,37 +4069,60 @@ void FitterGui :: ChooseResponseMatrix()
     
     TFile* TransEnergyMatrixDataF = TFile::Open(("./ResponseMatrices/"+AnalysisString+"/NominalResponseMatrix.root").c_str());
     
-    switch (ResponseBox->GetSelected())
+    if(Analysis)
     {
-        case 0:
-            EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get("EvisEnu");
-            std::cout << " Evis - Enu Matrix " << std::endl;
-            break;
-        case 1:
-            EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get("EnuEvis");
-            std::cout << " Enu - Evis Matrix " << std::endl;
-            break;
-        case 2:
-            EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get("EvisEnuPos");
-            std::cout << " Evis - Enu Positron Matrix " << std::endl;
-            break;
-        case 3:
-            EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get("EvisEnuIAV");
-            std::cout << " Evis - Enu IAV Matrix " << std::endl;
-            break;
-        case 4:
-            EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get("EvisEnuNL");
-            std::cout << " Evis - Enu NL Matrix " << std::endl;
-            break;
-        case 5:
-            EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get("EvisEnuReso");
-            std::cout << " Evis - Enu Resolution Matrix " << std::endl;
-            break;
-        default:
-            std::cout << " No Matrix Selected " << std::endl;
-            break;
+        switch (ResponseBox->GetSelected())
+        {
+            case 0:
+                EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get(Form("EvisEnu%i,Cell%i,%i",1,0,0));
+                std::cout << " Evis - Enu Matrix " << std::endl;
+                break;
+            case 1:
+                EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get(Form("EnuEvis%i,Cell%i,%i",1,0,0));
+                std::cout << " Enu - Evis Matrix " << std::endl;
+                break;
+            case 2:
+                EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get(Form("FineEvisEnu%i,Cell%i,%i",1,0,0));
+                std::cout << " Fine Evis - Enu Matrix " << std::endl;
+                break;
+            default:
+                std::cout << " No Matrix Selected " << std::endl;
+                break;
+        }
     }
-    
+    else
+    {
+        switch (ResponseBox->GetSelected())
+        {
+            case 0:
+                EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get(Form("EvisEnu%i,Cell%i,%i",1,0,0));
+                std::cout << " Evis - Enu Matrix " << std::endl;
+                break;
+            case 1:
+                EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get(Form("EnuEvis%i,Cell%i,%i",1,0,0));
+                std::cout << " Enu - Evis Matrix " << std::endl;
+                break;
+            case 2:
+                EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get(Form("EvisEnuPos%i,Cell%i,%i",1,0,0));
+                std::cout << " Evis - Enu Positron Matrix " << std::endl;
+                break;
+            case 3:
+                EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get(Form("EvisEnuIAV%i,Cell%i,%i",1,0,0));
+                std::cout << " Evis - Enu IAV Matrix " << std::endl;
+                break;
+            case 4:
+                EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get(Form("EvisEnuNL%i,Cell%i,%i",1,0,0));
+                std::cout << " Evis - Enu NL Matrix " << std::endl;
+                break;
+            case 5:
+                EnergyMatrix = (TH2D*)TransEnergyMatrixDataF->Get(Form("EvisEnuReso%i,Cell%i,%i",1,0,0));
+                std::cout << " Evis - Enu Resolution Matrix " << std::endl;
+                break;
+            default:
+                std::cout << " No Matrix Selected " << std::endl;
+                break;
+        }
+    }
     TransEnergyMatrixDataF->Close();
     gStyle->SetOptStat(SetStats);
     EnergyMatrix->Draw("colz");
@@ -4113,12 +4152,13 @@ void FitterGui :: ChooseCovarianceMatrix()
     ResolutionMatrix=0;
     Sin22t12Matrix=0;
     EfficiencyMatrix=0;
-    
+    std::cout << " Run mode : \n" << std::endl;
+
     switch (CovarianceMatrixBox->GetSelected())
     {
         case 0:
             Automatic = 1;
-            std::cout << " Run all Matrices " << std::endl;
+            std::cout << " all Matrices " << std::endl;
             break;
         case 1:
             VaryAccidentalMatrix=1;
@@ -5110,11 +5150,9 @@ void FitterGui :: RunFitterTests()
     
 }
 
-
-
 void FitterGui :: CalculateBinning()
 {
-    std::cout << " Recalculating binning " << std::endl;
+    std::cout << " Recalculating binning in Fitter GUI for drawing purposes " << std::endl;
     
     //Gadolinium:
     
