@@ -199,9 +199,6 @@ private:
     Double_t m_abs_escale_error;
     
     Double_t m_abs_eoffset;
-    Double_t m_abs_eoffset_error;
-    
-    Double_t m_rel_eoffset_error;
     
     //Load functions
     void LoadIavCorrection();
@@ -418,6 +415,7 @@ CreateEnergyMatrix :: CreateEnergyMatrix(NominalData* data)
     m_abs_escale = Data->GetAbsoluteEnergyScale();
     m_abs_escale_nominal = m_abs_escale;
     m_abs_escale_error = Data->GetAbsoluteEnergyScaleError();
+    m_abs_eoffset = Data->GetAbsoluteEnergyOffset();
     
     ResolutionError = Data->GetResolutionError();
     ResolutionErrorUncorrelated = Data->GetResoUncorrelatedError();
@@ -428,14 +426,14 @@ CreateEnergyMatrix :: CreateEnergyMatrix(NominalData* data)
     {
         for (Int_t week = 0; week<Nweeks; week++)
         {
-            DetectorEfficiency[AD][week] = Data->GetDetectorEfficiency(AD,week);
+            DetectorEfficiency[AD][week] = Data->GetDetectorEfficiency(AD,week,0,0);//No cell in nGd
             
         }
         //  Relative energy scale
-        m_rel_escale[AD] = Data->GetRelativeEnergyScale(AD);
-        m_rel_escale_error[AD] = Data->GetRelativeEnergyError(AD);
+        m_rel_escale[AD] = Data->GetRelativeEnergyScale();
+        m_rel_escale_error[AD] = Data->GetRelativeEnergyError();
         m_rel_escale_nominal[AD] = m_rel_escale[AD];
-        m_rel_eoffset[AD] = Data->GetRelativeEnergyOffset(AD);
+        m_rel_eoffset[AD] = Data->GetRelativeEnergyOffset();
     }
 }
 

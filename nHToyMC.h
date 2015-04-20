@@ -43,7 +43,7 @@ using namespace std;
 #endif
 
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- Global
-//#define ReDoNominal // if you change binning use this to remake the nominal matrix
+#define ReDoNominal // if you change binning use this to remake the nominal matrix
 #define FullEnergyResolution
 #define UseDelayInformation
 //#define SaveTree // To save toy tree
@@ -90,6 +90,8 @@ private:
     Int_t n_evis_bins;
     Int_t n_etrue_bins;
     
+    Double_t IAVNominalError; // relative uncertainty of the IAV thickness for each AD.
+    Double_t RelativeNominalError; // relative uncertainty of attenuation length for each AD.
     //Systematic parameters;
     bool RelativeEnergyScaleMatrix;
     bool IAVMatrix;
@@ -116,6 +118,9 @@ private:
     TGraph *graph_gamma_LY;
     TGraph *graph_electronic;
     
+    TGraph *g_unified_positron_nl;
+    TGraph *g_unified_positron_nl_pulls[4];
+    
     /// non-uniformity: NU
     TH2D *hist_map_attenuation;
     TH2D *hist_map_pmt_coverage;
@@ -134,19 +139,19 @@ private:
     Double_t func_EnergyResolution(double*,double*);
     void func_initialization();
     Int_t  RootCellToVisCell(Int_t RootCell);
-    TH1D* TruePredictionH[MaxDetectors][R2_binnum][Z_binnum];
-    TH1D* VisiblePredictionH[MaxDetectors][R2_binnum][Z_binnum];
-    TH1D* DelayedVisiblePredictionH[MaxDetectors][R2_binnum][Z_binnum];
-    TH2D* TransMatrixH[MaxDetectors][R2_binnum][Z_binnum];
-    TH2D* HighResoTransMatrixH[MaxDetectors][R2_binnum][Z_binnum];
-    TH2D* MatrixH[MaxDetectors][R2_binnum][Z_binnum];
+    TH1D* TruePredictionH[MaxDetectors][VolumeX][VolumeY];
+    TH1D* VisiblePredictionH[MaxDetectors][VolumeX][VolumeY];
+    TH1D* DelayedVisiblePredictionH[MaxDetectors][VolumeX][VolumeY];
+    TH2D* TransMatrixH[MaxDetectors][VolumeX][VolumeY];
+    TH2D* HighResoTransMatrixH[MaxDetectors][VolumeX][VolumeY];
+    TH2D* MatrixH[MaxDetectors][VolumeX][VolumeY];
 public:
     nHToyMC(NominalData*);//constructor
     ~nHToyMC();//destructor
     void Toy(bool);//main
     TH2D* LoadnHMatrix(Int_t,Int_t,Int_t);
     void GeneratenHResponseMatrix();
-    TH2D* HighResoMatrixH[MaxDetectors][R2_binnum][Z_binnum];
+    TH2D* HighResoMatrixH[MaxDetectors][VolumeX][VolumeY];
 };
 
 // constructor:
@@ -168,6 +173,9 @@ nHToyMC :: nHToyMC(NominalData* Data)
     FinalVisibleEnergy = Data->GetEVisMax();
     
     n_evis_bins = Data->GetVisibleBins();
+    
+    IAVNominalError = Data->GetIAVError();
+    RelativeNominalError = Data->GetRelativeEnergyError();
     
     for (Int_t i = 0; i <= n_evis_bins; i++)
     {
@@ -199,35 +207,39 @@ nHToyMC :: nHToyMC(NominalData* Data)
     
     for(Int_t AD = 0; AD < NADs; AD++)
     {
-        for(int idx=0; idx<R2_binnum; idx++)
+        for(int idx=0; idx<VolumeX; idx++)
         {
-            for(int idy=0; idy<Z_binnum; idy++)
+            for(int idy=0; idy<VolumeY; idy++)
             {
-                HighResoMatrixH[AD][idx][idy] = new TH2D(Form("Fine_nHResponseMatrix_AD%d",AD+1),Form("Fine_nHResponseMatrix_AD%d",AD+1),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from true to visible
+                HighResoMatrixH[AD][idx][idy] = new TH2D(Form("Fine_nHResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),Form("Fine_nHResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from true to visible
                 
-                MatrixH[AD][idx][idy] = new TH2D(Form("nHResponseMatrix_AD%d",AD+1),Form("nHResponseMatrix_AD%d",AD+1),n_etrue_bins,enu_bins,n_evis_bins,evis_bins);//from true to visible
+                MatrixH[AD][idx][idy] = new TH2D(Form("nHResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),Form("nHResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),n_etrue_bins,enu_bins,n_evis_bins,evis_bins);//from true to visible
                 
-                TransMatrixH[AD][idx][idy] = new TH2D(Form("nHTransResponseMatrix_AD%d",AD+1),Form("nHTransResponseMatrix_AD%d",AD+1),n_evis_bins,evis_bins,n_etrue_bins,enu_bins);//from visible to true
+                TransMatrixH[AD][idx][idy] = new TH2D(Form("nHTransResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),Form("nHTransResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),n_evis_bins,evis_bins,n_etrue_bins,enu_bins);//from visible to true
                 
-                HighResoTransMatrixH[AD][idx][idy] = new TH2D(Form("Fine_nHTransResponseMatrix_AD%d",AD+1),Form("Fine_nHTransResponseMatrix_AD%d",AD+1),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from visible to true
+                HighResoTransMatrixH[AD][idx][idy] = new TH2D(Form("Fine_nHTransResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),Form("Fine_nHTransResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from visible to true
                 
-                TruePredictionH[AD][idx][idy] = new TH1D(Form("PredAD%d",AD),Form("PredAD%d",AD), Nbins, InitialEnergy, FinalEnergy);
+                TruePredictionH[AD][idx][idy] = new TH1D(Form("Pred_AD%i, Cell%i,%i",AD+1,idx,idy),Form("Pred_AD%i, Cell%i,%i",AD+1,idx,idy), Nbins, InitialEnergy, FinalEnergy);
                 
-                VisiblePredictionH[AD][idx][idy] = new TH1D(Form("VisPredAD%d",AD),Form("VisPredAD%d",AD), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
+                VisiblePredictionH[AD][idx][idy] = new TH1D(Form("VisPred_AD%i, Cell%i,%i",AD+1,idx,idy),Form("VisPred_AD%i, Cell%i,%i",AD+1,idx,idy), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
                 
-                DelayedVisiblePredictionH[AD][idx][idy] = new TH1D(Form("DelayedVisPredAD%d",AD),Form("DelayedVisPredAD%d",AD), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
+                DelayedVisiblePredictionH[AD][idx][idy] = new TH1D(Form("DelayedVisPred_AD%i, Cell%i,%i",AD+1,idx,idy),Form("DelayedVisPred_AD%i, Cell%i,%i",AD+1,idx,idy), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
             }
         }
+        
+        
     }
+    
+    
 }
 
 nHToyMC :: ~nHToyMC()
 {
     for(Int_t AD = 0; AD < NADs; AD++)
     {
-        for(int idx=0; idx<R2_binnum; idx++)
+        for(int idx=0; idx<VolumeX; idx++)
         {
-            for(int idy=0; idy<Z_binnum; idy++)
+            for(int idy=0; idy<VolumeY; idy++)
             {
                 delete TruePredictionH[AD][idx][idy];
                 delete HighResoMatrixH[AD][idx][idy];
@@ -747,7 +759,6 @@ void nHToyMC :: Toy(bool mode)
         
 #endif
         
-        
         //Load tree data
         //    for(long ientry=0; ientry<entries_etree_read; ientry++)
         //    {
@@ -798,7 +809,6 @@ void nHToyMC :: Toy(bool mode)
         //        Etot_PG2[ientry]=Etot_Pg2;
         //    }
         
-        
         Double_t P_Scint=0, Pg1_Scint=0, Pg2_Scint=0, Ng_Scint=0;
         Double_t AdSimple_P=0, AdSimple_Ng=0;
         Double_t usr_opt_attenuation_P=0, usr_pmt_coverage_P=0, usr_opt_attenuation_Ng=0, usr_pmt_coverage_Ng=0;
@@ -847,6 +857,8 @@ void nHToyMC :: Toy(bool mode)
 //            hEd_cl[idx] = new TH1D(roostr, roostr, hEd_bin, hEd_low, hEd_hgh);
 //        }
         
+        Double_t IntegralEvents[NADs][VolumeX][VolumeY];
+        Double_t ADIntegralEvents[NADs];
         
         //Use the loaded tree data in each AD in an independent way:
         for(Int_t AD = 0; AD<NADs;AD++)
@@ -868,7 +880,6 @@ void nHToyMC :: Toy(bool mode)
                 Int_t seed_rand = 0;
                 Int_t seed_corr =0;
                 Int_t seed_uncorr = 0;
-                
           
                 if( ientry%100==0 )
                 {
@@ -891,29 +902,45 @@ void nHToyMC :: Toy(bool mode)
                 
                 //each event has a different systematic error:
                 
-                if(mode==0)//Nominal values
+                //Nominal values
+                
+                GausRelative = 0;
+                GausIAV= 0;
+                GausNL= 0;
+                GausReso=0;
+                GausResoCorr=0;
+                GausEff= 0;
+                
+                 if(mode!=0)//If not nominal values, vary systematic for each entry and for each AD (uncorrelated)
                 {
-                    GausRelative = 0;
-                    GausIAV= 0;
-                    GausNL= 0;
-                    GausReso=0;
-                    GausResoCorr=0;
-                    GausEff= 0;
-                }
-                else//vary systematic for each entry and for each AD (uncorrelated)
-                {
-                    GausRelative = RandomSysUncorr->Gaus(0,1);
-                    GausIAV= RandomSysUncorr->Gaus(0,1);
-                    GausNL= RandomSysUncorr->Gaus(0,1);
-                    GausReso= RandomSysUncorr->Gaus(0,1);
-                    GausEff= RandomSysUncorr->Gaus(0,1);
-                    
-                    GausResoCorr = RandomSysCorr->Gaus(0,1);
+                    if(RelativeEnergyScaleMatrix)
+                    {
+                        GausRelative = RandomSysUncorr->Gaus(0,1);
+                    }
+                    if(IAVMatrix)
+                    {
+                        GausIAV = RandomSysUncorr->Gaus(0,1);
+                    }
+                    if(NLMatrix)
+                    {
+                        GausNL = RandomSysUncorr->Gaus(0,1);
+                    }
+                    if(ResolutionMatrix)
+                    {
+                        GausReso = RandomSysUncorr->Gaus(0,1);
+                        GausResoCorr = RandomSysCorr->Gaus(0,1);
+                    }
+                    if(EfficiencyMatrix)
+                    {
+                        GausEff = RandomSysUncorr->Gaus(0,1);
+                    }
 
                     //factor that is multiplied by the random error so it's added to the nominal by using:  Value = NominalValue + gRandom3->Gauss(0,1)*1sigmaError;
                 }
                 if(ientry%1000000==0)//show only a few
                 {
+                    std::cout << "IAV uncorrelated should be the different for different ads and same event: " << GausIAV << "ad: " << AD << " - event: " << ientry <<  std::endl;
+
                     std::cout << "gaus reso correlated should be the same for different ads and same event: " << GausResoCorr << "ad: " << AD << " - event: " << ientry <<  std::endl;
                     std::cout << "gaus reso uncorrelated should be different for different ads and same event" << GausReso << "ad: " << AD << " - event: " << ientry <<  std::endl;
                 }
@@ -978,9 +1005,18 @@ void nHToyMC :: Toy(bool mode)
                 
                 /// case04: default ? edit
                 /// case03: default
-                P_Scint = EtotScint_P-Edep_P;
-                Pg1_Scint = EtotScint_Pg1-Edep_Pg1;
-                Pg2_Scint = EtotScint_Pg2-Edep_Pg2;
+                Double_t RandomEdep_P,RandomEdep_Pg1,RandomEdep_Pg2;
+                //Iav uncertainty considered for prompt signal. 0.1% bin-to-bin uncorrelated.
+                RandomEdep_P = Edep_P*(1+GausIAV*IAVNominalError);
+                RandomEdep_Pg1 = Edep_Pg1*(1+GausIAV*IAVNominalError);
+                RandomEdep_Pg2 = Edep_Pg2*(1+GausIAV*IAVNominalError);
+                //here I am applying the same variation to the three particles at once, one variation for each event.
+
+                if( GausIAV*IAVNominalError < -1) continue;//Very unlikely, but just in case.
+
+                P_Scint = EtotScint_P-RandomEdep_P;
+                Pg1_Scint = EtotScint_Pg1-RandomEdep_Pg1;
+                Pg2_Scint = EtotScint_Pg2-RandomEdep_Pg2;
                 Ng_Scint = EtotScint_Ng-Edep_Ng;
                 
                 /// prompt
@@ -1022,13 +1058,18 @@ void nHToyMC :: Toy(bool mode)
                  hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
                  
                  if( local_zbin != 0) continue;
-                 
-                 usr_opt_attenuation_P = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);
+                
+                 usr_opt_attenuation_P = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);//Relative energy scale
                  usr_pmt_coverage_P  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
-                 
+                
+                if(RelativeEnergyScaleMatrix)
+                {
+                    usr_opt_attenuation_P = usr_opt_attenuation_P*(1+RelativeNominalError*GausRelative);
+                }
+                
                  Opt_E_P_Sum = LY_E_P_Sum * usr_opt_attenuation_P * usr_pmt_coverage_P;  // nH analysis
                  
-                //AdSimple_P = ( (7.84628 * (1 + 3.41294e-02*usr_r2_P) * (1 - 1.21750e-02*usr_z_P - 1.64275e-02*usr_z_P*usr_z_P + 7.33006e-04*pow(usr_z_P,3)))/8.05 );  // AdSimple
+                // AdSimple_P = ( (7.84628 * (1 + 3.41294e-02*usr_r2_P) * (1 - 1.21750e-02*usr_z_P - 1.64275e-02*usr_z_P*usr_z_P + 7.33006e-04*pow(usr_z_P,3)))/8.05 );  // AdSimple
                
                 // Doc7334(old function), updated from http://dayabay.ihep.ac.cn/tracs/dybsvn/browser/dybgaudi/trunk/Reconstruction/QsumEnergy/src/components/QsumEnergyTool.cc
                 
@@ -1056,7 +1097,7 @@ void nHToyMC :: Toy(bool mode)
 #endif
                 ///////////////////////////// FEE
                 /// prompt
-                if( Opt_E_P_Sum!=Opt_E_P_Sum ) continue;
+                //if( Opt_E_P_Sum!=Opt_E_P_Sum ) continue;//Maybe eliminate it, it produces problems. See April 16th Logan's email
                 FEE_E_P_Sum = Opt_E_P_Sum * graph_electronic->Eval( Opt_E_P_Sum, 0, "s" );
                 
                 ///////////////////////////// EnergyScale
@@ -1065,7 +1106,7 @@ void nHToyMC :: Toy(bool mode)
 #ifdef UseDelayInformation
                 ///////////////////////////// FEE
                 /// delayed
-                if( Opt_E_Ng!=Opt_E_Ng ) continue;
+                //if( Opt_E_Ng!=Opt_E_Ng ) continue;//Maybe eliminate it, it produces problems. See April 16th Logan's email
                 FEE_E_Ng = Opt_E_Ng * graph_electronic->Eval( Opt_E_Ng, 0, "s" );
                 
                 ///////////////////////////// EnergyScale
@@ -1175,17 +1216,36 @@ void nHToyMC :: Toy(bool mode)
                     Eff_d_content = h2d_Ed_ratio2center->GetBinContent(local_xbin, local_ybin);
                 }
 #endif
+                Int_t VolumeXbin, VolumeYbin;
+
+#ifdef UseGdLs_LsVolumes
+                //Logic to detect to translate cell bins to volume bins (check if the cell is inside the GdLs or the Ls volume)
+                VolumeYbin = 1;
+
+                if((local_ybin==1||local_ybin==(Z_binnum)||local_xbin>(R2_binnum-4)))//nH LS
+                {
+                    VolumeXbin = 2;
+                }
+                else//GdLS
+                {
+                    VolumeXbin = 1;
+                }
+#else
+                VolumeXbin = local_xbin;
+                VolumeYbin = local_ybin;
+#endif
                 
                 //Fill histograms:
-                TruePredictionH[AD][local_xbin][local_ybin]->Fill(cap_Ev,Eff_p_content);
-                VisiblePredictionH[AD][local_xbin][local_ybin]->Fill(Res_E_P_Sum,Eff_p_content);
+                TruePredictionH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(cap_Ev,Eff_p_content);
+                VisiblePredictionH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_P_Sum,Eff_p_content);
+                
 #ifdef UseDelayInformation
-                DelayedVisiblePredictionH[AD][local_xbin][local_ybin]->Fill(Res_E_Ng,Eff_d_content);
+                DelayedVisiblePredictionH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_Ng,Eff_d_content);
 #endif
-                HighResoMatrixH[AD][local_xbin][local_ybin]->Fill(cap_Ev,Res_E_P_Sum,Eff_p_content);//Fine grid
-                MatrixH[AD][local_xbin][local_ybin]->Fill(cap_Ev,Res_E_P_Sum,Eff_p_content);//neutrino energy vs visible energy
-                TransMatrixH[AD][local_xbin][local_ybin]->Fill(Res_E_P_Sum,cap_Ev,Eff_p_content);
-                HighResoTransMatrixH[AD][local_xbin][local_ybin]->Fill(Res_E_P_Sum,cap_Ev,Eff_p_content);//Fine grid
+                HighResoMatrixH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(cap_Ev,Res_E_P_Sum,Eff_p_content);//Fine grid
+                MatrixH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(cap_Ev,Res_E_P_Sum,Eff_p_content);//neutrino energy vs visible energy
+                TransMatrixH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_P_Sum,cap_Ev,Eff_p_content);
+                HighResoTransMatrixH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_P_Sum,cap_Ev,Eff_p_content);//Fine grid
                 
 #ifdef SaveTree
                 toy->Fill();
@@ -1246,11 +1306,89 @@ void nHToyMC :: Toy(bool mode)
 //                hEp_cl[idx]->Reset();
 //                hEd_cl[idx]->Reset();
 //            }
+            
+            
+            //Save number of events in each cell to properly scale the cells afterwards:
+            
+            ADIntegralEvents[AD] = 0;//initialize
+            
+            for(int idx=0; idx<VolumeX; idx++)
+            {
+                for(int idy=0; idy<VolumeY; idy++)
+                {
+                    IntegralEvents[AD][idx][idy] = VisiblePredictionH[AD][idx][idy]->Integral();
+                    ADIntegralEvents[AD] = ADIntegralEvents[AD] + IntegralEvents[AD][idx][idy];
+                }
+            }
         }//ADs
         
         delete h2d_Ep_ratio2center;
         delete h2d_Ed_ratio2center;
         
+        //Save event ratios:
+        
+        string outputS;
+    
+        if(mode==0)
+        {
+            outputS= "./Inputs/HInputs/NominalToyMCEventRatio.txt";
+        }
+        else
+        {
+             if(RelativeEnergyScaleMatrix)
+             {
+                 outputS= "./Inputs/HInputs/RelativeEnergyScaleToyMCEventRatio.txt";
+             }
+             if(IAVMatrix)
+             {
+                 outputS= "./Inputs/HInputs/IAVToyMCEventRatio.txt";
+                 
+             }
+             else if(NLMatrix)
+             {
+                 outputS= "./Inputs/HInputs/NLToyMCEventRatio.txt";
+                 
+             }
+             else if(ResolutionMatrix)
+             {
+                 outputS= "./Inputs/HInputs/ResolutionToyMCEventRatio.txt";
+                 
+             }
+             else if(EfficiencyMatrix)
+             {
+                 outputS= "./Inputs/HInputs/EfficiencyToyMCEventRatio.txt";
+                 
+             }
+        }
+        
+        FILE *f = fopen(outputS.c_str(), "w");
+
+        if (f == NULL)
+        {
+            printf("Error opening file!\n");
+            exit(1);
+        }
+        
+        
+        for(Int_t AD = 0; AD<NADs; AD++)
+        {
+            fprintf(f, "#ToyEvents in each AD\n");
+
+            fprintf(f, "%d %f\n", AD, ADIntegralEvents[AD]);
+
+            fprintf(f, "#Events in each cell for AD %d\n", AD);
+
+            for(int idx=0; idx<VolumeX; idx++)
+            {
+                for(int idy=0; idy<VolumeY; idy++)
+                {
+                    fprintf(f, "%d %d %d %f\n", AD, idx, idy, IntegralEvents[AD][idx][idy] );
+                }
+            }
+        }
+
+        fclose(f);
+
 //        for(int idx=0; idx<MaxCellNum; idx++)
 //        {
 //            delete hEp_cc[idx];
@@ -1303,10 +1441,10 @@ void nHToyMC :: Toy(bool mode)
                 HighResoTransMatrixH[i][0][0]->Draw("colz");
             }
             
-            NNFineMatrixC->Print("./Images/NoNormFineHydrogenResponseMatrix.eps");
-            NNMatrixC->Print("./Images/NoNormHydrogenResponseMatrix.eps");
-            NNTransC->Print("./Images/NoNormTransposeHydrogenMatrix.eps");
-            NNFineTransC->Print("./Images/NoNormFineTransposeHydrogenMatrix.eps");
+            NNFineMatrixC->Print("./Images/Hydrogen/ResponseMatrices/NoNormFineHydrogenResponseMatrix.eps");
+            NNMatrixC->Print("./Images/Hydrogen/ResponseMatrices/NoNormHydrogenResponseMatrix.eps");
+            NNTransC->Print("./Images/Hydrogen/ResponseMatrices/NoNormTransposeHydrogenMatrix.eps");
+            NNFineTransC->Print("./Images/Hydrogen/ResponseMatrices/NoNormFineTransposeHydrogenMatrix.eps");
             
             delete NNMatrixC;
             delete NNFineMatrixC;
@@ -1319,9 +1457,9 @@ void nHToyMC :: Toy(bool mode)
         Double_t NormaTrans[n_evis_bins];//vis->true
         Double_t HighResoNormaTrans[MatrixBins];//vis->true
         //Normalize the Matrix
-        for(int idx=0; idx<R2_binnum; idx++)
+        for(int idx=0; idx<VolumeX; idx++)
         {
-            for(int idy=0; idy<Z_binnum; idy++)
+            for(int idy=0; idy<VolumeY; idy++)
             {
                 for(Int_t AD = 0; AD<NADs;AD++)
                 {
@@ -1444,13 +1582,13 @@ void nHToyMC :: Toy(bool mode)
                         HighResoTransMatrixH[i][idx][idy]->Draw("colz");
                     }
                     
-                    PredictionC->Print("./Images/ToyMCTrueHydrogenPrediction.eps");
-                    VisPredictionC->Print("./Images/ToyMCVisibleHydrogenPrediction.eps");
-                    DelayedVisPredictionC->Print("./Images/ToyMCDelayedVisibleHydrogenPrediction.eps");
-                    FineMatrixC->Print("./Images/FineHydrogenResponseMatrix.eps");
-                    MatrixC->Print("./Images/HydrogenResponseMatrix.eps");
-                    TransC->Print("./Images/TransposeHydrogenMatrix.eps");
-                    FineTransC->Print("./Images/FineTransposeHydrogenMatrix.eps");
+                    PredictionC->Print("./Images/Hydrogen/ToyMCOutputs/ToyMCTrueHydrogenPrediction.eps");
+                    VisPredictionC->Print("./Images/Hydrogen/ToyMCOutputs/ToyMCVisibleHydrogenPrediction.eps");
+                    DelayedVisPredictionC->Print("./Images/Hydrogen/ToyMCOutputs/ToyMCDelayedVisibleHydrogenPrediction.eps");
+                    FineMatrixC->Print("./Images/Hydrogen/ResponseMatrices/FineHydrogenResponseMatrix.eps");
+                    MatrixC->Print("./Images/Hydrogen/ResponseMatrices/HydrogenResponseMatrix.eps");
+                    TransC->Print("./Images/Hydrogen/ResponseMatrices/TransposeHydrogenMatrix.eps");
+                    FineTransC->Print("./Images/Hydrogen/ResponseMatrices/FineTransposeHydrogenMatrix.eps");
                     
                     delete PredictionC;
                     delete VisPredictionC;
@@ -1467,9 +1605,9 @@ void nHToyMC :: Toy(bool mode)
         {
             TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root","recreate");
             
-            for(int idx=0; idx<R2_binnum; idx++)
+            for(int idx=0; idx<VolumeX; idx++)
             {
-                for(int idy=0; idy<Z_binnum; idy++)
+                for(int idy=0; idy<VolumeY; idy++)
                 {
                     for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
                     {
@@ -1486,9 +1624,9 @@ void nHToyMC :: Toy(bool mode)
         {
             TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/RandomResponseMatrix.root","recreate");
            
-            for(int idx=0; idx<R2_binnum; idx++)
+            for(int idx=0; idx<VolumeX; idx++)
             {
-                for(int idy=0; idy<Z_binnum; idy++)
+                for(int idy=0; idy<VolumeY; idy++)
                 {
                     for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
                     {
@@ -1512,9 +1650,9 @@ void nHToyMC :: Toy(bool mode)
     {
         TFile* NominalMatrixF = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root");
         
-        for(int idx=0; idx<R2_binnum; idx++)
+        for(int idx=0; idx<VolumeX; idx++)
         {
-            for(int idy=0; idy<Z_binnum; idy++)
+            for(int idy=0; idy<VolumeY; idy++)
             {
                 for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
                 {
@@ -1557,15 +1695,27 @@ void nHToyMC :: func_initialization()
     graph_gamma_LY    = (TGraph*)file_IHEP_NL_models->Get("gammaScint");
     graph_electronic  = (TGraph*)file_IHEP_NL_models->Get("electronics");
     
+    //NL-Gadolinium models:
+    
+    TFile* unifiedF_NL_models = new TFile("./Inputs/unified_nl_data/nl_models_final.root", "read");
+    g_unified_positron_nl = (TGraph*)unifiedF_NL_models->Get("positron_0")->Clone();
+    g_unified_positron_nl_pulls[0] =  (TGraph*)unifiedF_NL_models->Get(Form("positron_%d",1))->Clone();
+    g_unified_positron_nl_pulls[1] =  (TGraph*)unifiedF_NL_models->Get(Form("positron_%d",2))->Clone();
+    g_unified_positron_nl_pulls[2] =  (TGraph*)unifiedF_NL_models->Get(Form("positron_%d",3))->Clone();
+    g_unified_positron_nl_pulls[3] =  (TGraph*)unifiedF_NL_models->Get(Form("positron_%d",4))->Clone();
+    
+    delete unifiedF_NL_models;
+    
     ////// NU
     TFile *file_hist_attenuation_rel = new TFile("./Inputs/HInputs/Data/uniformity/hist_attenuation_rel.root", "read");
     hist_map_attenuation = (TH2D*)file_hist_attenuation_rel->Get("hist_attenuation_rel");
     hist_map_attenuation->SetName("hist_map_attenuation");
+    delete file_hist_attenuation_rel;
     
     TFile *file_hist_coverage_rel = new TFile("./Inputs/HInputs/Data/uniformity/hist_coverage_rel.root", "read");
     hist_map_pmt_coverage = (TH2D*)file_hist_coverage_rel->Get("hist_coverage_rel");
     hist_map_pmt_coverage->SetName("hist_map_pmt_coverage");
-    
+    delete file_hist_coverage_rel;
     ///
     gRandom3 = new TRandom3();
     RandomSysUncorr = new TRandom3();

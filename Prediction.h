@@ -25,7 +25,7 @@
 #include "TArrayD.h"
 #include "TTree.h"
 
-#define UseChristineReactorModel
+//#define UseChristineReactorModel
 #define Produce_Antineutrino_Spectrum_For_FirstTime
 const bool WriteROOT = 1;
 const bool ReadTxt = 0;//To use txt matrices or root files.
@@ -155,7 +155,7 @@ private:
     Int_t Nweeks;
     Int_t TotalBins;
     
-    TH1D* FluxHisto[MaxDetectors*NReactors*MaxPeriods];
+    TH1D* FluxHisto[NReactors][MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     
     //Histograms
     TH1D* PredictionVisH[MaxFarDetectors][MaxNearDetectors];//  Prediction with no alterations, nominal backgrounds may be added. Vis Binning (after detector response is applied)
@@ -262,7 +262,7 @@ private:
     
     Double_t TotalCovarianceMatrixM[9*MaxNbins*9*MaxNbins];
     
-    void GetOscillationPrediction(Int_t,Int_t,Int_t);
+    void GetOscillationPrediction(Int_t,Int_t);
     void GetReactorOscillationPrediction(Int_t,Int_t);
     
     void SetSystematic();
@@ -332,7 +332,13 @@ Prediction :: ~Prediction()
         {
             for(Int_t reactor =0;reactor<NReactors;reactor++)
             {
-                delete FluxHisto[reactor+AD*NReactors+week*NReactors*NADs];
+                for(Int_t idx=0; idx<XCellLimit; idx++)
+                {
+                    for(Int_t idy=0; idy<YCellLimit; idy++)
+                    {
+                        delete FluxHisto[reactor][AD][week][idx][idy];
+                    }
+                }
             }
         }
     }
@@ -386,9 +392,9 @@ Prediction :: Prediction()
     if(analysis)
     {
         AnalysisString = "Hydrogen";
-        NumberOfCells = R2_binnum*Z_binnum;
-        XCellLimit = R2_binnum;
-        YCellLimit = Z_binnum;
+        NumberOfCells = VolumeX*VolumeY;
+        XCellLimit = VolumeX;
+        YCellLimit = VolumeY;
     }
     else
     {
@@ -504,9 +510,9 @@ Prediction :: Prediction(NominalData* data)
     if(analysis)
     {
         AnalysisString = "Hydrogen";
-        NumberOfCells = R2_binnum*Z_binnum;
-        XCellLimit = R2_binnum;
-        YCellLimit = Z_binnum;
+        NumberOfCells = VolumeX*VolumeY;
+        XCellLimit = VolumeX;
+        YCellLimit = VolumeY;
     }
     else
     {
@@ -706,16 +712,21 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     
     //Possible flaw in the relative oscillation analysis as used right now. Efficiencies used in the so called superhistograms are nominal efficiencies, when variations are applied we get a residual error due to this difference.
     
-    if(analysis==0)
-    {
-        Osc->SetDelayedEfficiency(OscRea->GetDelayedEfficiency());
-        Osc->SetEfficiency(OscRea->GetEfficiency());
-    }
+
+    Osc->SetDelayedEfficiency(OscRea->GetDelayedEfficiency());
+    Osc->SetEfficiency(OscRea->GetEfficiency());
+    
     for(Int_t AD =0;AD<NADs;AD++)
     {
         for(Int_t reactor =0;reactor<NReactors;reactor++)
         {
-            Osc->SetFluxHistograms(FluxHisto[reactor+AD*NReactors+week*NReactors*NADs],reactor,AD,week);
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    Osc->SetFluxHistograms(FluxHisto[reactor][AD][week][idx][idy],reactor,AD,week,idx,idy);
+                }
+            }
         }
     }
     
@@ -727,7 +738,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
         {
             PredictionVisH[far][near] = new TH1D(Form("Far AD%d from AD%d sin_%f DM_%f",far+1,near+1,sin22t13,Dm2_ee),Form("Far AD%d from AD%d sin_%f DM_%f",far+1,near+1,sin22t13,Dm2_ee),n_evis_bins,evis_bins);
             
-            GetOscillationPrediction(far,near,week);
+            GetOscillationPrediction(far,near);
         }
     }
 
@@ -855,7 +866,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     //    CombinedPredictionVisH[0][1]->Draw();
     //    treeC->cd(6);
     //    CopyTHisto1->Draw();
-    //    treeC->Print("./Images/TreeVsPrediction.eps");
+    //    treeC->Print("./Images/Test/TreeVsPrediction.eps");
     //
     //    delete treeC;
     //    delete f2;
@@ -1036,13 +1047,13 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     delete OscRea;
 }
 
-void Prediction :: GetOscillationPrediction(Int_t far, Int_t near, Int_t week)
+void Prediction :: GetOscillationPrediction(Int_t far, Int_t near)
 {
     TH1D* CopyOriginalPredictionH;
     
     for(Int_t j = 0; j < n_evis_bins; j++)
     {
-        CopyOriginalPredictionH = Osc->GetOscillatedADSpectrum(far,near,j,week);
+        CopyOriginalPredictionH = Osc->GetOscillatedADSpectrum(far,near,j);
         
         //Integrate back to visible energy:
         
@@ -1242,7 +1253,7 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
                 PredictionDataH[0][1]->Draw();
             }
             
-            canvasC1->Print("./Images/NoTreeCheck.eps");
+            canvasC1->Print(("./Images/"+AnalysisString+"/NoTreeCheck.eps").c_str());
             delete canvasC1;
         }
     }
@@ -1338,7 +1349,7 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
                 TDataHisto1->Draw();
             }
             
-            canvasC->Print("./Images/TreeCheck.eps");
+            canvasC->Print(("./Images/"+AnalysisString+"/TreeCheck.eps").c_str());
             delete canvasC;
         }
         
@@ -1717,7 +1728,7 @@ void Prediction :: GenerateStatisticalCovarianceMatrix()
         cstat->cd(3);
         CombinedNearDataH[2]->Draw();
         
-        cstat->Print("./Images/TestStatisticalmatrix.eps", ".eps");
+    cstat->Print(("./Images/"+AnalysisString+"/TestStatisticalmatrix.eps").c_str(), ".eps");
         
         delete cstat;
     #endif
@@ -4104,7 +4115,7 @@ void Prediction :: InvertMatrix(Int_t week)
         UnityH->SetTitle("Unity Matrix");
         UnityH->Draw("colz");
         unityC->Update();
-        unityC->Print("./Images/TestInvert.eps", ".eps");
+        unityC->Print("./Images/Test/TestInvert.eps", ".eps");
         delete unityC;
     #endif
     
@@ -4270,7 +4281,7 @@ void Prediction :: ProduceCovToyMCSample(Int_t week,TH1D** NominalPredictionH)
                 NominalPredictionH[1]->Draw();
             }
             
-            CovarianceMatrixC->Print(Form("./Images/RandomCovarianceMatrix%d.eps",SystematicI));
+            CovarianceMatrixC->Print(("./Images/"+AnalysisString+Form("/RandomCovarianceMatrix%d.eps",SystematicI)).c_str());
             
             delete CovarianceMatrixC;
         #endif
@@ -4311,7 +4322,7 @@ void Prediction :: ProduceCovToyMCSample(Int_t week,TH1D** NominalPredictionH)
             MatrixC->cd(3);
             tcmat.Draw("colz");
             
-            MatrixC->Print(Form("./Images/MatrixRenormCheck%d.eps",SystematicI));
+            MatrixC->Print(("./Images/"+AnalysisString+Form("/MatrixRenormCheck%d.eps",SystematicI)).c_str());
             
             delete MatrixC;
         #endif
@@ -4620,9 +4631,15 @@ void Prediction :: GenerateFluxCorrectedHistograms(NominalData* LocalData)
         {
             for(Int_t reactor =0;reactor<NReactors;reactor++)
             {
-                TH1D* CopyFluxHisto = LocalOsc->GetFluxHisto(reactor,AD,week);//NReactorPeriods and periods to be fit respectively, first is used to correct the flux for weekly efficiencies, the second to fit one period of data or more.
+                for(Int_t idx=0; idx<XCellLimit; idx++)
+                {
+                    for(Int_t idy=0; idy<YCellLimit; idy++)
+                    {
+                        TH1D* CopyFluxHisto = LocalOsc->GetFluxHisto(reactor,AD,week,idx,idy);//NReactorPeriods and periods to be fit respectively, first is used to correct the flux for weekly efficiencies, the second to fit one period of data or more.
                 
-                FluxHisto[reactor+AD*NReactors+week*NReactors*NADs] = (TH1D*)CopyFluxHisto->Clone();
+                        FluxHisto[reactor][AD][week][idx][idy] = (TH1D*)CopyFluxHisto->Clone();
+                    }
+                }
             }
         }
     }

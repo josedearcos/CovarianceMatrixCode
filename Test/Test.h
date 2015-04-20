@@ -1127,7 +1127,7 @@ void Test :: LUDecomp()
     cmat.Draw("colz");
     c1->cd(3);
     TestM->Draw("colz");
-    c1->Print("./Images/TestLU.eps");
+    c1->Print("./Images/Test/TestLU.eps");
     delete c1;
 }
 

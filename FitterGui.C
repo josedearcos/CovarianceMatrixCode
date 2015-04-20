@@ -41,6 +41,10 @@ TH1D* NominalSpectrumH[MaxFarDetectors][MaxNearDetectors];
 
 streambuf * coutstream;
 
+const Int_t window_width = 1000;
+const Int_t window_height = 800;
+const Int_t button_height = 40;
+const Int_t frame_height = 350;
 int main(int argc, char **argv)
 {
     
@@ -161,7 +165,7 @@ FitterGui::FitterGui(const TGWindow *p,UInt_t w,UInt_t h)
     fMain->AddFrame(fMaincanvas, new TGLayoutHints(kLHintsExpandX| kLHintsExpandY, 10,10,10,1));
     // Create a horizontal frame widget with buttons
     
-    TGHorizontalFrame *hframe = new TGHorizontalFrame(fMain,250,40);
+    TGHorizontalFrame *hframe = new TGHorizontalFrame(fMain,250,button_height);
     
     TGTextButton *inputs = new TGTextButton(hframe,"&Load Inputs");
     inputs->Connect("Clicked()","FitterGui",this,"DoReadInputs()");
@@ -656,7 +660,8 @@ void FitterGui::RunFitter()
     std::cout <<  "**********************************           FITTER            *****************************************" << std::endl;
     std::cout <<  "********************************************************************************************************" << std::endl;
     
-    Int_t DataSet=2;
+    Int_t DataSet=2;//0 is Simulation, 2 is P12E
+    
     NominalData* Data = new NominalData(Analysis,DataSet);
     
     Data->SetToyMCSamplesDirectory(ToyMCSampleDirectory);
@@ -677,11 +682,12 @@ void FitterGui::RunFitter()
     Data->SetAnalysis(Analysis);//  Gd or H data
     Data->SetBinning(Binning);//  0 for LBNL binning or 1 for Linear binning
     Data->SetNSteps(NFits);// 101 in the final version.
+    Data->SetNReactorPeriods(NReactorPeriods);
     Data->SetWeeks(Period);
+    Data->SetADs(NADs);
     Data->SetBCWModel(NL[0]);
     Data->SetLBNLModel(NL[1]);
     Data->SetUnifiedModel(NL[2]);
-    Data->SetNReactorPeriods(NReactorPeriods);
 
     Data->SetToyMC(ToyMC);
     
@@ -689,7 +695,7 @@ void FitterGui::RunFitter()
     if(Analysis)
     {
         AnalysisString = "Hydrogen";
-        FluxInputS="HInputs";
+        FluxInputS = "HInputs";
     }
     else
     {
@@ -698,11 +704,21 @@ void FitterGui::RunFitter()
     }
     
     // Generate SuperHistogram:
-    NominalData* FluxData = new NominalData(Analysis,2);//Same for nH and nGd, difference is on efficiencies.
+    NominalData* FluxData = new NominalData(Analysis,DataSet);//Same for nH and nGd, difference is on efficiencies.
+    FluxData->CopyData(Data);
     std::cout << " Loading Flux Data: " << std::endl;
-    FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
+    
+    if(Analysis)
+    {
+        FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
+    }
+    else
+    {
+        FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
+    }
+    
     Oscillation* FluxOsc= new Oscillation(FluxData);
-    FluxOsc->GenerateFluxHisto();
+        FluxOsc->GenerateFluxHisto();
     delete FluxOsc;
     delete FluxData;
     
@@ -1566,8 +1582,9 @@ void FitterGui::RunToyMC()
     Data->SetCombineMode(CombineMode); //0 is 9x9, 1 is 1x1 and 2 is 2x2
     Data->SetUseToyMCTree(UseToyMCTree);
     Data->SetBinning(Binning);//  0 for LBNL binning or 1 for Linear binning
-    Data->SetWeeks(Period);
     Data->SetNReactorPeriods(NReactorPeriods);
+    Data->SetWeeks(Period);
+    Data->SetADs(NADs);
     std::cout <<  "********************************************************************************************************" << std::endl;
     std::cout <<  "**********************************            MAIN             *****************************************" << std::endl;
     std::cout <<  "********************************************************************************************************" << std::endl;
@@ -1747,7 +1764,7 @@ void FitterGui::RunFlux()
     gStyle->SetNumberContours(NCont);
     
     Int_t DataSet=2;//0 is Simulation, 2 is P12E
-    
+
     NominalData* Data = new NominalData(Analysis,DataSet);
     
     Data->SetToyMCSamplesDirectory(ToyMCSampleDirectory);
@@ -1759,15 +1776,16 @@ void FitterGui::RunFlux()
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //Parameters of the model
     
-    Data->SetNSamples(NSamples);// 500 in the final version.
+    Data->SetNSamples(NSamples);// 1000 in the final version.
     
     Data->SetToyMC(ToyMC);//  1 for Toy MC, 0 for data. To produce covariance matrices we use ToyMC.
     
     Data->SetCombineMode(CombineMode); //0 is 9x9, 1 is 1x1 and 2 is 2x2
     Data->SetUseToyMCTree(UseToyMCTree);
     Data->SetBinning(Binning);//  0 for LBNL binning or 1 for Linear binning
-    Data->SetWeeks(Period);
     Data->SetNReactorPeriods(NReactorPeriods);
+    Data->SetWeeks(Period);
+    Data->SetADs(NADs);
     std::cout <<  "********************************************************************************************************" << std::endl;
     std::cout <<  "**********************************            MAIN             *****************************************" << std::endl;
     std::cout <<  "********************************************************************************************************" << std::endl;
@@ -1780,7 +1798,21 @@ void FitterGui::RunFlux()
             case 0://  Simple reactor model used as input data
                 std::cout << "\t Loading simple reactor model" << std::endl;
                 break;
-            case 1://   P12E
+            case 1://   P12B
+                if(1==Data->GetWeeks())
+                {
+                    std::cout << "\t NO P12B DATA FILE" << std::endl;
+                    Data->LoadMainData("./Inputs/HInputs/P12B_Inclusive.txt");
+                }
+                else
+                {
+                    std::cout << "\t \t \t NO MULTIPLE WEEK P12B DATA IN H ANALYSIS YET, USING FAKE FILE" << std::endl;
+                    Data->LoadMainData(Form("./Inputs/HInputs/P12B_%d.txt",NReactorPeriods));
+                }
+                exit(EXIT_FAILURE);
+
+                break;
+            case 2:// P12E
                 if(1==Data->GetWeeks())
                 {
                     std::cout << "\t Loading nH P12E Data" << std::endl;
@@ -1788,14 +1820,9 @@ void FitterGui::RunFlux()
                 }
                 else
                 {
-                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN H ANALYSIS YET " << std::endl;
-                    exit(EXIT_FAILURE);
+                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN H ANALYSIS YET, USING FAKE FILE" << std::endl;
                     Data->LoadMainData(Form("./Inputs/HInputs/P12E_%d.txt",NReactorPeriods));
                 }
-                break;
-            case 2:// LBNL
-                std::cout << "\t \t \t NO LBNL H ANALYSIS, OPTION NOT VALID " << std::endl;
-                exit(EXIT_FAILURE);
                 break;
             default:
                 break;
@@ -1857,14 +1884,21 @@ void FitterGui::RunFlux()
     }
     
     // Generate SuperHistogram:
-    NominalData* FluxData = new NominalData(Analysis,2);
+    NominalData* FluxData = new NominalData(Analysis,DataSet);
     FluxData->CopyData(Data);
-    std::cout << "Loading Flux Data: " << std::endl;
+    std::cout << "Loading weekly data to regenerate flux: " << std::endl;
     
-    FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
+    if(Analysis)
+    {
+        FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
+    }
+    else
+    {
+        FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
+    }
+    
     Oscillation* FluxOsc= new Oscillation(FluxData);
-    
-    FluxOsc->GenerateFluxHisto();
+        FluxOsc->GenerateFluxHisto();
     delete FluxOsc;
     delete FluxData;
     
@@ -2109,14 +2143,14 @@ void FitterGui::UpdateFitter(Int_t samples)
 
 void FitterGui::PlotVariations()
 {
-    TGMainFrame *fPlotVariationsFrame = new TGMainFrame(gClient->GetRoot(),1000,800,kMainFrame | kVerticalFrame);
+    TGMainFrame *fPlotVariationsFrame = new TGMainFrame(gClient->GetRoot(),window_width,window_height,kMainFrame | kVerticalFrame);
     fPlotVariationsFrame->SetName("fPlotVariationsFrame");
     fPlotVariationsFrame->SetWindowName(" Plot Spectrum Variations ");
     
-    fVariationsCanvas = new TRootEmbeddedCanvas("VariationsCanvas",fPlotVariationsFrame,1000,800);
+    fVariationsCanvas = new TRootEmbeddedCanvas("VariationsCanvas",fPlotVariationsFrame,window_width,window_height);
     VCanvas = fVariationsCanvas->GetCanvas();
     VarString = "NL"; //default
-    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotVariationsFrame,1000,40);
+    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotVariationsFrame,window_width,button_height);
     
     VariationsPlotBox = new TGComboBox(hframe,-1,kHorizontalFrame | kSunkenFrame | kDoubleBorder | kOwnBackground);
     VariationsPlotBox->SetName("VariationsMatrixBox");
@@ -2160,13 +2194,13 @@ void FitterGui::PlotVariations()
     VariationsBox->Show();
     
     hframe->AddFrame(VariationsBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    VariationsBox->MoveResize(400,800,400,15);
+    VariationsBox->MoveResize(window_width/2,0,window_width,button_height);
     
-    hframe->MoveResize(0,800,800,40);
+    hframe->MoveResize(0,0,window_width,button_height);
     
     fPlotVariationsFrame->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX,2,2,2,2));
+    fVariationsCanvas->MoveResize(0,button_height,window_width,window_height-button_height);
     fPlotVariationsFrame->AddFrame(fVariationsCanvas, new TGLayoutHints(kLHintsExpandX| kLHintsExpandY, 10,10,10,1));
-    
     
     // Set a name to the main frame
     fPlotVariationsFrame->SetWindowName(" Plot Spectrum Variations ");
@@ -2183,17 +2217,17 @@ void FitterGui::PlotVariations()
 }
 void FitterGui::PlotBkgd()
 {
-    TGMainFrame *fPlotBkgdFrame = new TGMainFrame(gClient->GetRoot(),1000,800,kMainFrame | kVerticalFrame);
+    TGMainFrame *fPlotBkgdFrame = new TGMainFrame(gClient->GetRoot(),window_width,window_height,kMainFrame | kVerticalFrame);
     fPlotBkgdFrame->SetName("fPlotBkgdFrame");
     fPlotBkgdFrame->SetWindowName(" Plot Background ");
     fPlotBkgdFrame->SetLayoutBroken(kTRUE);
     
-    fBackgroundcanvas = new TRootEmbeddedCanvas("Backgroundcanvas",fPlotBkgdFrame,1000,800);
+    fBackgroundcanvas = new TRootEmbeddedCanvas("Backgroundcanvas",fPlotBkgdFrame,window_width,window_height);
     fCanvas = fBackgroundcanvas->GetCanvas();
-    fCanvas->Divide(3,2);
+    
     fPlotBkgdFrame->AddFrame(fBackgroundcanvas, new TGLayoutHints(kLHintsExpandX| kLHintsExpandY, 10,10,10,1));
     
-    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotBkgdFrame,1000,40);
+    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotBkgdFrame,window_width,button_height);
     
     TGTextButton *PlotAccidentalB = new TGTextButton(fPlotBkgdFrame,"&Accidentals");
     PlotAccidentalB->Connect("Clicked()","FitterGui",this,"PlotAccidental()");
@@ -2211,10 +2245,12 @@ void FitterGui::PlotBkgd()
     PlotAmCB->Connect("Clicked()","FitterGui",this,"PlotAmC()");
     hframe->AddFrame(PlotAmCB, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
     
-    hframe->MoveResize(0,800,800,40);
+    hframe->MoveResize(0,0,window_width,button_height);
     
     fPlotBkgdFrame->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX,2,2,2,2));
-    
+    fBackgroundcanvas->MoveResize(0,button_height,window_width,window_height-button_height);
+    fPlotBkgdFrame->AddFrame(fBackgroundcanvas, new TGLayoutHints(kLHintsExpandX| kLHintsExpandY, 10,10,10,1));
+
     // Set a name to the main frame
     fPlotBkgdFrame->SetWindowName(" Background Menu ");
     
@@ -2226,7 +2262,6 @@ void FitterGui::PlotBkgd()
     
     // Map main frame
     fPlotBkgdFrame->MapWindow();
-    
 }
 
 void FitterGui::PlotAccidental()
@@ -2256,6 +2291,10 @@ void FitterGui::PlotAccidental()
         delete GdBackgroundsF;
     }
     // Draws function graphics in randomly choosen interval
+    
+    fCanvas->Clear();
+    fCanvas->Resize();
+    fCanvas->Divide(NADs/2,2);
     
     for(Int_t i = 0; i < NADs; i++)
     {
@@ -2294,6 +2333,9 @@ void FitterGui::PlotFN()
         delete GdBackgroundsF;
     }
     // Draws function graphics in randomly choosen interval
+    fCanvas->Clear();
+    fCanvas->Resize();
+    fCanvas->Divide(NADs/2,2);
     
     for(Int_t i = 0; i < NADs; i++)
     {
@@ -2332,6 +2374,9 @@ void FitterGui::PlotLiHe()
         delete GdBackgroundsF;
     }
     // Draws function graphics in randomly choosen interval
+    fCanvas->Clear();
+    fCanvas->Resize();
+    fCanvas->Divide(NADs/2,2);
     
     for(Int_t i = 0; i < NADs; i++)
     {
@@ -2370,6 +2415,9 @@ void FitterGui::PlotAmC()
         delete GdBackgroundsF;
     }
     // Draws function graphics in randomly choosen interval
+    fCanvas->Clear();
+    fCanvas->Resize();
+    fCanvas->Divide(NADs/2,2);
     
     for(Int_t i = 0; i < NADs; i++)
     {
@@ -2383,15 +2431,15 @@ void FitterGui::PlotAmC()
 
 void FitterGui::PlotErrorBudget()
 {
-    TGMainFrame *fPlotErrorBudgetFrame = new TGMainFrame(gClient->GetRoot(),800,800,kMainFrame | kVerticalFrame);
+    TGMainFrame *fPlotErrorBudgetFrame = new TGMainFrame(gClient->GetRoot(),window_width,window_height,kMainFrame | kVerticalFrame);
     fPlotErrorBudgetFrame->SetName("fPlotErrorBudget");
     fPlotErrorBudgetFrame->SetWindowName(" Plot Error Budget ");
     //    fPlotADVisFrame->SetLayoutBroken(kTRUE);
     
-    fBudgetCanvas = new TRootEmbeddedCanvas("BudgetCanvas",fPlotErrorBudgetFrame,700,700);
+    fBudgetCanvas = new TRootEmbeddedCanvas("BudgetCanvas",fPlotErrorBudgetFrame,window_width,window_height-button_height);
     BudgetCanvas = fBudgetCanvas->GetCanvas();
     
-    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotErrorBudgetFrame,1000,20);
+    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotErrorBudgetFrame,window_width,button_height);
     
     TGTextButton *PlotOnB = new TGTextButton(fPlotErrorBudgetFrame,"&Plot Turn On");
     PlotOnB->Connect("Clicked()","FitterGui",this,"PlotTurnOnBudget()");
@@ -2409,7 +2457,7 @@ void FitterGui::PlotErrorBudget()
     CalculateOffB->Connect("Clicked()","FitterGui",this,"RunTurnOffBudget()");
     hframe->AddFrame(CalculateOffB, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
     
-    hframe->MoveResize(0,800,800,20);
+    hframe->MoveResize(0,0,window_width,button_height);
     
     fPlotErrorBudgetFrame->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX,2,2,2,2));
     
@@ -2427,33 +2475,20 @@ void FitterGui::PlotErrorBudget()
 
 void FitterGui:: PlotTurnOnBudget()
 {
-    char *dirname;
-    if(Analysis)
+    const char *dirnameOn;
+    
+    if(FitSin22t13)
     {
-        if(FitSin22t13)
-        {
-            dirname= Form("./ChiSquare/Hydrogen/Combine%d/TurnOnBudget/S2/",CombineMode);
-        }
-        else
-        {
-            dirname = Form("./ChiSquare/Hydrogen/Combine%d/TurnOnBudget/DM/",CombineMode);
-        }
+        dirnameOn= ("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/S2/",CombineMode)).c_str();
     }
     else
     {
-        if(FitSin22t13)
-        {
-            dirname = Form("./ChiSquare/Gadolinium/Combine%d/TurnOnBudget/S2/",CombineMode);
-        }
-        else
-        {
-            dirname = Form("./ChiSquare/Gadolinium/Combine%d/TurnOnBudget/DM/",CombineMode);
-        }
+        dirnameOn = ("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/DM/",CombineMode)).c_str();
     }
     
     char *ext= Form(".root");
     
-    Int_t DataSet=2;
+    Int_t DataSet=2;//0 is Simulation, 2 is P12E
     
     NominalData* Data = new NominalData(Analysis,DataSet);
     
@@ -2478,7 +2513,7 @@ void FitterGui:: PlotTurnOnBudget()
     Int_t num = 0;
     TString fname[50];
     
-    TSystemDirectory dir(dirname, dirname);
+    TSystemDirectory dir(dirnameOn, dirnameOn);
     TList *files = dir.GetListOfFiles();
     
     if(files)
@@ -2494,7 +2529,7 @@ void FitterGui:: PlotTurnOnBudget()
             {
                 std::cout << fname[num] << std::endl;
                 
-                TFile* File = new TFile(dirname+fname[num]);
+                TFile* File = new TFile(dirnameOn+fname[num]);
                 
                 Histo[num] = (TH1D*)File->Get(Form("Sin%f_Distribution_DeltaM%f_Period%d",sin22t13,deltaM,Period-1));
                 
@@ -2585,40 +2620,26 @@ void FitterGui:: PlotTurnOnBudget()
         
         if(FitSin22t13)
         {
-            BudgetCanvas->Print("./Images/ErrorBudget/TurnOnS2.eps");
+            BudgetCanvas->Print(("./Images/"+AnalysisString+"/ErrorBudget/TurnOnS2.eps").c_str());
         }
         else
         {
-            BudgetCanvas->Print("./Images/ErrorBudget/TurnOnDM.eps");
+            BudgetCanvas->Print(("./Images/"+AnalysisString+"/ErrorBudget/TurnOnDM.eps").c_str());
         }
     }
 }
 
 void FitterGui:: PlotTurnOffBudget()
 {
-    char *dirname;
+    const char *dirname;
     
-    if(Analysis)
+    if(FitSin22t13)
     {
-        if(FitSin22t13)
-        {
-            dirname= Form("./ChiSquare/Hydrogen/Combine%d/TurnOffBudget/S2/",CombineMode);
-        }
-        else
-        {
-            dirname = Form("./ChiSquare/Hydrogen/Combine%d/TurnOffBudget/DM/",CombineMode);
-        }
+        dirname= ("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/S2/",CombineMode)).c_str();
     }
     else
     {
-        if(FitSin22t13)
-        {
-            dirname = Form("./ChiSquare/Gadolinium/Combine%d/TurnOffBudget/S2/",CombineMode);
-        }
-        else
-        {
-            dirname = Form("./ChiSquare/Gadolinium/Combine%d/TurnOffBudget/DM/",CombineMode);
-        }
+        dirname = ("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/DM/",CombineMode)).c_str();
     }
     
     std::cout << dirname << std::endl;
@@ -2627,8 +2648,8 @@ void FitterGui:: PlotTurnOffBudget()
     BudgetCanvas->Clear();
     BudgetCanvas->Resize();
     
-    Int_t DataSet=2;
-    
+    Int_t DataSet=2;//0 is Simulation, 2 is P12E
+
     NominalData* Data = new NominalData(Analysis,DataSet);
     
     Data->SetToyMCSamplesDirectory(ToyMCSampleDirectory);
@@ -2756,11 +2777,11 @@ void FitterGui:: PlotTurnOffBudget()
         
         if(FitSin22t13)
         {
-            BudgetCanvas->Print("./Images/ErrorBudget/TurnOffS2.eps");
+            BudgetCanvas->Print(("./Images/"+AnalysisString+"/ErrorBudget/TurnOffS2.eps").c_str());
         }
         else
         {
-            BudgetCanvas->Print("./Images/ErrorBudget/TurnOffDM.eps");
+            BudgetCanvas->Print(("./Images/"+AnalysisString+"/ErrorBudget/TurnOffDM.eps").c_str());
         }
     }
 }
@@ -2792,15 +2813,15 @@ void FitterGui :: RunTurnOffBudget()
 
 void FitterGui::PlotADVis()
 {
-    TGMainFrame *fPlotADVisFrame = new TGMainFrame(gClient->GetRoot(),800,800,kMainFrame | kVerticalFrame);
+    TGMainFrame *fPlotADVisFrame = new TGMainFrame(gClient->GetRoot(),window_width,window_height,kMainFrame | kVerticalFrame);
     fPlotADVisFrame->SetName("fPlotADVis");
     fPlotADVisFrame->SetWindowName(" Plot AD Vis ");
     //    fPlotADVisFrame->SetLayoutBroken(kTRUE);
     
-    fADVisCanvas = new TRootEmbeddedCanvas("ADViscanvas",fPlotADVisFrame,700,700);
+    fADVisCanvas = new TRootEmbeddedCanvas("ADViscanvas",fPlotADVisFrame,window_width,window_height-button_height);
     ADVisCanvas = fADVisCanvas->GetCanvas();
     
-    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotADVisFrame,1000,20);
+    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotADVisFrame,window_width,button_height);
     
     TGTextButton *PlotADVisB = new TGTextButton(fPlotADVisFrame,"&AD Visible");
     PlotADVisB->Connect("Clicked()","FitterGui",this,"PlotAllADVis()");
@@ -2823,12 +2844,12 @@ void FitterGui::PlotADVis()
     }
     NominalBox->Show();
     hframe->AddFrame(NominalBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    NominalBox->MoveResize(400,800,400,15);
+    NominalBox->MoveResize(window_width/4,0,window_width/2,button_height);
     
-    hframe->MoveResize(0,800,800,20);
-    
+    hframe->MoveResize(0,0,window_width,button_height);
+
     fPlotADVisFrame->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX,2,2,2,2));
-    
+    fADVisCanvas->MoveResize(0,button_height,window_width,window_height-button_height);
     fPlotADVisFrame->AddFrame(fADVisCanvas, new TGLayoutHints(kLHintsExpandX| kLHintsExpandY, 10,10,10,1));
     
     // Map all subwindows of main frame
@@ -2845,11 +2866,11 @@ void FitterGui::PlotAllADVis()
 {
     flagCombine = 0;
     ADVisCanvas->Clear();
-    ADVisCanvas->SetCanvasSize(700,700);
-    ADVisCanvas->Divide(3,3);
+    ADVisCanvas->SetCanvasSize(window_width,window_height);
+    ADVisCanvas->Divide(NADs/2,NADs/2);
     
-    const Int_t NearADs = 3;
-    const Int_t FarADs = 3;
+    const Int_t NearADs = NADs/2;
+    const Int_t FarADs = NADs/2;
     
     TH1D* ADVisH[NearADs][FarADs];
     
@@ -2895,11 +2916,11 @@ void FitterGui::PlotCombine()
     ADVisCanvas->Clear();
     ADVisCanvas->Update();
     
-    const Int_t NearADs = 3;
-    const Int_t FarADs = 3;
+    const Int_t NearADs = NADs/2;
+    const Int_t FarADs = NADs/2;
     
-    Int_t MaxCombineNearADs= 3;
-    Int_t MaxCombineFarADs= 3;
+    Int_t MaxCombineNearADs= NADs/2;
+    Int_t MaxCombineFarADs= NADs/2;
     
     TH1D* ADCombine[NearADs][FarADs];
     
@@ -2910,7 +2931,7 @@ void FitterGui::PlotCombine()
     }
     else if(CombineMode==2)
     {
-        ADVisCanvas->SetCanvasSize(800, 400);
+        ADVisCanvas->SetCanvasSize(window_width, window_height);
         ADVisCanvas->Divide(2,1);
         
         MaxCombineNearADs = 2;
@@ -2918,7 +2939,7 @@ void FitterGui::PlotCombine()
     }
     else
     {
-        ADVisCanvas->Divide(3,3);
+        ADVisCanvas->Divide(NADs/2,NADs/2);
     }
     
     TFile* ADVisF = new TFile(("./RootOutputs/"+AnalysisString+Form("/Spectra/Combine%d/",CombineMode)+NominalString+"PredictedSpectrum.root").c_str());
@@ -2960,15 +2981,15 @@ void FitterGui::PlotADTrue()
 {
     //I can sum all true energy histograms and all reactors to produce this histogram.
     
-    TGMainFrame *fPlotADTrueFrame = new TGMainFrame(gClient->GetRoot(),800,800,kMainFrame | kVerticalFrame);
+    TGMainFrame *fPlotADTrueFrame = new TGMainFrame(gClient->GetRoot(),window_width,window_height,kMainFrame | kVerticalFrame);
     fPlotADTrueFrame->SetName("fPlotADTrue");
     fPlotADTrueFrame->SetWindowName(" Plot AD True ");
     //    fPlotADTrueFrame->SetLayoutBroken(kTRUE);
     
-    fADTrueCanvas = new TRootEmbeddedCanvas("ADTruecanvas",fPlotADTrueFrame,700,700);
+    fADTrueCanvas = new TRootEmbeddedCanvas("ADTruecanvas",fPlotADTrueFrame,window_width,window_height-button_height);
     ADTrueCanvas = fADTrueCanvas->GetCanvas();
     
-    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotADTrueFrame,1000,20);
+    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotADTrueFrame,window_width,button_height);
     
     TGTextButton *PlotADFarTrueB = new TGTextButton(fPlotADTrueFrame,"&True AD Far");
     PlotADFarTrueB->Connect("Clicked()","FitterGui",this,"PlotFarADTrue()");
@@ -2995,12 +3016,12 @@ void FitterGui::PlotADTrue()
     IndexBox->Show();
     
     hframe->AddFrame(IndexBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    IndexBox->MoveResize(400,800,400,15);
+    IndexBox->MoveResize(window_width/4,0,window_width/2,button_height);
     
-    hframe->MoveResize(0,800,800,20);
+    hframe->MoveResize(0,0,window_width,button_height);
     
     fPlotADTrueFrame->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX,2,2,2,2));
-    
+    fADTrueCanvas->MoveResize(0,button_height,window_width,window_height-button_height);
     fPlotADTrueFrame->AddFrame(fADTrueCanvas, new TGLayoutHints(kLHintsExpandX| kLHintsExpandY, 10,10,10,1));
     
     // Map all subwindows of main frame
@@ -3015,15 +3036,15 @@ void FitterGui::PlotADTrue()
 
 void FitterGui :: PlotSpectrumFraction()
 {
-    TGMainFrame *fPlotFractionFrame = new TGMainFrame(gClient->GetRoot(),800,800,kMainFrame | kVerticalFrame);
+    TGMainFrame *fPlotFractionFrame = new TGMainFrame(gClient->GetRoot(),window_width,window_height,kMainFrame | kVerticalFrame);
     fPlotFractionFrame->SetName("fPlotADVis");
     fPlotFractionFrame->SetWindowName(" Plot Spectrum Reactor Fraction ");
     //    fPlotADVisFrame->SetLayoutBroken(kTRUE);
     
-    fFractionCanvas = new TRootEmbeddedCanvas("ADViscanvas",fPlotFractionFrame,800,800);
+    fFractionCanvas = new TRootEmbeddedCanvas("ADViscanvas",fPlotFractionFrame,window_width,window_height-button_height);
     FractionCanvas = fFractionCanvas->GetCanvas();
     
-    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotFractionFrame,1000,40);
+    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotFractionFrame,window_width,button_height);
     
     TGTextButton *PlotNearB = new TGTextButton(fPlotFractionFrame,"&Near Fraction");
     PlotNearB->Connect("Clicked()","FitterGui",this,"PlotNear()");
@@ -3033,7 +3054,7 @@ void FitterGui :: PlotSpectrumFraction()
     PlotFarB->Connect("Clicked()","FitterGui",this,"PlotFar()");
     hframe->AddFrame(PlotFarB, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
     
-    hslider = new TGHSlider(fPlotFractionFrame,390);
+    hslider = new TGHSlider(fPlotFractionFrame,window_width/2);
     
     hslider->Connect("PositionChanged(Int_t)", "FitterGui", this, "DoChangeBin()");
     
@@ -3043,9 +3064,10 @@ void FitterGui :: PlotSpectrumFraction()
     
     hframe->AddFrame(hslider, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
     
-    hframe->MoveResize(0,800,800,30);
+    hframe->MoveResize(0,0,window_width,button_height);
     
     fPlotFractionFrame->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX,2,2,2,2));
+    fFractionCanvas->MoveResize(0,button_height,window_width,window_height-button_height);
     fPlotFractionFrame->AddFrame(fFractionCanvas, new TGLayoutHints(kLHintsExpandX| kLHintsExpandY, 10,10,10,1));
     
     // Map all subwindows of main frame
@@ -3274,7 +3296,7 @@ void FitterGui::PlotFarADTrue()
         {
             for(Int_t Bin = 0; Bin < NbinsH->GetXaxis()->GetNbins(); Bin++)
             {
-                FarH[j][r] = (TH1D*)FarF->Get(Form("AD%i Far Spectrum fraction from Reactor%i and near AD%i, Week%i Vis%i", j+(NearADs)+1, r+1, NearTrueIndex+1, Period,Bin+1));
+                FarH[j][r] = (TH1D*)FarF->Get(Form("AD%i Far Spectrum fraction from Reactor%i and near AD%i, Vis%i, Cell0,0", j+(NearADs)+1, r+1, NearTrueIndex+1,Bin+1));
                 
                 if(Bin==0)
                 {
@@ -3317,15 +3339,15 @@ void FitterGui::PlotFarADTrue()
 
 void FitterGui::PlotCov()
 {
-    TGMainFrame *fPlotCovFrame = new TGMainFrame(gClient->GetRoot(),800,800,kMainFrame | kVerticalFrame);
+    TGMainFrame *fPlotCovFrame = new TGMainFrame(gClient->GetRoot(),window_width,window_height,kMainFrame | kVerticalFrame);
     fPlotCovFrame->SetName("fPlotCov");
     fPlotCovFrame->SetWindowName(" Plot Covariance Matrix ");
     //    fPlotADVisFrame->SetLayoutBroken(kTRUE);
     
-    fCovCanvas = new TRootEmbeddedCanvas("CovCanvas",fPlotCovFrame,800,800);
+    fCovCanvas = new TRootEmbeddedCanvas("CovCanvas",fPlotCovFrame,window_width,window_height-button_height);
     CovCanvas = fCovCanvas->GetCanvas();
     
-    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotCovFrame,1000,40);
+    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotCovFrame,window_width,button_height);
     
     CovariancePlotBox = new TGComboBox(fPlotCovFrame,-1,kHorizontalFrame | kSunkenFrame | kDoubleBorder | kOwnBackground);
     CovariancePlotBox->SetName("CovarianceMatrixBox");
@@ -3352,10 +3374,9 @@ void FitterGui::PlotCov()
     
     CovariancePlotBox->Connect("Selected(Int_t)", "FitterGui", this, "ChoosePlotCov()");
     CovariancePlotBox->Select(19);//Run all covariance matrices as default
-    CovariancePlotBox->MoveResize(0,0,200,22);
     fPlotCovFrame->AddFrame(CovariancePlotBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
     
-    hframe->MoveResize(0,800,800,30);
+    hframe->MoveResize(0,0,window_width,button_height);
     
     CorrelationBox = new TGButtonGroup(hframe,"Plot Covariance/Correlation",kVerticalFrame,TGLabel::GetDefaultGC()(),TGLabel::GetDefaultFontStruct(),0xffffff);
     CorrelationBox->SetName("CorrelationBox");
@@ -3375,9 +3396,12 @@ void FitterGui::PlotCov()
     CorrelationBox->Show();
     
     hframe->AddFrame(CorrelationBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
-    CorrelationBox->MoveResize(400,800,400,15);
+
+    CovariancePlotBox->MoveResize(0,0,window_width/4,button_height/2);
+    CorrelationBox->MoveResize(window_width/3,button_height/2,window_width/3,button_height/2);
     
     fPlotCovFrame->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX,2,2,2,2));
+    fCovCanvas->MoveResize(0,button_height,window_width,window_height-button_height);
     fPlotCovFrame->AddFrame(fCovCanvas, new TGLayoutHints(kLHintsExpandX| kLHintsExpandY, 10,10,10,1));
     
     // Map all subwindows of main frame
@@ -3558,25 +3582,25 @@ void FitterGui:: ChoosePlotRatioVariations()
     
     VCanvas->Clear();
     
-    if(VariationsPlotBox->GetSelected()<8)
-    {
-        VCanvas->SetCanvasSize(400,400*MaxFar);
-        VCanvas->Divide(1,MaxFar);
-        
-        for(Int_t far = 0; far< MaxFar; far++)
-        {
-            for(Int_t near = 0; near< MaxNear; far++)
-            {
-                for(Int_t sample = 0; sample< NSamples; sample++)
-                {
-                    RatioH[sample][far][near] = (TH1D*)VarF->Get(Form("Relative error AD%d Spectra Sample%i Period%d",far, sample,Period-1));
-                }
-            }
-        }
-    }
-    else
-    {
-        VCanvas->SetCanvasSize(400*MaxNear,400*MaxFar);
+//    if(VariationsPlotBox->GetSelected()<8)
+//    {
+//        VCanvas->SetCanvasSize(frame_height,frame_height*MaxFar);
+//        VCanvas->Divide(1,MaxFar);
+//        
+//        for(Int_t far = 0; far< MaxFar; far++)
+//        {
+//            for(Int_t near = 0; near< MaxNear; far++)
+//            {
+//                for(Int_t sample = 0; sample< NSamples; sample++)
+//                {
+//                    RatioH[sample][far][near] = (TH1D*)VarF->Get(Form("Relative error Far AD%d from Near AD%d Spectra Sample%i Period%d",far,near, sample,Period-1));
+//                }
+//            }
+//        }
+//    }
+//    else
+//    {
+        VCanvas->SetCanvasSize(frame_height*MaxNear,frame_height*MaxFar);
         VCanvas->Divide(MaxNear,MaxFar);
         
         for(Int_t far = 0; far< MaxFar; far++)
@@ -3589,20 +3613,20 @@ void FitterGui:: ChoosePlotRatioVariations()
                 }
             }
         }
-    }
+//    }
     
     gStyle->SetOptStat(SetStats);
     
     Int_t MaxPlotNear;
     
-    if(VariationsPlotBox->GetSelected()<8)
-    {
-        MaxPlotNear=1;
-    }
-    else
-    {
+//    if(VariationsPlotBox->GetSelected()<8)
+//    {
+//        MaxPlotNear=1;
+//    }
+//    else
+//    {
         MaxPlotNear=MaxNear;
-    }
+//    }
     
     for(Int_t far = 0; far< MaxFar; far++)
     {
@@ -3651,10 +3675,10 @@ void FitterGui:: ChoosePlotSpectrumVariations()
         MaxNear=2;
     }
     
-    if(VariationsPlotBox->GetSelected()<8)
-    {
-        MaxNear = 1;
-    }
+//    if(VariationsPlotBox->GetSelected()<8)
+//    {
+//        MaxNear = 1;
+//    }
     
     if(deleteFlagSpec == 1)
     {
@@ -3678,30 +3702,30 @@ void FitterGui:: ChoosePlotSpectrumVariations()
     
     VCanvas->Clear();
     
-    if(VariationsPlotBox->GetSelected()<8)
-    {
-        VCanvas->SetCanvasSize(400,400*MaxFar);
-        VCanvas->Divide(1,MaxFar);
-        
-        for(Int_t far = 0; far< MaxFar; far++)
-        {
-            for(Int_t sample = 0; sample< NSamples; sample++)
-            {
-                SpectrumH[sample][far][0] = (TH1D*)VarF->Get(Form("Difference AD%d Spectra Sample%i Period%d",far,sample, Period-1));
-                
-                if(SpectrumH[sample][far][0]->GetBinContent(0)<0)
-                {
-                    SpectrumH[sample][far][0]->Scale(-1);
-                }
-            }
-            
-            NominalSpectrumH[far][0] = (TH1D*)VarF->Get(Form("Far AD%d Varied Background Spectra Sample0 Period%d",far, Period-1));
-            NominalSpectrumH[far][0]->Reset();
-        }
-    }
-    else
-    {
-        VCanvas->SetCanvasSize(400*MaxNear,400*MaxFar);
+//    if(VariationsPlotBox->GetSelected()<8)
+//    {
+//        VCanvas->SetCanvasSize(frame_height,frame_height*MaxFar);
+//        VCanvas->Divide(1,MaxFar);
+//        
+//        for(Int_t far = 0; far< MaxFar; far++)
+//        {
+//            for(Int_t sample = 0; sample< NSamples; sample++)
+//            {
+//                SpectrumH[sample][far][0] = (TH1D*)VarF->Get(Form("Difference AD%d Spectra Sample%i Period%d",far,sample, Period-1));
+//                
+//                if(SpectrumH[sample][far][0]->GetBinContent(0)<0)
+//                {
+//                    SpectrumH[sample][far][0]->Scale(-1);
+//                }
+//            }
+//            
+//            NominalSpectrumH[far][0] = (TH1D*)VarF->Get(Form("Far AD%d Varied Background Spectra Sample0 Period%d",far, Period-1));
+//            NominalSpectrumH[far][0]->Reset();
+//        }
+//    }
+//    else
+//    {
+        VCanvas->SetCanvasSize(frame_height*MaxNear,frame_height*MaxFar);
         VCanvas->Divide(MaxNear,MaxFar);
         
         for(Int_t far = 0; far< MaxFar; far++)
@@ -3716,7 +3740,7 @@ void FitterGui:: ChoosePlotSpectrumVariations()
                 }
             }
         }
-    }
+//    }
     
     delete VarF;
     
@@ -3724,15 +3748,15 @@ void FitterGui:: ChoosePlotSpectrumVariations()
     gStyle->SetOptStat(SetStats);
     Int_t MaxPlotNear;
     
-    if(VariationsPlotBox->GetSelected()<8)
-    {
-        SpectrumH[0][0][0]->GetYaxis()->SetRangeUser(-0.5,0.5);
-        MaxPlotNear=1;
-    }
-    else
-    {
+//    if(VariationsPlotBox->GetSelected()<8)
+//    {
+//        SpectrumH[0][0][0]->GetYaxis()->SetRangeUser(-0.5,0.5);
+//        MaxPlotNear=1;
+//    }
+//    else
+//    {
         MaxPlotNear=MaxNear;
-    }
+//    }
     for(Int_t far = 0; far< MaxFar; far++)
     {
         for(Int_t near = 0; near< MaxPlotNear; near++)
@@ -3885,25 +3909,25 @@ void FitterGui::ChoosePlotCov()
             break;
     }
     
-    if(CovariancePlotBox->GetSelected()<16)
-    {
-        CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/CovarianceMatricesRoot/",CombineMode)+CovString+".root").c_str());
-        Char_t File[30];
-      
-        if(CovariancePlotBox->GetSelected()<8)//Background
-        {
-            sprintf(File,"Covariance Matrix%d",Period-1);
-        }
-        else//Systematic, need rescaling
-        {
-            sprintf(File,"After Covariance Matrix%d",Period-1);
-        }
-        
-        CovMatrix2H = (TH2D*)CovF->Get(File);
-        
-        delete CovF;
-    }
-    
+//    if(CovariancePlotBox->GetSelected()<16)
+//    {
+//        CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/CovarianceMatricesRoot/",CombineMode)+CovString+".root").c_str());
+//        Char_t File[30];
+//      
+//        if(CovariancePlotBox->GetSelected()<8)//Background
+//        {
+//            sprintf(File,"Covariance Matrix%d",Period-1);
+//        }
+//        else//Systematic, need rescaling
+//        {
+//            sprintf(File,"After Covariance Matrix%d",Period-1);
+//        }
+//        
+//        CovMatrix2H = (TH2D*)CovF->Get(File);
+//        
+//        delete CovF;
+//    }
+//    
     if(PlotCovariance)
     {
         CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/CovarianceMatricesFitterPeriod%d.root",CombineMode,Period-1)).c_str());
@@ -3964,7 +3988,6 @@ void FitterGui::ChoosePlotCov()
 //
 //void FitterGui::ChoosePlotCorr()
 //{
-//    #ifdef PrintEps
 //    {
 //        TFile *f1 = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/CorrelationMatrices.root",CombineMode)).c_str());
 //
@@ -4013,15 +4036,15 @@ void FitterGui::PlotResponseMatrix()
         RunResponseMatrix();
     }
     
-    TGMainFrame *fPlotResponseFrame = new TGMainFrame(gClient->GetRoot(),800,800,kMainFrame | kVerticalFrame);
+    TGMainFrame *fPlotResponseFrame = new TGMainFrame(gClient->GetRoot(),window_width,window_height,kMainFrame | kVerticalFrame);
     fPlotResponseFrame->SetName("fResponse");
     fPlotResponseFrame->SetWindowName(" Plot Response Matrix");
     //    fPlotADVisFrame->SetLayoutBroken(kTRUE);
     
-    fResponseCanvas = new TRootEmbeddedCanvas("ResponseCanvas",fPlotResponseFrame,800,800);
+    fResponseCanvas = new TRootEmbeddedCanvas("ResponseCanvas",fPlotResponseFrame,window_width,window_height-button_height);
     ResponseCanvas = fResponseCanvas->GetCanvas();
     
-    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotResponseFrame,800,40);
+    TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotResponseFrame,window_width,button_height);
     
     ResponseBox = new TGComboBox(fPlotResponseFrame,-1,kHorizontalFrame | kSunkenFrame | kDoubleBorder | kOwnBackground);
     ResponseBox->SetName("ResponseBox");
@@ -4047,10 +4070,10 @@ void FitterGui::PlotResponseMatrix()
         
         hframe->AddFrame(ResponseBox, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
         
-        hframe->MoveResize(0,800,800,40);
-        
-
+        hframe->MoveResize(0,0,window_width,button_height);
+    
         fPlotResponseFrame->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX,2,2,2,2));
+        fResponseCanvas->MoveResize(0,button_height,window_width,window_height-button_height);
         fPlotResponseFrame->AddFrame(fResponseCanvas, new TGLayoutHints(kLHintsExpandX| kLHintsExpandY, 10,10,10,1));
         
         // Map all subwindows of main frame
@@ -4259,8 +4282,8 @@ void FitterGui :: ChooseMinuit()
 
 void FitterGui::RunResponseMatrix()
 {
-    Int_t DataSet=2;
-    
+    Int_t DataSet=2;//0 is Simulation, 2 is P12E
+
     NominalData* Data = new NominalData(Analysis,DataSet);
     Double_t sin22t13 = Data->GetSin22t13();
     Double_t deltaM = Data->GetDm2ee();
@@ -4277,8 +4300,9 @@ void FitterGui::RunResponseMatrix()
 //    Data->SetCombineMode(CombineMode); //0 is 9x9, 1 is 1x1 and 2 is 2x2
 //    Data->SetUseToyMCTree(UseToyMCTree);
     Data->SetBinning(Binning);//  0 for LBNL binning or 1 for Linear binning
-    Data->SetWeeks(Period);
     Data->SetNReactorPeriods(NReactorPeriods);
+    Data->SetWeeks(Period);
+    Data->SetADs(NADs);
   
     if(Data->GetAnalysis())//   Hydrogen data
     {
@@ -4357,19 +4381,19 @@ void FitterGui::RunResponseMatrix()
 
 void FitterGui::PlotChi()
 {
-    TGMainFrame *fPlotChi = new TGMainFrame(gClient->GetRoot(),800,800,kMainFrame | kVerticalFrame);
+    TGMainFrame *fPlotChi = new TGMainFrame(gClient->GetRoot(),window_width,window_height,kMainFrame | kVerticalFrame);
     fPlotChi->SetName("fPlotChi");
     fPlotChi->SetWindowName(" Plot ChiSquare Distribution ");
     //    fPlotADVisFrame->SetLayoutBroken(kTRUE);
     
-    fChiCanvas = new TRootEmbeddedCanvas("ChiCanvas",fPlotChi,800,800);
+    fChiCanvas = new TRootEmbeddedCanvas("ChiCanvas",fPlotChi,window_width,window_height);
     ChiCanvas = fChiCanvas->GetCanvas();
     
     Char_t FileName[100];
     Char_t ObjectName[100];
     
-    Int_t DataSet=2;
-    
+    Int_t DataSet=2;//0 is Simulation, 2 is P12E
+
     NominalData* Data = new NominalData(Analysis,DataSet);
     Double_t Sin22t13 = Data->GetSin22t13();
     Double_t Dm2_ee = Data->GetDm2ee();
@@ -4382,18 +4406,18 @@ void FitterGui::PlotChi()
         sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/2DChiSquare.root",CombineMode)).c_str());
         sprintf(ObjectName,"2DChiDistribution");
         
-        TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotChi,1000,40);
+        TGHorizontalFrame *hframe = new TGHorizontalFrame(fPlotChi,window_width,button_height);
         
-        Sslider = new TGHSlider(fPlotChi,390);
+        Sslider = new TGHSlider(fPlotChi,window_width/2);
         
         Sslider->Connect("PositionChanged(Int_t)", "FitterGui", this, "DoChangeSinSquareOscillationParameter()");
         
-        Dslider = new TGHSlider(fPlotChi,390);
+        Dslider = new TGHSlider(fPlotChi,window_width/2);
         
         Dslider->Connect("PositionChanged(Int_t)", "FitterGui", this, "DoChangeDeltaSquareOscillationParameter()");
         
         
-        hframe->MoveResize(0,800,800,30);
+        hframe->MoveResize(0,0,window_width,button_height);
         
         Sslider->SetRange(0,NFits-1);
         Sslider->SetPosition(0);
@@ -4404,7 +4428,7 @@ void FitterGui::PlotChi()
         hframe->AddFrame(Sslider, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
         hframe->AddFrame(Dslider, new TGLayoutHints(kLHintsCenterX,5,5,3,4));
         
-        hframe->MoveResize(0,800,800,30);
+        hframe->MoveResize(0,0,window_width,button_height);
         
         fPlotChi->AddFrame(hframe, new TGLayoutHints(kLHintsCenterX,2,2,2,2));
         
@@ -4434,7 +4458,7 @@ void FitterGui::PlotChi()
     }
     
     delete ChiFile;
-    
+    fChiCanvas->MoveResize(0,button_height,window_width,window_height-button_height);
     fPlotChi->AddFrame(fChiCanvas, new TGLayoutHints(kLHintsExpandX| kLHintsExpandY, 10,10,10,1));
     
     // Map all subwindows of main frame
@@ -4514,8 +4538,8 @@ void FitterGui::GenerateToyMC()
     Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
     Double_t enu_bins[MaxNbins+1]; // 39 bins between 1.8 and 9.6 MeV +1 for the 9.6 limit.
     
-    Int_t DataSet=2;
-    
+    Int_t DataSet=2;//0 is Simulation, 2 is P12E
+
     NominalData* NData = new NominalData(Analysis,DataSet);
     
     NData->SetToyMCSamplesDirectory(ToyMCSampleDirectory);
@@ -4588,8 +4612,9 @@ void FitterGui::GenerateToyMC()
     NData->SetAnalysis(Analysis);//  Gd or H data
     NData->SetBinning(Binning);//  0 for LBNL binning or 1 for Linear binning
     NData->SetNSteps(NFits);
-    NData->SetWeeks(Period);
     NData->SetNReactorPeriods(NReactorPeriods);
+    NData->SetWeeks(Period);
+    NData->SetADs(NADs);
     NData->SetBCWModel(NL[0]);
     NData->SetLBNLModel(NL[1]);
     NData->SetUnifiedModel(NL[2]);
@@ -4608,8 +4633,9 @@ void FitterGui::GenerateToyMC()
     VData->SetAnalysis(Analysis);//  Gd or H data
     VData->SetBinning(Binning);//  0 for LBNL binning or 1 for Linear binning
     VData->SetNSteps(NFits);
-    VData->SetWeeks(Period); //   1 or 20 so far.
     VData->SetNReactorPeriods(NReactorPeriods);
+    VData->SetWeeks(Period); //   1 or 20 so far.
+    VData->SetADs(NADs);
     VData->SetBCWModel(NL[0]);
     VData->SetLBNLModel(NL[1]);
     VData->SetUnifiedModel(NL[2]);
@@ -5104,7 +5130,8 @@ void FitterGui :: RunFitterTests()
     std::cout <<  "**********************************           FITTER            *****************************************" << std::endl;
     std::cout <<  "********************************************************************************************************" << std::endl;
     
-    Int_t DataSet=2;
+    Int_t DataSet=2;//0 is Simulation, 2 is P12E
+
     NominalData* Data = new NominalData(Analysis,DataSet);
     
     Data->SetToyMCSamplesDirectory(ToyMCSampleDirectory);
@@ -5128,8 +5155,9 @@ void FitterGui :: RunFitterTests()
     Data->SetAnalysis(Analysis);//  Gd or H data
     Data->SetBinning(Binning);//  0 for LBNL binning or 1 for Linear binning
     Data->SetNSteps(NFits);// 101 in the final version.
-    Data->SetWeeks(Period);
     Data->SetNReactorPeriods(NReactorPeriods);
+    Data->SetWeeks(Period);
+    Data->SetADs(NADs);
     Data->SetBCWModel(NL[0]);
     Data->SetLBNLModel(NL[1]);
     Data->SetUnifiedModel(NL[2]);

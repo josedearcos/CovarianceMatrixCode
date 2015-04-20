@@ -101,13 +101,14 @@ private:
     Double_t InitialVisibleEnergy;
     Double_t FinalVisibleEnergy;
     
-    Double_t DetectorProtons[MaxDetectors][R2_binnum][Z_binnum];
+    Double_t DetectorProtons[MaxDetectors][VolumeX][VolumeY];
     
     std::vector<Double_t> FullTime;
     std::vector<Double_t> MuonEff;
     std::vector<Double_t> MultiEff;
     
-    std::vector<Double_t> NominalDetectorEfficiency;
+    Double_t NominalDetectorEfficiency[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+
     Double_t DetectorEfficiencyRelativeError;
     
     Double_t BinWidth;
@@ -120,7 +121,7 @@ private:
     
     TH1D* OscillatedSpectrumAD[MaxDetectors];
     TH1D* TotalOscillatedSpectrumAD[MaxDetectors];
-    TH1D* ScaledOscillatedSpectrumAD[MaxDetectors][R2_binnum][Z_binnum];
+    TH1D* ScaledOscillatedSpectrumAD[MaxDetectors][VolumeX][VolumeY];
     TH1D* OscillatedSpectrumEH1;
     TH1D* OscillatedSpectrumEH2;
     TH1D* OscillatedSpectrumEH3;
@@ -258,8 +259,8 @@ private:
     // Resolution
     // Detector resolution function
     TF1 * ResoF;
-    Double_t IBDEvents[MaxDetectors][MaxPeriods][R2_binnum][Z_binnum];
-    Double_t ObservedEvents[MaxDetectors][MaxPeriods][R2_binnum][Z_binnum];
+    Double_t IBDEvents[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+    Double_t ObservedEvents[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     Double_t ResolutionRange; //Range of resolution
     Double_t ResolutionError; // Detector energy resolution parameter
     Double_t ResolutionErrorUncorrelated; // Detector energy resolution parameter
@@ -273,8 +274,8 @@ private:
     Double_t m_abs_eoffset_error;
     
     Double_t m_rel_eoffset_error;
-    Double_t DetectorEfficiencyDelayed[MaxDetectors*MaxPeriods];
-    Double_t DetectorEfficiency[MaxDetectors];
+    Double_t DetectorEfficiencyDelayed[MaxDetectors];
+    Double_t DetectorEfficiency[MaxDetectors*MaxPeriods*VolumeX*VolumeY];//necessary in vector format to return it in the getter function
     
     Double_t NominalDetectorEfficiencyDelayed;
     
@@ -286,7 +287,7 @@ private:
     void SetSystematic();
     void RandomEfficiency();
     
-    TH1D* VisibleHisto[MaxDetectors][R2_binnum][Z_binnum];
+    TH1D* VisibleHisto[MaxDetectors][VolumeX][VolumeY];
     
     void LoadExternalInputs();
     void LoadNominalBackgrounds();
@@ -361,9 +362,9 @@ OscillationReactor :: OscillationReactor()
     {
         AnalysisString = "Hydrogen";
         nHToy = new nHToyMC(Nom);//load nH Toy MC
-        NumberOfCells = R2_binnum*Z_binnum;
-        XCellLimit = R2_binnum;
-        YCellLimit = Z_binnum;
+        NumberOfCells = VolumeX*VolumeY;
+        XCellLimit = VolumeX;
+        YCellLimit = VolumeY;
     }
     else
     {
@@ -429,10 +430,10 @@ OscillationReactor :: OscillationReactor()
         ResolutionBias[AD]=0;
         
         //  Relative energy scale
-        m_rel_escale[AD] = Nom->GetRelativeEnergyScale(AD);
-        m_rel_escale_error[AD] = Nom->GetRelativeEnergyError(AD);
+        m_rel_escale[AD] = Nom->GetRelativeEnergyScale();
+        m_rel_escale_error[AD] = Nom->GetRelativeEnergyError();
         m_rel_escale_nominal[AD] = m_rel_escale[AD];
-        m_rel_eoffset[AD] = Nom->GetRelativeEnergyOffset(AD);
+        m_rel_eoffset[AD] = Nom->GetRelativeEnergyOffset();
     }
     m_abs_escale = Nom->GetAbsoluteEnergyScale();
     m_abs_eoffset = Nom->GetAbsoluteEnergyOffset();
@@ -452,6 +453,7 @@ OscillationReactor :: OscillationReactor()
     LBNL = Nom->GetLBNLModel();
     Unified = Nom->GetUnifiedModel();
     NominalDetectorEfficiencyDelayed = Nom->GetEnergyDelayedCutDetectorEfficiency();
+    
     for (Int_t AD = 0; AD<NADs; AD++)
     {
         DetectorEfficiencyDelayed[AD] = NominalDetectorEfficiencyDelayed;
@@ -463,29 +465,56 @@ OscillationReactor :: OscillationReactor()
     MultiEff.resize(NADs*Nweeks);
     MuonEff.resize(NADs*Nweeks);
     
-    NominalDetectorEfficiency.resize(NADs*Nweeks);
-    
     for (Int_t AD = 0; AD<NADs; AD++)
     {
         for(Int_t idx=0; idx<XCellLimit; idx++)
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
-                if(isH&&(idy==0||idy==(YCellLimit-1)||idx==(XCellLimit-1)))//LS
+                if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
                 {
-                    DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsLs(AD)/(XCellLimit+YCellLimit+(XCellLimit-2)*2);//36 cells (10+10+(10-2)+(10-2)) Share uniformly the mass
-                }
-                else//GdLS
+                    
+#ifdef UseGdLs_LsVolumes //To use 2 volumes, otherwise 100 cells.
+                    
+                    if(idx==0)//GdLs
+                    {
+                        DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD);
+                    }
+                    else//Ls
+                    {
+                        DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsLs(AD);
+                    }
+                    
+#else
+                    if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
+                    {
+                        if(Analysis)//Hydrogen LS
+                        {
+                            DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsLs(AD)/(XCellLimit+YCellLimit+(YCellLimit-2)*4);//52 cells (10+10+(10-2)+(10-2)+(10-2)+(10-2)) Share uniformly the mass
+                            
+                        }
+                        else//nGd only 1 volume
+                        {
+                            DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD);
+                        }
+                    }
+                    else//GdLS
+                    {
+                        DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD)/((XCellLimit-4)*(YCellLimit-2));//48 cells, Share uniformly the mass
+                    }
+#endif
+                
+                for (Int_t week = 0; week <Nweeks; week++)
                 {
-                    DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD)/((XCellLimit-2)*(YCellLimit-2));//64 cells, Share uniformly the mass
+                    NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy);
+                    
+                    DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]=NominalDetectorEfficiency[AD][week][idx][idy];
                 }
             }
         }
         for (Int_t week = 0; week <Nweeks; week++)
         {
             FullTime[week+AD*Nweeks] = Nom->GetFullTime(AD,week);
-            NominalDetectorEfficiency[week+AD*Nweeks] = Nom->GetDetectorEfficiency(AD,week);
-            DetectorEfficiency[week+AD*Nweeks]=NominalDetectorEfficiency[week+AD*Nweeks];
         }
     }
     
@@ -536,10 +565,10 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
     if(isH)
     {
         AnalysisString = "Hydrogen";
-        nHToy = new nHToyMC(Nom);//load nH Toy MC
-        NumberOfCells = R2_binnum*Z_binnum;
-        XCellLimit = R2_binnum;
-        YCellLimit = Z_binnum;
+        nHToy = new nHToyMC(Data);//load nH Toy MC
+        NumberOfCells = VolumeX*VolumeY;
+        XCellLimit = VolumeX;
+        YCellLimit = VolumeY;
     }
     else
     {
@@ -605,10 +634,10 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
         ResolutionBias[AD]=0;
         
         //  Relative energy scale
-        m_rel_escale[AD] = Data->GetRelativeEnergyScale(AD);
-        m_rel_escale_error[AD] = Data->GetRelativeEnergyError(AD);
+        m_rel_escale[AD] = Data->GetRelativeEnergyScale();
+        m_rel_escale_error[AD] = Data->GetRelativeEnergyError();
         m_rel_escale_nominal[AD] = m_rel_escale[AD];
-        m_rel_eoffset[AD] = Data->GetRelativeEnergyOffset(AD);
+        m_rel_eoffset[AD] = Data->GetRelativeEnergyOffset();
     }
     m_abs_escale = Data->GetAbsoluteEnergyScale();
     m_abs_eoffset = Data->GetAbsoluteEnergyOffset();
@@ -631,31 +660,58 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
     FullTime.resize(NADs*Nweeks);
     MultiEff.resize(NADs*Nweeks);
     MuonEff.resize(NADs*Nweeks);
-    
-    NominalDetectorEfficiency.resize(NADs*Nweeks);
-    
+
     for (Int_t AD = 0; AD<NADs; AD++)
     {
         for(Int_t idx=0; idx<XCellLimit; idx++)
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
-                if(isH&&(idy==0||idy==(YCellLimit-1)||idx==(XCellLimit-1)))//LS
+                if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
                 {
-                    DetectorProtons[AD][idx][idy] = Data->GetDetectorProtonsLs(AD)/(XCellLimit+YCellLimit+(XCellLimit-2)*2);//36 cells (10+10+(10-2)+(10-2)) Share uniformly the mass
-                }
-                else//GdLS
+                    
+#ifdef UseGdLs_LsVolumes //To use 2 volumes, otherwise 100 cells.
+                    
+                    if(idx==0)//GdLs
+                    {
+                        DetectorProtons[AD][idx][idy] = Data->GetDetectorProtonsGdLs(AD);
+                    }
+                    else//Ls
+                    {
+                        DetectorProtons[AD][idx][idy] = Data->GetDetectorProtonsLs(AD);
+                    }
+                    
+#else
+                    if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
+                    {
+                        if(Analysis)//Hydrogen LS
+                        {
+                            DetectorProtons[AD][idx][idy] = Data->GetDetectorProtonsLs(AD)/(XCellLimit+YCellLimit+(YCellLimit-2)*4);//52 cells (10+10+(10-2)+(10-2)+(10-2)+(10-2)) Share uniformly the mass
+                            
+                        }
+                        else//nGd only 1 volume
+                        {
+                            DetectorProtons[AD][idx][idy] = Data->GetDetectorProtonsGdLs(AD);
+                        }
+                    }
+                    else//GdLS
+                    {
+                        DetectorProtons[AD][idx][idy] = Data->GetDetectorProtonsGdLs(AD)/((XCellLimit-4)*(YCellLimit-2));//48 cells, Share uniformly the mass
+                    }
+#endif
+                
+                for (Int_t week = 0; week <Nweeks; week++)
                 {
-                    DetectorProtons[AD][idx][idy] = Data->GetDetectorProtonsGdLs(AD)/((XCellLimit-2)*(YCellLimit-2));//Share uniformly the mass
+                    NominalDetectorEfficiency[AD][week][idx][idy] = Data->GetDetectorEfficiency(AD,week,idx,idy);
+                    
+                    DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]=NominalDetectorEfficiency[AD][week][idx][idy];
                 }
             }
         }
+        
         for (Int_t week = 0; week <Nweeks; week++)
         {
             FullTime[week+AD*Nweeks] = Data->GetFullTime(AD,week);
-            NominalDetectorEfficiency[week+AD*Nweeks] = Data->GetDetectorEfficiency(AD,week);
-            DetectorEfficiency[week+AD*Nweeks]=NominalDetectorEfficiency[week+AD*Nweeks];
-            
         }
     }
     
@@ -1095,7 +1151,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
                 ScaledOscillatedSpectrumAD[AD][idx][idy] = (TH1D*)TotalOscillatedSpectrumAD[AD]->Clone();
-                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorProtons[AD][idx][idy]*FullTime[week+AD*Nweeks]*DetectorEfficiency[week+AD*Nweeks]);//in seconds and m^2 already calculated in CrossSection.
+                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorProtons[AD][idx][idy]*FullTime[week+AD*Nweeks]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]);//in seconds and m^2 already calculated in CrossSection.
                 
                 //I might need to use the [idx][idy] information from the efficiency maps, but we need to be sure what is going on there.
                 
@@ -1115,7 +1171,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             
             TotalOscillatedSpectrumAD[AD]->Draw();
         }
-        AntineutrinoSpectrumC->Print(("./Images/"+AnalysisString+"ReactorSpectrumOscillatedInADs_NotScaled.eps").c_str());
+        AntineutrinoSpectrumC->Print(("./Images/"+AnalysisString+"/ReactorSpectrumOscillatedInADs_NotScaled.eps").c_str());
         delete AntineutrinoSpectrumC;
     #endif
 
@@ -1237,9 +1293,12 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             }
         }
         
-        TH2D* nHPredictionMatrix[MaxDetectors][R2_binnum][Z_binnum];
+        TH2D* nHPredictionMatrix[MaxDetectors][VolumeX][VolumeY];
         
         Int_t ShiftBin = Int_t(InitialEnergy*MatrixBins/(FinalEnergy));
+        
+        Int_t Ybins;
+        Int_t Xbins;
         
         for(Int_t AD = 0; AD<NADs; AD++)
         {
@@ -1247,9 +1306,12 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             {
                 nHPredictionMatrix[AD][0][0] = new TH2D("DiagonalResponseMatrix","DiagonalResponseMatrix",n_evis_bins,InitialVisibleEnergy,FinalVisibleEnergy,TotalOscillatedSpectrumAD[0]->GetXaxis()->GetNbins(),InitialEnergy,FinalEnergy);
                 
-                for(Int_t i = 1; i<=nHPredictionMatrix[AD][0][0]->GetYaxis()->GetNbins(); i++)//visible, 240 bins
+                Ybins = nHPredictionMatrix[AD][0][0]->GetYaxis()->GetNbins();
+                Xbins = nHPredictionMatrix[AD][0][0]->GetXaxis()->GetNbins();
+
+                for(Int_t i = 1; i<=Ybins; i++)//visible, 240 bins
                 {
-                    for(Int_t j = 1; j<=nHPredictionMatrix[AD][0][0]->GetXaxis()->GetNbins(); j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
+                    for(Int_t j = 1; j<=Xbins; j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
                     {
                         if(i==j)
                         {
@@ -1269,8 +1331,8 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                     for(Int_t idy=0; idy<YCellLimit; idy++)
                     {
                         nHPredictionMatrix[AD][idx][idy] = (TH2D*)nHToy->LoadnHMatrix(AD,idx,idy);
-                        Int_t Ybins = nHPredictionMatrix[AD][idx][idy]->GetYaxis()->GetNbins();
-                        Int_t Xbins = nHPredictionMatrix[AD][idx][idy]->GetXaxis()->GetNbins();
+                        Ybins = nHPredictionMatrix[AD][idx][idy]->GetYaxis()->GetNbins();
+                        Xbins = nHPredictionMatrix[AD][idx][idy]->GetXaxis()->GetNbins();
 
                         if(Ybins != VisibleHisto[AD][idx][idy]->GetXaxis()->GetNbins())
                         {
@@ -1284,23 +1346,29 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                             
                             exit(EXIT_FAILURE);
                         }
-                        
-                        for(Int_t i = 1; i<=Ybins; i++)//visible, 240 bins
+                    }
+                }
+                
+                for(Int_t i = 1; i<=Ybins; i++)//visible, 240 bins
+                {
+                    for(Int_t j = 1; j<=Xbins; j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
+                    {
+                        for(Int_t idx=0; idx<XCellLimit; idx++)
                         {
-                            for(Int_t j = 1; j<=Xbins; j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
+                            for(Int_t idy=0; idy<YCellLimit; idy++)
                             {
                                 VisibleHisto[AD][idx][idy]->SetBinContent(i,VisibleHisto[AD][idx][idy]->GetBinContent(i)+nHPredictionMatrix[AD][idx][idy]->GetBinContent(j+ShiftBin,i)*ScaledOscillatedSpectrumAD[AD][idx][idy]->GetBinContent(j));
                                 
-                                //std::cout << "Visible bin: " << i << " , true bin: " << j << " - Matrix: " << nHPredictionMatrix[AD]->GetBinContent(j+ShiftBin,i) << " - True Spectrum Bin: " << TotalOscillatedSpectrumAD[AD]->GetBinContent(j) << std::endl;
-                            }
-                            
-                            //std::cout << "Visible bin: " << i  << " - Visible Spectrum Bin: " << VisibleHisto[AD]->GetBinContent(i) << std::endl;
-                            
-                        }
-                    }
-                }
+                            }//idy
+                        }//idx
+                        //std::cout << "Visible bin: " << i << " , true bin: " << j << " - Matrix: " << nHPredictionMatrix[AD]->GetBinContent(j+ShiftBin,i) << " - True Spectrum Bin: " << TotalOscillatedSpectrumAD[AD]->GetBinContent(j) << std::endl;
+                    }//j
+                    
+                    //std::cout << "Visible bin: " << i  << " - Visible Spectrum Bin: " << VisibleHisto[AD]->GetBinContent(i) << std::endl;
+                    
+                }//i
             }
-        }
+        }//AD
     }
     
     #ifdef PrintEps
@@ -1310,7 +1378,9 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         for(Int_t AD = 0; AD<NADs; AD++)
         {
             PredictionC->cd(AD+1);
-            VisibleHisto[AD][0][0]->Draw();
+
+            VisibleHisto[AD][Int_t(XCellLimit/2)][Int_t(YCellLimit/2)]->Draw();
+
         }
         
         PredictionC->Print(("./Images/"+AnalysisString+"/OscillationReactorPredictionWithoutBackgrounds.eps").c_str());
@@ -1735,12 +1805,18 @@ void OscillationReactor:: RandomEfficiency()
     {
         for (Int_t week = 0; week < Nweeks; week++)
         {
-            rand->SetSeed(0);
-            DetectorEfficiency[week+AD*Nweeks]= (1 + DetectorEfficiencyRelativeError * rand->Gaus(0,1))
-            * DetectorEfficiencyDelayed[AD]
-            * NominalDetectorEfficiency[week+AD*Nweeks]/NominalDetectorEfficiencyDelayed;//I divide over the nominal detector efficiency delayed because it is included in the total NominalDetectorEfficiency magnitude.
-            
-            std::cout << "\t \t \t Detector Efficiency : " << DetectorEfficiency[week+AD*Nweeks] << std::endl;
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    rand->SetSeed(0);
+                    DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]= (1 + DetectorEfficiencyRelativeError * rand->Gaus(0,1))
+                    * DetectorEfficiencyDelayed[AD]
+                    * NominalDetectorEfficiency[AD][week][idx][idy]/NominalDetectorEfficiencyDelayed;//I divide over the nominal detector efficiency delayed because it is included in the total NominalDetectorEfficiency magnitude.
+                    
+                    std::cout << "\t \t \t Detector Efficiency : " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy] << std::endl;
+                }
+            }
         }
     }
     

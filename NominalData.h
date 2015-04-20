@@ -13,6 +13,8 @@
 
 bool TestAllTheSame = 0;
 
+#define UseGdLs_LsVolumes //To use 2 volumes, otherwise 100 cells.
+
 #define PrintEps//To save results in .eps files
 //#define BlindedAnalysis // To use blinded reactor model and distances. Not all the files are operative (only those coming from Christine's reactor model)
 const bool DeltaMee = 0;//Use Δm^2ee instead of Δm32 and Δm31 values
@@ -22,7 +24,7 @@ const bool ADSimple = 1;
 const bool LoganBinning = 1;//240 visible bins from 0 to 12 MeV to check coherence between our predicted  spectra
 
 const Int_t MaxExperiments = 1000;
-const Int_t MaxPeriods = 32;
+const Int_t MaxPeriods = 101;
 const Int_t MaxDetectors = 8;
 const Int_t NIsotopes = 4;
 const Int_t NHalls = 3;
@@ -59,6 +61,31 @@ const Int_t Z_binnum  = 10;                      // ---> set option
 const Double_t Z_lower   = -2;// m                  // ---> set option
 const Double_t Z_upper   = 2;// m                   // ---> set option
 
+#ifdef UseGdLs_LsVolumes
+const Int_t VolumeX = 2;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
+
+const Double_t VolumeX_lower  = 0;// m2                  // ---> set option
+const Double_t VolumeX_upper  = 2;// m2                  // ---> set option
+
+const Int_t VolumeY = 1;                      // ---> set option: divide the volume to sub-regions (1, Ls) (10 cells)
+
+const Double_t VolumeY_lower  = 0;// m2                  // ---> set option
+const Double_t VolumeY_upper  = 1;// m2                  // ---> set option
+
+#else
+
+const Int_t VolumeX = R2_binnum;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
+
+const Double_t VolumeX_lower  = 0;// m2                  // ---> set option
+const Double_t VolumeX_upper  = 4;// m2                  // ---> set option
+
+const Int_t VolumeY = Z_binnum;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
+
+const Double_t VolumeY_lower  = -2;// m2                  // ---> set option
+const Double_t VolumeY_upper  = 2;// m2                  // ---> set option
+
+#endif
+
 class NominalData
 {
 private:
@@ -85,7 +112,8 @@ private:
     Int_t hierarchy;
     Int_t Combine;
     
-    Double_t ProtonsPerKton; //protons per kton
+    Double_t ProtonsPerKtonGdLs; //protons per kton GdLS
+    Double_t ProtonsPerKtonLs; //protons per kton LS volume
     Double_t DetectorMassGdLs[MaxDetectors];
     Double_t DetectorMassLs[MaxDetectors];
     
@@ -95,6 +123,14 @@ private:
     Double_t m_detectorEfficiency_flash;
     Double_t m_detectorEfficiency_nGd;
     Double_t m_detectorEfficiency_spill;
+    
+    //nH Efficiency map
+    TH2D *h2d_Ep_ratio2center[MaxDetectors*MaxPeriods];
+    
+    Double_t ADIntegral[MaxDetectors];
+    Double_t CellIntegral[MaxDetectors][VolumeX][VolumeY];
+    
+    bool delete_nH_maps_flag;
     
     //Toy samples
     Int_t NSamples;
@@ -162,10 +198,10 @@ private:
     Double_t m_abs_eoffset_error;
     
     Double_t m_rel_eoffset_error;
-    Double_t m_rel_escale[MaxDetectors];
-    Double_t m_rel_escale_error[MaxDetectors];
-    Double_t m_rel_escale_nominal[MaxDetectors];
-    Double_t m_rel_eoffset[MaxDetectors];
+    Double_t m_rel_escale;
+    Double_t m_rel_escale_error;
+    Double_t m_rel_escale_nominal;
+    Double_t m_rel_eoffset;
     
     Double_t DetectorEfficiencyRelativeError;
     
@@ -250,6 +286,7 @@ public:
     
     NominalData(bool,Int_t);
     void CopyData(NominalData*);
+    ~NominalData();
 
     void ReadChristineCovMatrix();//P12C
     void ReadChristineReactorSpectrum();
@@ -287,6 +324,8 @@ public:
     void SetAllRandomSystematics(bool);
     
     void LoadMainData(const Char_t*);//To correct for efficiencies using Gd/H data info from a txt file.
+    void LoadnHEfficiencyMaps();//To load nH efficiency maps.
+    
     void SetResponseDirectory(std::string);
     void SetToyMCSamplesDirectory(std::string);
     void SetPredictionDirectory(std::string);
@@ -451,9 +490,9 @@ public:
     Double_t GetAbsoluteEnergyOffset();
     Double_t GetAbsoluteEnergyOffsetError();
     
-    Double_t GetRelativeEnergyScale(Int_t);
-    Double_t GetRelativeEnergyError(Int_t);
-    Double_t GetRelativeEnergyOffset(Int_t);
+    Double_t GetRelativeEnergyScale();
+    Double_t GetRelativeEnergyError();
+    Double_t GetRelativeEnergyOffset();
     Double_t GetRelativeEnergyOffsetError();
     
     Double_t GetResolutionError();
@@ -464,7 +503,7 @@ public:
     
     Double_t GetEnergyDelayedCutDetectorEfficiency();
     Double_t GetDetectorEfficiencyRelativeError();
-    Double_t GetDetectorEfficiency(Int_t, Int_t);
+    Double_t GetDetectorEfficiency(Int_t, Int_t, Int_t, Int_t);
     Double_t GetFullTime(Int_t,Int_t);
     Int_t GetCombineMode();
     Int_t GetWeeks();
@@ -498,12 +537,16 @@ public:
     Double_t GetAmCEvents(Int_t,Int_t);
     
     Int_t GetNReactorPeriods();
+    void ReadEventsByCell();
+  
 };
 
 NominalData :: NominalData(bool ish,Int_t dataSet)
 {
     DataSet = dataSet;
     isH = ish;
+   
+    delete_nH_maps_flag = 0;
     
     BCW=0;
     LBNL=0;
@@ -555,7 +598,8 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     ADsEH1 = 2;
     ADsEH2 = 1;
     ADsEH3 = 3;
-    ProtonsPerKton = 7.1638e31; //protons per kton
+    ProtonsPerKtonGdLs = 7.1638e31; //protons per kton GdLs
+    ProtonsPerKtonLs = 7.116e31; //protons per kton Ls
     DetectorMassLs[0] = 0.0215735;// kton
     DetectorMassLs[1] = 0.0215196;
     DetectorMassLs[2] = 0.0215872;
@@ -570,6 +614,11 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     DetectorMassGdLs[4] = 0.019991;
     DetectorMassGdLs[5] = 0.019892;
     
+//    if(isH)
+//    {
+//        LoadnHEfficiencyMaps();//Calculated in setads
+//    }
+//    
     if(TestAllTheSame)
     {
         for(Int_t i = 0; i<NADs; i++)
@@ -577,15 +626,6 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
             DetectorMassGdLs[i]=0.02;
         }
     }
-    
-    m_detectorEfficiency_Dt = 0.986;
-    m_detectorEfficiency_Ep = 0.9988;
-    m_detectorEfficiency_Ed_nominal = 0.909;
-    m_detectorEfficiency_flash = 0.9998;
-    m_detectorEfficiency_nGd = 0.838;
-    m_detectorEfficiency_spill = 1.050;
-    
-    DetectorEfficiencyRelativeError = 0.0014;
 
     NSamples = 500;
     NSteps = 101;
@@ -654,24 +694,6 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     EnergyPerFissionError[2]=0.002857;
     EnergyPerFissionError[3]=0.003043;
     
-
-    //Energy Scale
-    m_abs_escale =1;
-    m_abs_escale_error = 0.01;
-    
-    m_abs_eoffset = 0.0;
-    m_abs_eoffset_error = 0.08;  //(MeV)
-    
-    m_rel_eoffset_error = 0.013; //  (MeV)
-    
-    for(Int_t AD=0; AD<NADs; AD++)
-    {
-        m_rel_escale[AD] = 1.0;
-        m_rel_escale_error[AD] = 0.0035; // 0.35%
-        m_rel_escale_nominal[AD] = m_rel_escale[AD];
-        m_rel_eoffset[AD] = 0.0;
-    }
-    
     //Oscillation parameters and errors:from PDG 2013
     s22t13 = 0.09;//0.09 ± 0.009
     s22t13Error = 0.01;
@@ -691,25 +713,20 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     dmee_start = dm2_ee - 0.001;
     dmee_end = dm2_ee + 0.001;
     
-    //For Hydrogen and 6 ADs:
-    if(this->GetAnalysis())
-    {
-        //Resolution errors
-        ResolutionError=0.02;//Due to parameter uncertainty
-        ResolutionErrorUncorrelated=0.02;//Due to energy scale difference between detectors
-    }
-    else//Gadolinium and 6ADs:
-    {
-        //Resolution errors
-        ResolutionError=0.002;//Due to parameter uncertainty
-        ResolutionErrorUncorrelated=0.002;//Due to energy scale difference between detectors
-        
-    }
-    
     //For Hydrogen and 6 ADs: from http://dayabay.ihep.ac.cn/DocDB/0085/008556/020/Main-version3.pdf
     if(this->GetAnalysis())
     {
-        if(DataSet==2)
+        //IAV error
+        IAVError=0.001;//0.1% bin-to-bin uncorrelated error.
+
+        //Resolution errors
+        ResolutionError=0.02;//Due to parameter uncertainty
+        ResolutionErrorUncorrelated=0.02;//Due to energy scale difference between detectors
+        
+        //Attenuation length -> Relative Energy Scale
+        m_rel_escale_error = 0.0065; // 0.65%
+
+        if(DataSet==1)
         {            
             //p12b values
             if(Nweeks==1)
@@ -728,7 +745,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
                 FullTime[4] = 189.7857;// Days;
                 FullTime[5] = 189.7857;// Days;
                 
-                MultiEff[0]= 0.9836;
+                MultiEff[0]= 0.9917;
                 MultiEff[1]= 0.9837;
                 MultiEff[2]= 0.9842;
                 MultiEff[3]= 0.9832;
@@ -847,10 +864,54 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
                 
             }
         }
+        if(DataSet==2)//P12E
+        {
+            //p12b values
+            if(Nweeks==1)
+            {
+                LoadMainData(Form("./Inputs/HInputs/P12E_Inclusive.txt"));// Need to do it Nweek dependent
+            }
+            else
+            {
+                LoadMainData(Form("./Inputs/HInputs/P12E_101.txt"));// Need to do it Nweek dependent                
+            }
+        }
     }
     //For Gd and 6 ADs: http://dayabay.ihep.ac.cn/DocDB/0085/008556/016/Main-version2.pdf page 5
     else
     {
+        //IAV thickness relative error
+        IAVError=0.04;
+        
+        //Energy Scale
+        m_abs_escale =1;
+        m_abs_escale_error = 0.01;
+        
+        m_abs_eoffset = 0.0;
+        m_abs_eoffset_error = 0.08;  //(MeV)
+        
+        m_rel_eoffset_error = 0.013; //  (MeV)
+        
+        m_rel_escale_error = 0.0035; // 0.35%
+
+        m_rel_escale = 1.0;
+        m_rel_escale_nominal = m_rel_escale;
+        m_rel_eoffset = 0.0;
+        
+        
+        m_detectorEfficiency_Dt = 0.986;
+        m_detectorEfficiency_Ep = 0.9988;
+        m_detectorEfficiency_Ed_nominal = 0.909;
+        m_detectorEfficiency_flash = 0.9998;
+        m_detectorEfficiency_nGd = 0.838;
+        m_detectorEfficiency_spill = 1.050;
+        
+        DetectorEfficiencyRelativeError = 0.0014;
+        
+        //Resolution errors
+        ResolutionError=0.002;//Due to parameter uncertainty
+        ResolutionErrorUncorrelated=0.002;//Due to energy scale difference between detectors
+        
         if(DataSet==2)
         {
             // P12E Values in Theta13-inputs_32week_inclusive.txt
@@ -964,19 +1025,26 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
             }
             else
             {
-                
-                LoadMainData(Form("./Inputs/Theta13-inputs_20week.txt"));// Need to do it Nweek dependent
-                
-//                string mainmatrixname = "./Inputs/Theta13-inputs_20week.txt";
+                LoadMainData(Form("./Inputs/GdInputs/Theta13-inputs_20week.txt"));// Need to do it Nweek dependent
             }
         }
     }
     
-    //IAV thickness relative error
-    
-    IAVError=0.04;
-    
     IHEPReactorModel=0;
+}
+
+NominalData:: ~NominalData()
+{
+    if(delete_nH_maps_flag)
+    {
+        for(Int_t week = 0; week<NReactorPeriods; week++)
+        {
+            for(Int_t AD = 0; AD<NADs; AD++)
+            {
+                delete h2d_Ep_ratio2center[AD+NADs*week];
+            }
+        }
+    }
 }
 
 void NominalData :: CopyData(NominalData * data)
@@ -1003,7 +1071,8 @@ void NominalData :: CopyData(NominalData * data)
      hierarchy = data->hierarchy;
      Combine = data->Combine;
     
-     ProtonsPerKton = data->ProtonsPerKton; //protons per kton
+     ProtonsPerKtonGdLs = data->ProtonsPerKtonGdLs; //protons per kton
+     ProtonsPerKtonLs = data->ProtonsPerKtonLs; //protons per kton
      std::copy(std::begin(data->DetectorMassGdLs), std::end(data->DetectorMassGdLs), std::begin(DetectorMassGdLs));
      std::copy(std::begin(data->DetectorMassLs), std::end(data->DetectorMassLs), std::begin(DetectorMassLs));
 
@@ -1013,6 +1082,11 @@ void NominalData :: CopyData(NominalData * data)
      m_detectorEfficiency_flash = data->m_detectorEfficiency_flash;
      m_detectorEfficiency_nGd = data->m_detectorEfficiency_nGd;
      m_detectorEfficiency_spill = data->m_detectorEfficiency_spill;
+    
+    if(isH)
+    {
+        std::copy(std::begin(data->h2d_Ep_ratio2center), std::end(data->h2d_Ep_ratio2center), std::begin(h2d_Ep_ratio2center));
+    }
     
     //Toy samples
      NSamples = data->NSamples;
@@ -1077,11 +1151,11 @@ void NominalData :: CopyData(NominalData * data)
      m_abs_eoffset = data->m_abs_eoffset;
      m_abs_eoffset_error = data->m_abs_eoffset_error;
     
-     m_rel_eoffset_error = data->m_rel_eoffset_error;
-     std::copy(std::begin(data->m_rel_escale), std::end(data->m_rel_escale), std::begin(m_rel_escale));
-     std::copy(std::begin(data->m_rel_escale_error), std::end(data->m_rel_escale_error), std::begin(m_rel_escale_error));
-     std::copy(std::begin(data->m_rel_escale_nominal), std::end(data->m_rel_escale_nominal), std::begin(m_rel_escale_nominal));
-     std::copy(std::begin(data->m_rel_eoffset), std::end(data->m_rel_eoffset), std::begin(m_rel_eoffset));
+    m_rel_eoffset_error = data->m_rel_eoffset_error;
+    m_rel_escale = data->m_rel_escale;
+    m_rel_escale_error = data->m_rel_escale_error;
+    m_rel_escale_nominal = data->m_rel_escale_nominal;
+    m_rel_eoffset = data->m_rel_eoffset;
     
      DetectorEfficiencyRelativeError = data->DetectorEfficiencyRelativeError;
     
@@ -1633,6 +1707,11 @@ void NominalData :: SetAnalysis(bool IsH)
 void NominalData :: SetADs(Int_t ads)
 {
     NADs = ads;
+    
+    if(isH)
+    {
+        LoadnHEfficiencyMaps();//By placing setADs() after setweeks() this can be done only here
+    }
 }
 
 void NominalData :: SetNSamples(Int_t nsamples)
@@ -1863,19 +1942,19 @@ Double_t NominalData :: GetAbsoluteEnergyOffsetError()
     return m_abs_eoffset_error;
 }
 
-Double_t NominalData :: GetRelativeEnergyScale(Int_t AD)
+Double_t NominalData :: GetRelativeEnergyScale()
 {
-    return m_rel_escale[AD];
+    return m_rel_escale;
 }
 
-Double_t NominalData :: GetRelativeEnergyError(Int_t AD)
+Double_t NominalData :: GetRelativeEnergyError()
 {
-    return m_rel_escale_error[AD];
+    return m_rel_escale_error;
 }
 
-Double_t NominalData :: GetRelativeEnergyOffset(Int_t AD)
+Double_t NominalData :: GetRelativeEnergyOffset()
 {
-    return m_rel_eoffset[AD];
+    return m_rel_eoffset;
 }
 
 Double_t NominalData :: GetRelativeEnergyOffsetError()
@@ -1895,19 +1974,25 @@ Double_t NominalData :: GetResoUncorrelatedError()
 
 Double_t NominalData :: GetDetectorProtonsGdLs(Int_t detector)
 {
-    return ProtonsPerKton*DetectorMassGdLs[detector];
+    return ProtonsPerKtonGdLs*DetectorMassGdLs[detector];
 }
 
 Double_t NominalData :: GetDetectorProtonsLs(Int_t detector)
 {
-    return ProtonsPerKton*DetectorMassLs[detector];
+    return ProtonsPerKtonLs*DetectorMassLs[detector];
 }
 
-
-Double_t NominalData :: GetDetectorEfficiency(Int_t detector, Int_t week)
+Double_t NominalData :: GetDetectorEfficiency(Int_t detector, Int_t week, Int_t idx, Int_t idy)
 {
     //This is for nGd, will need to adapt for nH
-    return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorEfficiency_spill*m_detectorEfficiency_nGd*m_detectorEfficiency_Dt*m_detectorEfficiency_Ep*m_detectorEfficiency_Ed_nominal*m_detectorEfficiency_flash;
+    if(!isH)
+    {
+        return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorEfficiency_spill*m_detectorEfficiency_nGd*m_detectorEfficiency_Dt*m_detectorEfficiency_Ep*m_detectorEfficiency_Ed_nominal*m_detectorEfficiency_flash;
+    }
+    else
+    {
+        return    MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorEfficiency_spill*m_detectorEfficiency_nGd*m_detectorEfficiency_Dt*m_detectorEfficiency_Ep*m_detectorEfficiency_Ed_nominal*m_detectorEfficiency_flash*h2d_Ep_ratio2center[detector+NADs*week]->GetBinContent(idx+1,idy+1);//Return by cell!, the 2d map is a ratio of the cell events to center, use the nominal efficiencies in the nH study, this users the nGd cut ones.
+    }
 }
 
 Double_t NominalData :: GetEnergyDelayedCutDetectorEfficiency()
@@ -2033,12 +2118,11 @@ void NominalData :: LoadMainData(const Char_t* mainmatrixname)
         std::string firstchar = line.substr(0,1);
         
         if(firstchar=="#") continue;//<-- ignore lines with comments
-        
+                
         //Special numbers
         if(linenum == 0)
         {
             Nweeks=atoi(line.c_str());
-            std::cout << "The number of periods is " << Nweeks << std::endl;
         }
         
         if(linenum == 1){}
@@ -2717,7 +2801,25 @@ void NominalData :: CalculateBinning()
             
             std::cout << " NEED A NON LINEAR BINNING FOR THE HYDROGEN ANALYSIS " << std::endl;
 
-            exit(EXIT_FAILURE);
+            //Using the same than nGd at the moment:
+            
+            n_evis_bins=37;
+            n_etrue_bins=39;
+            
+            for (Int_t i = 0; i <= n_etrue_bins; i++)
+            {
+                enu_bins[i] = 0.2 * i + Emin;
+            }
+            
+            evis_bins[0] = 0.7;
+            
+            for (Int_t i = 0; i < n_evis_bins-1; i++)
+            {
+                evis_bins[i+1] = 0.2 * i + 1.0;
+            }
+            evis_bins[n_evis_bins] = 12;
+            
+           // exit(EXIT_FAILURE);
         }
     }
     
@@ -2740,4 +2842,138 @@ Int_t NominalData :: GetTrueBins()
 Int_t NominalData :: GetVisibleBins()
 {
     return n_evis_bins;
+}
+
+void NominalData :: LoadnHEfficiencyMaps()
+{
+    std::cout << " Loading nH Efficiency Maps for the following periods: " <<  NReactorPeriods << std::endl;
+    
+    ReadEventsByCell();
+    
+    //This file should have efficiencies taken from data for each week/ad/cell
+    TFile *roofile_h2d_ep_ratio2center = new TFile("./Inputs/HInputs/Data/cell_eff/h2d_ep_ratio2center.root", "read");
+    
+    for(Int_t week = 0; week<NReactorPeriods; week++)
+    {
+        for(Int_t AD = 0; AD<NADs; AD++)
+        {
+            h2d_Ep_ratio2center[AD+NADs*week] = (TH2D*)roofile_h2d_ep_ratio2center->Get("h2d_ep_ratio2center");
+        }
+    }
+    delete roofile_h2d_ep_ratio2center;
+    
+    delete_nH_maps_flag = 1;
+}
+
+void NominalData :: ReadEventsByCell()
+{
+    std::string line;
+    
+    ifstream mainfile("./Inputs/HInputs/NominalToyMCEventRatio.txt");
+
+    Int_t linenum=0;//<---caution: only increments for lines that do not begin with #
+
+    while(!mainfile.eof())
+    {
+        std::getline(mainfile,line);
+        std::string firstchar = line.substr(0,1);
+        
+        if(firstchar=="#") continue;//<-- ignore lines with comments
+        
+        std::istringstream iss(line);
+        
+        if(linenum == 0)
+        {
+            Int_t AD = 0;
+
+                iss >> AD >> ADIntegral[AD];
+
+                std::cout << "line " << linenum << " the integral in AD " << AD << " is " << ADIntegral[AD] << std::endl;
+            
+            linenum++;
+        }
+        else if(linenum <=VolumeX*VolumeY)
+        {
+            Int_t AD = 0;
+            Int_t idx = 0;
+            Int_t idy = 0;
+            
+                 iss >> AD >> idx >> idy >> CellIntegral[AD][idx][idy];
+//                if(column==0) AD=atoi(firstchar.c_str());
+//                
+//                if(column==1) idx=atoi(sub.c_str());
+//                
+//                if(column==2) idy=atoi(sub.c_str());
+//                
+//                if(column==3)
+                
+                std::cout << "line " << linenum << " the integral in AD " << AD << " cell " << idx << " , " << idy << " is " << CellIntegral[AD][idx][idy] << std::endl;
+            
+            linenum++;
+
+            if(linenum>VolumeX*VolumeY)
+            {
+                linenum = 0;//reset counter
+            }
+        }
+    }
+    
+    //Draw it:
+    
+    TH2D* MapEvents_ratio2center = new TH2D("MapEventsRatio2center","MapEventsRatio2center",VolumeX,VolumeX_lower,VolumeX_upper,VolumeY,VolumeY_lower,VolumeY_upper);
+    
+    for(Int_t AD = 0; AD<NADs; AD++)
+    {
+        for(Int_t idx = 0; idx<VolumeX; idx++)
+        {
+            for(Int_t idy = 0; idy<VolumeY; idy++)
+            {
+                MapEvents_ratio2center->SetBinContent(idx+1,idy+1,CellIntegral[AD][idx][idy]/CellIntegral[AD][0][5]);
+            }
+        }
+    }
+    
+    TCanvas* MapEventC = new TCanvas("MapEventRatio2Center","MapEventRatio2Center");
+    
+    MapEventC->cd(1);
+
+    MapEvents_ratio2center->Draw("colz");
+    
+    MapEventC->Print("./Images/Hydrogen/Detector/MapEventRatio2Center.eps");
+    
+    delete MapEvents_ratio2center;
+    delete MapEventC;
+    
+    TH2D* MapEvents_ratio2total = new TH2D("MapEventsRatio2total","MapEventsRatio2total",VolumeX,VolumeX_lower,VolumeX_upper,VolumeY,VolumeY_lower,VolumeY_upper);
+    
+    for(Int_t AD = 0; AD<NADs; AD++)
+    {
+        for(Int_t idx = 0; idx<VolumeX; idx++)
+        {
+            for(Int_t idy = 0; idy<VolumeY; idy++)
+            {
+                MapEvents_ratio2total->SetBinContent(idx+1,idy+1,CellIntegral[AD][idx][idy]/ADIntegral[AD]);
+            }
+        }
+    }
+    
+    TCanvas* MapEventTotalC = new TCanvas("MapEventRatio2Total","MapEventRatio2Total");
+    
+    MapEventTotalC->cd(1);
+    
+    MapEvents_ratio2total->Draw("colz");
+    
+    MapEventTotalC->Print("./Images/Hydrogen/Detector/MapEventRatio2Total.eps");
+    
+    delete MapEventTotalC;
+    
+    TFile* SaveFile = new TFile("./Inputs/HInputs/MapEventRatio2Total.root","recreate");
+    {
+        MapEvents_ratio2total->Write();
+    }
+    
+    delete SaveFile;
+    
+    delete MapEvents_ratio2total;
+
 }
