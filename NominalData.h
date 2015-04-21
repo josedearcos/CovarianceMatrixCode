@@ -14,6 +14,7 @@
 bool TestAllTheSame = 0;
 
 #define UseVolumes //To use 2 volumes, otherwise 100 cells.
+#define ProduceEventMapForFirstTime//To generate the txt file with the Toy event ratio information per volume
 
 #define PrintEps//To save results in .eps files
 //#define BlindedAnalysis // To use blinded reactor model and distances. Not all the files are operative (only those coming from Christine's reactor model)
@@ -2843,8 +2844,11 @@ void NominalData :: LoadnHEfficiencyMaps()
 {
     std::cout << " Loading nH Efficiency Maps for the following periods: " <<  NReactorPeriods << std::endl;
     
+#ifdef ProduceEventMapForFirstTime
+
+#else
     ReadEventsByCell();
-    
+#endif
     //This file should have efficiencies taken from data for each week/ad/cell
     TFile *roofile_h2d_ep_ratio2center = new TFile("./Inputs/HInputs/Data/cell_eff/h2d_ep_ratio2center.root", "read");
     

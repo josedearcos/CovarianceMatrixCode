@@ -99,9 +99,9 @@ FitterGui::FitterGui(const TGWindow *p,UInt_t w,UInt_t h)
     FitSin22t13 = 1; //  1 for Sin22t13 Fit, 0 for DM2ee Fit.
     NFits = 101;//101 in the final version
     Period=1;
-    NReactorPeriods=20;
+    NReactorPeriods=101;
     PlotBin=0;//Initial bin
-    Binning = 0;
+    Binning = 0;//Default is choosen near dobinning
     NADs=6;
     ToyMC=1;//1 ToyMC, 0 Data. To test the fitter use 1, to fit real data use 0.
     deleteFlag=0;
@@ -110,7 +110,7 @@ FitterGui::FitterGui(const TGWindow *p,UInt_t w,UInt_t h)
     flagCombine = 1;//Show Combine Plot as default
     NominalString = "Nominal";
     CovString = "";
-    Analysis = 0; //0 for Gd, 1 for H
+    Analysis = 1; //0 for Gd, 1 for H
    
     CalculateBinning();
     
@@ -311,7 +311,7 @@ void FitterGui::DoFitter()
     HGdBox->AddEntry("Hydrogen Analysis",1);
     HGdBox->Resize(152,22);
     HGdBox->Connect("Selected(Int_t)", "FitterGui", this, "DoAnalysis()");
-    HGdBox->Select(0);//Gd Default right now.
+    HGdBox->Select(1);//H Default right now.
     fFitterFrame2->AddFrame(HGdBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
     HGdBox->MoveResize(8,24,152,22);
     
@@ -1229,7 +1229,7 @@ void FitterGui::DoToyMC()
     HGdBox->AddEntry("Hydrogen Analysis",1);
     HGdBox->Resize(152,22);
     HGdBox->Connect("Selected(Int_t)", "FitterGui", this, "DoAnalysis()");
-    HGdBox->Select(0);//Gd Default right now.
+    HGdBox->Select(1);//Gd Default right now.
     fToyMCFrame2->AddFrame(HGdBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
     HGdBox->MoveResize(8,24,152,22);
     
@@ -1246,7 +1246,7 @@ void FitterGui::DoToyMC()
     BinningBox->AddEntry("LBNL Binning",0);
     BinningBox->AddEntry("Linear Binning",1);
     BinningBox->Connect("Selected(Int_t)", "FitterGui", this, "DoBinning()");
-    BinningBox->Select(0);//LBNL Binning default for now
+    BinningBox->Select(1);//LBNL Binning default for now
     fToyMCFrame2->AddFrame(BinningBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
     BinningBox->MoveResize(367,126,118,22);
     

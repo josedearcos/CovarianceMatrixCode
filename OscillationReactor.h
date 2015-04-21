@@ -11,6 +11,7 @@
 #include "TRandom3.h"
 #include "nHToyMC.h"
 
+#define TestDiagonalMatrix
 //
 // Originally: Given a reactor antineutrino spectrum I output the respective spectrua for each AD after oscillation.
 // Updated: Class that is able to calculate the spectra in each AD either from Reactor Data or Near Hall Data. 5/3/13.
@@ -1269,10 +1270,8 @@ void OscillationReactor :: GenerateVisibleSpectrum()
     else//Hydrogen
     {
         //  Here generate Xiang Pan/Logan Toy MC matrix and multiply by the reactor spectrum (his Toy MC is produced from a flat antineutrino spectrum, with no oscillation/reactor information inside the prediction)
-        bool TestDiagonalMatrix=0;
-
-        if(!TestDiagonalMatrix)
-        {
+        
+#ifndef TestDiagonalMatrix //If it is test mode we don't need to waste time producing the matrix
             if(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix||DistortLiHeMatrix||DistortFastNeutronsMatrix||DistortAmCMatrix||IsotopeMatrix||ReactorPowerMatrix||Sin22t12Matrix)
             {
                 nHToy->Toy(0);//Produce enu-evis matrix with nominal values if only reactor or backgrounds are fluctuated.
@@ -1282,8 +1281,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             {
                 nHToy->Toy(Mode);//Produce enu-evis matrix with nominal or varied values
             }
-        }
-        
+#endif
         TH2D* nHPredictionMatrix[MaxDetectors][VolumeX][VolumeY];
         
         Int_t ShiftBin = Int_t(InitialEnergy*MatrixBins/(FinalEnergy));
@@ -1293,8 +1291,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         
         for(Int_t AD = 0; AD<NADs; AD++)
         {
-            if(TestDiagonalMatrix)
-            {
+#ifdef TestDiagonalMatrix//Test diagonal matrix
                 nHPredictionMatrix[AD][0][0] = new TH2D("DiagonalResponseMatrix","DiagonalResponseMatrix",n_evis_bins,InitialVisibleEnergy,FinalVisibleEnergy,TotalOscillatedSpectrumAD[0]->GetXaxis()->GetNbins(),InitialEnergy,FinalEnergy);
                 
                 Ybins = nHPredictionMatrix[AD][0][0]->GetYaxis()->GetNbins();
@@ -1314,9 +1311,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                         }
                     }
                 }
-            }
-            else
-            {
+#else//This is the normal code:
                 for(Int_t idx=0; idx<XCellLimit; idx++)
                 {
                     for(Int_t idy=0; idy<YCellLimit; idy++)
@@ -1358,7 +1353,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                     //std::cout << "Visible bin: " << i  << " - Visible Spectrum Bin: " << VisibleHisto[AD]->GetBinContent(i) << std::endl;
                     
                 }//i
-            }
+#endif
         }//AD
     }
     

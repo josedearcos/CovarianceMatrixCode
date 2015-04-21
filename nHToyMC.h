@@ -150,7 +150,6 @@ public:
     ~nHToyMC();//destructor
     void Toy(bool);//main
     TH2D* LoadnHMatrix(Int_t,Int_t,Int_t);
-    void GeneratenHResponseMatrix();
     TH2D* HighResoMatrixH[MaxDetectors][VolumeX][VolumeY];
 };
 
@@ -1342,22 +1341,18 @@ void nHToyMC :: Toy(bool mode)
              if(IAVMatrix)
              {
                  outputS= "./Inputs/HInputs/IAVToyMCEventRatio.txt";
-                 
              }
              else if(NLMatrix)
              {
                  outputS= "./Inputs/HInputs/NLToyMCEventRatio.txt";
-                 
              }
              else if(ResolutionMatrix)
              {
                  outputS= "./Inputs/HInputs/ResolutionToyMCEventRatio.txt";
-                 
              }
              else if(EfficiencyMatrix)
              {
                  outputS= "./Inputs/HInputs/EfficiencyToyMCEventRatio.txt";
-                 
              }
         }
         
@@ -1666,10 +1661,6 @@ void nHToyMC :: Toy(bool mode)
 #endif
 }
 
-void nHToyMC :: GeneratenHResponseMatrix()
-{
-    
-}
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- Function definition
 // --- ---- --- ---- --- ---- --- ---- --- ---- ---
 // --- ---- --- ---- --- ---- --- ---- --- ---- ---

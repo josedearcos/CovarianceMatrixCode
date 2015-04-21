@@ -1497,7 +1497,7 @@ void Oscillation :: LoadToyHistograms(Int_t week)
             cr->cd(near+1);
             if(Analysis)
             {
-                ADSpectrumVisH[near][5][5]->Draw("HIST");
+                ADSpectrumVisH[near][Int_t(XCellLimit/2)][Int_t(YCellLimit/2)]->Draw("HIST");
 
             }
             else
@@ -1673,7 +1673,7 @@ void Oscillation :: LoadNearData(Int_t week)
             c1->cd(near+1);
             if(Analysis)
             {
-                ADSpectrumVisH[near][5][5]->Draw();
+                ADSpectrumVisH[near][Int_t(XCellLimit/2)][Int_t(YCellLimit/2)]->Draw();
             }
             else
             {
