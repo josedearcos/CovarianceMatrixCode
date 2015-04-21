@@ -316,8 +316,7 @@ Oscillation :: Oscillation()
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
-                #ifdef UseGdLs_LsVolumes //To use 2 volumes, otherwise 100 cells.
-
+#ifdef UseVolumes //To use 2 volumes, otherwise 100 cells.
                 if(idx==0)//GdLs
                 {
                     DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD);
@@ -326,14 +325,13 @@ Oscillation :: Oscillation()
                 {
                     DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsLs(AD);
                 }
-                
-                #else
+#else
                 if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
                 {
                     if(Analysis)//Hydrogen LS
                     {
                         DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsLs(AD)/(XCellLimit+YCellLimit+(YCellLimit-2)*4);//52 cells (10+10+(10-2)+(10-2)+(10-2)+(10-2)) Share uniformly the mass
-
+                        
                     }
                     else//nGd only 1 volume
                     {
@@ -344,8 +342,7 @@ Oscillation :: Oscillation()
                 {
                     DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD)/((XCellLimit-4)*(YCellLimit-2));//48 cells, Share uniformly the mass
                 }
-                #endif
-                
+#endif
                 for (Int_t week = 0; week <Nweeks; week++)
                 {
                     NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy);
@@ -477,9 +474,7 @@ Oscillation :: Oscillation(NominalData* OData)
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
-                
-#ifdef UseGdLs_LsVolumes //To use 2 volumes, otherwise 100 cells.
-                
+#ifdef UseVolumes //To use 2 volumes, otherwise 100 cells.
                 if(idx==0)//GdLs
                 {
                     DetectorProtons[AD][idx][idy] = OData->GetDetectorProtonsGdLs(AD);
@@ -506,7 +501,6 @@ Oscillation :: Oscillation(NominalData* OData)
                 {
                     DetectorProtons[AD][idx][idy] = OData->GetDetectorProtonsGdLs(AD)/((XCellLimit-4)*(YCellLimit-2));//48 cells, Share uniformly the mass
                 }
-                
 #endif
                 for (Int_t week = 0; week <Nweeks; week++)
                 {

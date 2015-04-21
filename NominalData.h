@@ -13,7 +13,7 @@
 
 bool TestAllTheSame = 0;
 
-#define UseGdLs_LsVolumes //To use 2 volumes, otherwise 100 cells.
+//#define UseVolumes //To use 2 volumes, otherwise 100 cells.
 
 #define PrintEps//To save results in .eps files
 //#define BlindedAnalysis // To use blinded reactor model and distances. Not all the files are operative (only those coming from Christine's reactor model)
@@ -44,12 +44,12 @@ const bool Fake_Experiments = 0;
 const bool CholeskyVariations = 0;
 
 /// For the nH Toy MC:
-const double IBDthreshold = 1.80607;  //( (Mn+Me)^2-Mp^2 ) / (2Mp) =
+const Double_t IBDthreshold = 1.80607;  //( (Mn+Me)^2-Mp^2 ) / (2Mp) =
 // = ( (939.565378+0.510998928)^2 - 938.272046^2 ) / (2*938.272046)
 //1.80433;  // Mneutron+Mpositron-Mproton
-const double EnergyScale = 0.982;  // data_centercell/toy_centercell = 0.982 for nH gamma toy non-uniformity and AdSimple data
+const Double_t EnergyScale = 0.982;  // data_centercell/toy_centercell = 0.982 for nH gamma toy non-uniformity and AdSimple data
 //const double EnergyScale = 1.023;  // data_centercell/toy_centercell = 1.02 when using same non-uniformity in both data and toy
-const int MaxCellNum = 401;
+const Int_t MaxCellNum = 401;
 
 /// vetex region
 const Int_t R2_binnum = 10;                      // ---> set option: divide the volume to sub-regions
@@ -61,7 +61,6 @@ const Int_t Z_binnum  = 10;                      // ---> set option
 const Double_t Z_lower   = -2;// m                  // ---> set option
 const Double_t Z_upper   = 2;// m                   // ---> set option
 
-#ifdef UseGdLs_LsVolumes
 const Int_t VolumeX = 2;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
 
 const Double_t VolumeX_lower  = 0;// m2                  // ---> set option
@@ -72,19 +71,27 @@ const Int_t VolumeY = 1;                      // ---> set option: divide the vol
 const Double_t VolumeY_lower  = 0;// m2                  // ---> set option
 const Double_t VolumeY_upper  = 1;// m2                  // ---> set option
 
-#else
-
-const Int_t VolumeX = R2_binnum;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
-
-const Double_t VolumeX_lower  = 0;// m2                  // ---> set option
-const Double_t VolumeX_upper  = 4;// m2                  // ---> set option
-
-const Int_t VolumeY = Z_binnum;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
-
-const Double_t VolumeY_lower  = -2;// m2                  // ---> set option
-const Double_t VolumeY_upper  = 2;// m2                  // ---> set option
-
-#endif
+//#ifdef UseVolumes
+//const Int_t VolumeX = 2;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
+//
+//const Double_t VolumeX_lower  = 0;// m2                  // ---> set option
+//const Double_t VolumeX_upper  = 2;// m2                  // ---> set option
+//
+//const Int_t VolumeY = 1;                      // ---> set option: divide the volume to sub-regions (1, Ls) (10 cells)
+//
+//const Double_t VolumeY_lower  = 0;// m2                  // ---> set option
+//const Double_t VolumeY_upper  = 1;// m2                  // ---> set option
+//#else
+//const Int_t VolumeX = R2_binnum;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
+//
+//const Double_t VolumeX_lower  = 0;// m2                  // ---> set option
+//const Double_t VolumeX_upper  = 4;// m2                  // ---> set option
+//
+//const Int_t VolumeY = Z_binnum;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
+//
+//const Double_t VolumeY_lower  = -2;// m2                  // ---> set option
+//const Double_t VolumeY_upper  = 2;// m2                  // ---> set option
+//#endif
 
 class NominalData
 {
@@ -149,7 +156,7 @@ private:
     Double_t dmee_start;
     Double_t dmee_end;
     Int_t NReactorPeriods;
-
+    
     //Reactor parameters
     Double_t IsotopeFrac[NIsotopes];
     Double_t IsotopeFracError[NIsotopes];
@@ -223,9 +230,8 @@ private:
     
     //Reactor Covariance Matrix
     Double_t L[NReactors*MatrixBins*NReactors*MatrixBins]; // lower triangle of the reactor covariance matrix
-
-public:
     
+public:
     //binning variables
     Int_t n_evis_bins;
     Int_t n_etrue_bins;
@@ -287,7 +293,7 @@ public:
     NominalData(bool,Int_t);
     void CopyData(NominalData*);
     ~NominalData();
-
+    
     void ReadChristineCovMatrix();//P12C
     void ReadChristineReactorSpectrum();
     
@@ -391,9 +397,9 @@ public:
     Double_t GetVisibleBinningArray(Int_t);
     Int_t GetTrueBins();
     Int_t GetVisibleBins();
-
+    
     Int_t GetDataSet();
-
+    
     bool GetBCWModel();
     bool GetLBNLModel();
     bool GetUnifiedModel();
@@ -443,7 +449,7 @@ public:
     bool GetBackgroundBudget();
     bool GetSystematicBudget();
     bool GetTotalBudget();
-
+    
     Double_t GetReactorCovMatrix(Int_t,Int_t);
     Double_t GetNominalReactorSpectrum(Int_t,Int_t);
     Int_t GetReactorSamples();
@@ -525,7 +531,7 @@ public:
     
     Double_t GetIBDEvents(Int_t, Int_t,Int_t, Int_t);
     Double_t GetObservedEvents(Int_t,Int_t,Int_t, Int_t);
-
+    
     Double_t GetAccidentalRate(Int_t,Int_t);
     Double_t GetLiHeRate(Int_t,Int_t);
     Double_t GetFNRate(Int_t,Int_t);
@@ -538,14 +544,13 @@ public:
     
     Int_t GetNReactorPeriods();
     void ReadEventsByCell();
-  
 };
 
 NominalData :: NominalData(bool ish,Int_t dataSet)
 {
     DataSet = dataSet;
     isH = ish;
-   
+    
     delete_nH_maps_flag = 0;
     
     BCW=0;
@@ -614,11 +619,11 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     DetectorMassGdLs[4] = 0.019991;
     DetectorMassGdLs[5] = 0.019892;
     
-//    if(isH)
-//    {
-//        LoadnHEfficiencyMaps();//Calculated in setads
-//    }
-//    
+    //    if(isH)
+    //    {
+    //        LoadnHEfficiencyMaps();//Calculated in setads
+    //    }
+    //
     if(TestAllTheSame)
     {
         for(Int_t i = 0; i<NADs; i++)
@@ -626,7 +631,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
             DetectorMassGdLs[i]=0.02;
         }
     }
-
+    
     NSamples = 500;
     NSteps = 101;
     
@@ -701,7 +706,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     s22t12Error = 0.024;
     dm2_32 = 2.41e-3;//eV2
     dm2_21 = 7.50e-5;//eV2
-
+    
     hierarchy=1;//-1 for inverted           // Set as external input to be set in the GUI   !!!!
     
     dm2_31=dm2_32+hierarchy*dm2_21;
@@ -718,16 +723,16 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     {
         //IAV error
         IAVError=0.001;//0.1% bin-to-bin uncorrelated error.
-
+        
         //Resolution errors
         ResolutionError=0.02;//Due to parameter uncertainty
         ResolutionErrorUncorrelated=0.02;//Due to energy scale difference between detectors
         
         //Attenuation length -> Relative Energy Scale
         m_rel_escale_error = 0.0065; // 0.65%
-
+        
         if(DataSet==1)
-        {            
+        {
             //p12b values
             if(Nweeks==1)
             {
@@ -760,7 +765,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
                 MuonEff[5]= 0.9812;
                 
                 //Hydrogen data here, taken from the εμεm corrected data and dividing by that coefficient:
-
+                
                 AccidentalError[0]=0.10160843525865;
                 AccidentalError[1]=0.101182017951218;
                 AccidentalError[2]=0.0902700154097309;
@@ -774,7 +779,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
                 FastNeutronError[3]=0.0386014547397407;
                 FastNeutronError[4]=0.0385817206607242;
                 FastNeutronError[5]=0.0385680508847611;
-            
+                
                 LiHeError[0]=1.07861262043798;
                 LiHeError[1]=1.07408603671293;
                 LiHeError[2]=0.878081058985565;
@@ -790,7 +795,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
                 AmCError[5]=0.0289260381635708;
                 
                 //Hydrogen data here, taken from the εμεm corrected data and dividing by that coefficient:
-            
+                
                 AccidentalRate[0]=50.778238638208;// per day
                 AccidentalRate[1]=49.8577452650692;
                 AccidentalRate[2]=47.2842616574847;
@@ -823,44 +828,44 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
             {
                 std::cout << "need to do some averaging sum like yasu's, for reference I add his lines of code here " << std::endl;
                 exit(EXIT_FAILURE);
-//                if (FirstMakeSuperPrediction){
-//                    sprintf(dummyname,"CombCorrEvtsSpec_%i",idet);
-//                    CombCorrEvtsSpec[idet] = (TH1F*)tdper[0].CorrEvtsSpec[idet]->Clone(dummyname);
-//                    sprintf(dummyname,"CombCorrBgEvtsSpec_%i",idet);
-//                    CombCorrBgEvtsSpec[idet] = (TH1F*)tdper[0].CorrBgEvtsSpec[idet]->Clone(dummyname);
-//                    //note: do not set FirstMakeSuperPrediction to false as that is done below
-//                }
-//                CombCorrEvtsSpec[idet]->Reset();
-//                CombCorrBgEvtsSpec[idet]->Reset();
-//                
-//                for(int ii=0;ii<Nperiods;++ii){
-//                    float factor=tdper[ii].MuonVetoEff[idet]
-//                    *tdper[ii].DMCEff[idet]
-//                    *tdper[ii].Livetime[idet]
-//                    *tdper[ii].TargetMass[idet]/tdper[ii].TargetMass[0];
-//                    
-//                    weightedsum+=tdper[ii].CorrEvts[idet]*factor;
-//                    livsum+=factor;
-//                    weightederr+=pow(tdper[ii].ErrEvts[idet]*factor,2);
-//                    weightedbg+=tdper[ii].CorrBgEvts[idet]*factor;
-//                    
-//                    CombCorrEvtsSpec[idet]->Add(tdper[ii].CorrEvtsSpec[idet],factor);
-//                    CombCorrBgEvtsSpec[idet]->Add(tdper[ii].CorrBgEvtsSpec[idet],factor);
-//                    
-//                    // weightedsum+=tdper[ii].CorrEvts[idet]*tdper[ii].Livetime[idet];
-//                    // livsum+=tdper[ii].Livetime[idet];
-//                    // weightederr+=pow(tdper[ii].ErrEvts[idet]*tdper[ii].Livetime[idet],2);
-//                    // weightedbg+=tdper[ii].CorrBgEvts[idet]*tdper[ii].Livetime[idet];
-//                    
-//                    // CombCorrEvtsSpec[idet]->Add(tdper[ii].CorrEvtsSpec[idet],tdper[ii].Livetime[idet]);
-//                    
-//                }
-//                CombLivetime[idet]=livsum;
-//                CombCorrEvts[idet]=weightedsum*1./livsum;
-//                CombErrEvts[idet]=sqrt(weightederr)*1./livsum;
-//                CombCorrBgEvts[idet]=weightedbg*1./livsum;
-//                CombCorrEvtsSpec[idet]->Scale(1./livsum);
-//                CombCorrBgEvtsSpec[idet]->Scale(1./livsum);
+                //                if (FirstMakeSuperPrediction){
+                //                    sprintf(dummyname,"CombCorrEvtsSpec_%i",idet);
+                //                    CombCorrEvtsSpec[idet] = (TH1F*)tdper[0].CorrEvtsSpec[idet]->Clone(dummyname);
+                //                    sprintf(dummyname,"CombCorrBgEvtsSpec_%i",idet);
+                //                    CombCorrBgEvtsSpec[idet] = (TH1F*)tdper[0].CorrBgEvtsSpec[idet]->Clone(dummyname);
+                //                    //note: do not set FirstMakeSuperPrediction to false as that is done below
+                //                }
+                //                CombCorrEvtsSpec[idet]->Reset();
+                //                CombCorrBgEvtsSpec[idet]->Reset();
+                //
+                //                for(int ii=0;ii<Nperiods;++ii){
+                //                    float factor=tdper[ii].MuonVetoEff[idet]
+                //                    *tdper[ii].DMCEff[idet]
+                //                    *tdper[ii].Livetime[idet]
+                //                    *tdper[ii].TargetMass[idet]/tdper[ii].TargetMass[0];
+                //
+                //                    weightedsum+=tdper[ii].CorrEvts[idet]*factor;
+                //                    livsum+=factor;
+                //                    weightederr+=pow(tdper[ii].ErrEvts[idet]*factor,2);
+                //                    weightedbg+=tdper[ii].CorrBgEvts[idet]*factor;
+                //
+                //                    CombCorrEvtsSpec[idet]->Add(tdper[ii].CorrEvtsSpec[idet],factor);
+                //                    CombCorrBgEvtsSpec[idet]->Add(tdper[ii].CorrBgEvtsSpec[idet],factor);
+                //
+                //                    // weightedsum+=tdper[ii].CorrEvts[idet]*tdper[ii].Livetime[idet];
+                //                    // livsum+=tdper[ii].Livetime[idet];
+                //                    // weightederr+=pow(tdper[ii].ErrEvts[idet]*tdper[ii].Livetime[idet],2);
+                //                    // weightedbg+=tdper[ii].CorrBgEvts[idet]*tdper[ii].Livetime[idet];
+                //
+                //                    // CombCorrEvtsSpec[idet]->Add(tdper[ii].CorrEvtsSpec[idet],tdper[ii].Livetime[idet]);
+                //
+                //                }
+                //                CombLivetime[idet]=livsum;
+                //                CombCorrEvts[idet]=weightedsum*1./livsum;
+                //                CombErrEvts[idet]=sqrt(weightederr)*1./livsum;
+                //                CombCorrBgEvts[idet]=weightedbg*1./livsum;
+                //                CombCorrEvtsSpec[idet]->Scale(1./livsum);
+                //                CombCorrBgEvtsSpec[idet]->Scale(1./livsum);
                 
             }
         }
@@ -873,7 +878,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
             }
             else
             {
-                LoadMainData(Form("./Inputs/HInputs/P12E_101.txt"));// Need to do it Nweek dependent                
+                LoadMainData(Form("./Inputs/HInputs/P12E_101.txt"));// Need to do it Nweek dependent
             }
         }
     }
@@ -893,7 +898,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
         m_rel_eoffset_error = 0.013; //  (MeV)
         
         m_rel_escale_error = 0.0035; // 0.35%
-
+        
         m_rel_escale = 1.0;
         m_rel_escale_nominal = m_rel_escale;
         m_rel_eoffset = 0.0;
@@ -993,7 +998,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
                         
                     }
                 }
-
+                
                 
                 AccidentalError[0]=0.074594;//Absolute uncertainty AD1
                 AccidentalError[1]=0.06356;//Absolute uncertainty AD2
@@ -1056,32 +1061,32 @@ void NominalData :: CopyData(NominalData * data)
     BkgCovDirectory = data->BkgCovDirectory;
     
     //Analysis type:
-     isH = data->isH ;
-     DataSet = data->DataSet ;
-     ToyMC = data->ToyMC ;
+    isH = data->isH ;
+    DataSet = data->DataSet ;
+    ToyMC = data->ToyMC ;
     //Binning type:
-     LinearBinning = data->LinearBinning ;//0 is non linear (LBNL like binning), 1 is linear (51 bins);
+    LinearBinning = data->LinearBinning ;//0 is non linear (LBNL like binning), 1 is linear (51 bins);
     
     //Detectors:
-     NADs = data->NADs ;
-     ADsEH1 = data->ADsEH1;
-     ADsEH2 = data->ADsEH2;
-     ADsEH3 = data->ADsEH3;
+    NADs = data->NADs ;
+    ADsEH1 = data->ADsEH1;
+    ADsEH2 = data->ADsEH2;
+    ADsEH3 = data->ADsEH3;
     
-     hierarchy = data->hierarchy;
-     Combine = data->Combine;
+    hierarchy = data->hierarchy;
+    Combine = data->Combine;
     
-     ProtonsPerKtonGdLs = data->ProtonsPerKtonGdLs; //protons per kton
-     ProtonsPerKtonLs = data->ProtonsPerKtonLs; //protons per kton
-     std::copy(std::begin(data->DetectorMassGdLs), std::end(data->DetectorMassGdLs), std::begin(DetectorMassGdLs));
-     std::copy(std::begin(data->DetectorMassLs), std::end(data->DetectorMassLs), std::begin(DetectorMassLs));
-
-     m_detectorEfficiency_Dt = data->m_detectorEfficiency_Dt;
-     m_detectorEfficiency_Ep = data->m_detectorEfficiency_Ep;
-     m_detectorEfficiency_Ed_nominal = data->m_detectorEfficiency_Ed_nominal;
-     m_detectorEfficiency_flash = data->m_detectorEfficiency_flash;
-     m_detectorEfficiency_nGd = data->m_detectorEfficiency_nGd;
-     m_detectorEfficiency_spill = data->m_detectorEfficiency_spill;
+    ProtonsPerKtonGdLs = data->ProtonsPerKtonGdLs; //protons per kton
+    ProtonsPerKtonLs = data->ProtonsPerKtonLs; //protons per kton
+    std::copy(std::begin(data->DetectorMassGdLs), std::end(data->DetectorMassGdLs), std::begin(DetectorMassGdLs));
+    std::copy(std::begin(data->DetectorMassLs), std::end(data->DetectorMassLs), std::begin(DetectorMassLs));
+    
+    m_detectorEfficiency_Dt = data->m_detectorEfficiency_Dt;
+    m_detectorEfficiency_Ep = data->m_detectorEfficiency_Ep;
+    m_detectorEfficiency_Ed_nominal = data->m_detectorEfficiency_Ed_nominal;
+    m_detectorEfficiency_flash = data->m_detectorEfficiency_flash;
+    m_detectorEfficiency_nGd = data->m_detectorEfficiency_nGd;
+    m_detectorEfficiency_spill = data->m_detectorEfficiency_spill;
     
     if(isH)
     {
@@ -1089,21 +1094,21 @@ void NominalData :: CopyData(NominalData * data)
     }
     
     //Toy samples
-     NSamples = data->NSamples;
-     NSteps = data->NSteps;
+    NSamples = data->NSamples;
+    NSteps = data->NSteps;
     //Oscillation parameters
-     s22t12 = data->s22t12;
-     s22t12Error = data->s22t12Error;
-     s22t13 = data->s22t13;
-     s22t13Error = data->s22t13Error;
-     dm2_ee = data->dm2_ee;
-     dm2_31 = data->dm2_31;
-     dm2_32 = data->dm2_32;
-     dm2_21 = data->dm2_21;
-     sin_start = data->sin_start;
-     sin_end = data->sin_end;
-     dmee_start = data->dmee_start;
-     dmee_end = data->dmee_end;
+    s22t12 = data->s22t12;
+    s22t12Error = data->s22t12Error;
+    s22t13 = data->s22t13;
+    s22t13Error = data->s22t13Error;
+    dm2_ee = data->dm2_ee;
+    dm2_31 = data->dm2_31;
+    dm2_32 = data->dm2_32;
+    dm2_21 = data->dm2_21;
+    sin_start = data->sin_start;
+    sin_end = data->sin_end;
+    dmee_start = data->dmee_start;
+    dmee_end = data->dmee_end;
     
     //Reactor parameters
     std::copy(std::begin(data->IsotopeFrac), std::end(data->IsotopeFrac), std::begin(IsotopeFrac));
@@ -1113,23 +1118,23 @@ void NominalData :: CopyData(NominalData * data)
     std::copy(std::begin(data->EnergyPerFission), std::end(data->EnergyPerFission), std::begin(EnergyPerFission));
     std::copy(std::begin(data->EnergyPerFissionError), std::end(data->EnergyPerFissionError), std::begin(EnergyPerFissionError));
     IHEPReactorModel = data->IHEPReactorModel;
-
+    
     //Background relative errors, rates and events:
     std::copy(std::begin(data->AccidentalError), std::end(data->AccidentalError), std::begin(AccidentalError));
     std::copy(std::begin(data->LiHeError), std::end(data->LiHeError), std::begin(LiHeError));
     std::copy(std::begin(data->FastNeutronError), std::end(data->FastNeutronError), std::begin(FastNeutronError));
     std::copy(std::begin(data->AmCError), std::end(data->AmCError), std::begin(AmCError));
-
+    
     std::copy(std::begin(data->AccidentalRate), std::end(data->AccidentalRate), std::begin(AccidentalRate));
     std::copy(std::begin(data->FastNeutronRate), std::end(data->FastNeutronRate), std::begin(FastNeutronRate));
     std::copy(std::begin(data->LiHeRate), std::end(data->LiHeRate), std::begin(LiHeRate));
     std::copy(std::begin(data->AmCRate), std::end(data->AmCRate), std::begin(AmCRate));
-
+    
     std::copy(std::begin(data->AccidentalEvents), std::end(data->AccidentalEvents), std::begin(AccidentalEvents));
     std::copy(std::begin(data->FastNeutronEvents), std::end(data->FastNeutronEvents), std::begin(FastNeutronEvents));
     std::copy(std::begin(data->LiHeEvents), std::end(data->LiHeEvents), std::begin(LiHeEvents));
     std::copy(std::begin(data->AmCEvents), std::end(data->AmCEvents), std::begin(AmCEvents));
-
+    
     std::copy(std::begin(data->ObservedEvents), std::end(data->ObservedEvents), std::begin(ObservedEvents));
     
     // Days and efficiencies:
@@ -1138,18 +1143,18 @@ void NominalData :: CopyData(NominalData * data)
     std::copy(std::begin(data->MultiEff), std::end(data->MultiEff), std::begin(MultiEff));
     
     //IAV error:
-     IAVError = data->IAVError;
+    IAVError = data->IAVError;
     
     //Resolution errors:
-     ResolutionError = data->ResolutionError;
-     ResolutionErrorUncorrelated = data->ResolutionErrorUncorrelated;
+    ResolutionError = data->ResolutionError;
+    ResolutionErrorUncorrelated = data->ResolutionErrorUncorrelated;
     
     //Energy scale:
-     m_abs_escale = data->m_abs_escale;
-     m_abs_escale_error = data->m_abs_escale_error;
+    m_abs_escale = data->m_abs_escale;
+    m_abs_escale_error = data->m_abs_escale_error;
     
-     m_abs_eoffset = data->m_abs_eoffset;
-     m_abs_eoffset_error = data->m_abs_eoffset_error;
+    m_abs_eoffset = data->m_abs_eoffset;
+    m_abs_eoffset_error = data->m_abs_eoffset_error;
     
     m_rel_eoffset_error = data->m_rel_eoffset_error;
     m_rel_escale = data->m_rel_escale;
@@ -1157,82 +1162,82 @@ void NominalData :: CopyData(NominalData * data)
     m_rel_escale_nominal = data->m_rel_escale_nominal;
     m_rel_eoffset = data->m_rel_eoffset;
     
-     DetectorEfficiencyRelativeError = data->DetectorEfficiencyRelativeError;
+    DetectorEfficiencyRelativeError = data->DetectorEfficiencyRelativeError;
     
     //Binning variables:
-     Nweeks = data->Nweeks;
-     NReactorPeriods = data->NReactorPeriods;
-     NBins = data->NBins;
-     Emin = data->Emin;
-     Emax = data->Emax;
-     EVisMin = data->EVisMin;
-     EVisMax = data->EVisMax;
-     n_etrue_bins = data->n_etrue_bins;
-     n_evis_bins = data->n_evis_bins;
-     std::copy(std::begin(data->enu_bins), std::end(data->enu_bins), std::begin(enu_bins));
-     std::copy(std::begin(data->evis_bins), std::end(data->evis_bins), std::begin(evis_bins));
-
+    Nweeks = data->Nweeks;
+    NReactorPeriods = data->NReactorPeriods;
+    NBins = data->NBins;
+    Emin = data->Emin;
+    Emax = data->Emax;
+    EVisMin = data->EVisMin;
+    EVisMax = data->EVisMax;
+    n_etrue_bins = data->n_etrue_bins;
+    n_evis_bins = data->n_evis_bins;
+    std::copy(std::begin(data->enu_bins), std::end(data->enu_bins), std::begin(enu_bins));
+    std::copy(std::begin(data->evis_bins), std::end(data->evis_bins), std::begin(evis_bins));
+    
     //Reactor
-     binWidth = data->binWidth;
-     std::copy(std::begin(data->m_dNdE_nom), std::end(data->m_dNdE_nom), std::begin(m_dNdE_nom));
-
-     m_nSamples = data->m_nSamples;
-     m_eMin = data->m_eMin;
-     m_eMax = data->m_eMax;
+    binWidth = data->binWidth;
+    std::copy(std::begin(data->m_dNdE_nom), std::end(data->m_dNdE_nom), std::begin(m_dNdE_nom));
+    
+    m_nSamples = data->m_nSamples;
+    m_eMin = data->m_eMin;
+    m_eMax = data->m_eMax;
     
     //Reactor Covariance Matrix
-     std::copy(std::begin(data->L), std::end(data->L), std::begin(L));
+    std::copy(std::begin(data->L), std::end(data->L), std::begin(L));
     
-     TurnOnBudget = data->TurnOnBudget;
-     TurnOffBudget = data->TurnOffBudget;
+    TurnOnBudget = data->TurnOnBudget;
+    TurnOffBudget = data->TurnOffBudget;
     
-     BCW = data->BCW;
-     LBNL = data->LBNL;
-     Unified = data->Unified;
+    BCW = data->BCW;
+    LBNL = data->LBNL;
+    Unified = data->Unified;
     
-     VaryAccidentalMatrix = data->VaryAccidentalMatrix;
-     VaryLiHeMatrix = data->VaryLiHeMatrix;
-     VaryFastNeutronsMatrix = data->VaryFastNeutronsMatrix;
-     VaryAmCMatrix = data->VaryAmCMatrix;
-     DistortLiHeMatrix = data->DistortLiHeMatrix;
-     DistortFastNeutronsMatrix = data->DistortFastNeutronsMatrix;
-     DistortAmCMatrix = data->DistortAmCMatrix;
-     IsotopeMatrix = data->IsotopeMatrix;
-     ReactorPowerMatrix = data->ReactorPowerMatrix;
-     RelativeEnergyOffsetMatrix = data->RelativeEnergyOffsetMatrix;
-     AbsoluteEnergyOffsetMatrix = data->AbsoluteEnergyOffsetMatrix;
-     AbsoluteEnergyScaleMatrix = data->AbsoluteEnergyScaleMatrix;
-     RelativeEnergyScaleMatrix = data->RelativeEnergyScaleMatrix;
-     IAVMatrix = data->IAVMatrix;
-     NLMatrix = data->NLMatrix;
-     ResolutionMatrix = data->ResolutionMatrix;
-     Sin22t12Matrix = data->Sin22t12Matrix;
-     EfficiencyMatrix = data->EfficiencyMatrix;
+    VaryAccidentalMatrix = data->VaryAccidentalMatrix;
+    VaryLiHeMatrix = data->VaryLiHeMatrix;
+    VaryFastNeutronsMatrix = data->VaryFastNeutronsMatrix;
+    VaryAmCMatrix = data->VaryAmCMatrix;
+    DistortLiHeMatrix = data->DistortLiHeMatrix;
+    DistortFastNeutronsMatrix = data->DistortFastNeutronsMatrix;
+    DistortAmCMatrix = data->DistortAmCMatrix;
+    IsotopeMatrix = data->IsotopeMatrix;
+    ReactorPowerMatrix = data->ReactorPowerMatrix;
+    RelativeEnergyOffsetMatrix = data->RelativeEnergyOffsetMatrix;
+    AbsoluteEnergyOffsetMatrix = data->AbsoluteEnergyOffsetMatrix;
+    AbsoluteEnergyScaleMatrix = data->AbsoluteEnergyScaleMatrix;
+    RelativeEnergyScaleMatrix = data->RelativeEnergyScaleMatrix;
+    IAVMatrix = data->IAVMatrix;
+    NLMatrix = data->NLMatrix;
+    ResolutionMatrix = data->ResolutionMatrix;
+    Sin22t12Matrix = data->Sin22t12Matrix;
+    EfficiencyMatrix = data->EfficiencyMatrix;
     
-     VaryAccidentalBudget = data->VaryAccidentalBudget;
-     VaryLiHeBudget = data->VaryLiHeBudget;
-     VaryFastNeutronsBudget = data->VaryFastNeutronsBudget;
-     VaryAmCBudget = data->VaryAmCBudget;
-     DistortLiHeBudget = data->DistortLiHeBudget;
-     DistortFastNeutronsBudget = data->DistortFastNeutronsBudget;
-     DistortAmCBudget = data->DistortAmCBudget;
-     IsotopeBudget = data->IsotopeBudget;
-     ReactorPowerBudget = data->ReactorPowerBudget;
-     RelativeEnergyOffsetBudget = data->RelativeEnergyOffsetBudget;
-     AbsoluteEnergyOffsetBudget = data->AbsoluteEnergyOffsetBudget;
-     AbsoluteEnergyScaleBudget = data->AbsoluteEnergyScaleBudget;
-     RelativeEnergyScaleBudget = data->RelativeEnergyScaleBudget;
-     IAVBudget = data->IAVBudget;
-     NLBudget = data->NLBudget;
-     ResolutionBudget = data->ResolutionBudget;
-     Sin22t12Budget = data->Sin22t12Budget;
-     EfficiencyBudget = data->EfficiencyBudget;
-     SystematicBudget = data->SystematicBudget;
-     BackgroundBudget = data->BackgroundBudget;
-     TotalBudget = data->TotalBudget;
+    VaryAccidentalBudget = data->VaryAccidentalBudget;
+    VaryLiHeBudget = data->VaryLiHeBudget;
+    VaryFastNeutronsBudget = data->VaryFastNeutronsBudget;
+    VaryAmCBudget = data->VaryAmCBudget;
+    DistortLiHeBudget = data->DistortLiHeBudget;
+    DistortFastNeutronsBudget = data->DistortFastNeutronsBudget;
+    DistortAmCBudget = data->DistortAmCBudget;
+    IsotopeBudget = data->IsotopeBudget;
+    ReactorPowerBudget = data->ReactorPowerBudget;
+    RelativeEnergyOffsetBudget = data->RelativeEnergyOffsetBudget;
+    AbsoluteEnergyOffsetBudget = data->AbsoluteEnergyOffsetBudget;
+    AbsoluteEnergyScaleBudget = data->AbsoluteEnergyScaleBudget;
+    RelativeEnergyScaleBudget = data->RelativeEnergyScaleBudget;
+    IAVBudget = data->IAVBudget;
+    NLBudget = data->NLBudget;
+    ResolutionBudget = data->ResolutionBudget;
+    Sin22t12Budget = data->Sin22t12Budget;
+    EfficiencyBudget = data->EfficiencyBudget;
+    SystematicBudget = data->SystematicBudget;
+    BackgroundBudget = data->BackgroundBudget;
+    TotalBudget = data->TotalBudget;
     
-     StatisticalFluctuation = data->StatisticalFluctuation;
-     UseToyMCTree = data->UseToyMCTree;
+    StatisticalFluctuation = data->StatisticalFluctuation;
+    UseToyMCTree = data->UseToyMCTree;
     
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1813,7 +1818,7 @@ Int_t NominalData :: GetWeeks()
 {
     return Nweeks;
     
-//    return 1; // to check fluxH
+    //    return 1; // to check fluxH
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2118,7 +2123,7 @@ void NominalData :: LoadMainData(const Char_t* mainmatrixname)
         std::string firstchar = line.substr(0,1);
         
         if(firstchar=="#") continue;//<-- ignore lines with comments
-                
+        
         //Special numbers
         if(linenum == 0)
         {
@@ -2377,7 +2382,7 @@ void NominalData :: ReadIHEPReactorSpectrum()
     Double_t eMax=9.5;
     binWidth = 0.25;
     
-    Int_t curPeriod;
+    Int_t curPeriod = 0;
     std::fstream IHEPfileData;
     Double_t trash;
     
@@ -2387,7 +2392,7 @@ void NominalData :: ReadIHEPReactorSpectrum()
         
         Double_t activePeriods = 0;//Account for the number of weeks it's been on.
         Double_t m_dNdE_temporal = 0;
-
+        
         switch(reactor)
         {
             case 0://Daya Bay A
@@ -2428,14 +2433,14 @@ void NominalData :: ReadIHEPReactorSpectrum()
                 IHEPfileData >> trash;
                 
                 //std::cout << trash << std::endl;
-
+                
             }
             for (Int_t bin = 0; bin <NIHEPReactorBins; bin++)
             {
                 IHEPfileData >> m_dNdE_temporal;
                 
                 m_dNdE_nom[reactor+NReactors*bin] = m_dNdE_temporal+m_dNdE_nom[reactor+NReactors*bin];
-               // std::cout << "reactor : " << reactor << " bin: " << bin << ", reactor spectrum: "<< m_dNdE_nom[reactor+NReactors*bin] << std::endl;
+                // std::cout << "reactor : " << reactor << " bin: " << bin << ", reactor spectrum: "<< m_dNdE_nom[reactor+NReactors*bin] << std::endl;
             }
             
             //Last value seems to be way off.
@@ -2446,14 +2451,14 @@ void NominalData :: ReadIHEPReactorSpectrum()
             {
                 activePeriods++;
             }
-
+            
             curPeriod++;
         }
         
         IHEPfileData.close();
-
+        
         curPeriod--;
-
+        
         //Average p14A nominal reactor:
         for (Int_t bin = 0; bin <=NIHEPReactorBins; bin++)
         {
@@ -2462,7 +2467,7 @@ void NominalData :: ReadIHEPReactorSpectrum()
         
         std::cout << "Reactor " << reactor << " has been active for: " << activePeriods << " periods" << std::endl;
         
-   }
+    }
     
     m_eMin = eMin;
     m_eMax = eMax;
@@ -2475,7 +2480,7 @@ void NominalData :: ReadIHEPReactorSpectrum()
     std::cout << " MINIMUM ENERGY: " << m_eMin << std::endl;
     std::cout << " MAX ENERGY: " << m_eMax << std::endl;
     std::cout << " SAMPLES: " << m_nSamples << std::endl;
-
+    
     IHEPReactorModel = 1;
 }
 
@@ -2486,7 +2491,7 @@ bool NominalData :: UsingIHEPReactorModel()
 void NominalData :: ReadChristineCovMatrix()
 {
     std::cout << " READING CHRISTINE COVARIANCE MATRIX " << std::endl;
-
+    
     // Read covarianvematrix
 #ifdef BlindedAnalysis
     std::ifstream fileData_mcov("./ReactorInputs/p12c_blinded/combined/nNu_Mcov_combined.txt");
@@ -2507,12 +2512,12 @@ void NominalData :: ReadChristineCovMatrix()
     
     TMatrixD covmatrix(NReactors * MatrixBins, NReactors * MatrixBins, &m_dNdE_mcov[0][0]);//   Fix dimensions, then we resize it to avoid 0's in the empty spaces.
     covmatrix.ResizeTo(m_nSamples * NReactors, m_nSamples * NReactors);
-//    #ifdef PrintEps
-//        TCanvas* c2 = new TCanvas("","");
-//        covmatrix.Draw("colz");
-//        c2->Print("./Images/Reactor/ReactorCovMatrix.eps");
-//        delete c2;
-//    #endif
+    //    #ifdef PrintEps
+    //        TCanvas* c2 = new TCanvas("","");
+    //        covmatrix.Draw("colz");
+    //        c2->Print("./Images/Reactor/ReactorCovMatrix.eps");
+    //        delete c2;
+    //    #endif
     TDecompChol chol(covmatrix);//  M = L*U
     chol.Decompose();
     TMatrixD cmat(chol.GetU());//   U
@@ -2645,7 +2650,7 @@ std::string NominalData :: GetPredictionDirectory()
 
 void NominalData :: SetToyMCSamplesDirectory(std::string directory)
 {
-     ToyMCSamplesDirectory = directory;
+    ToyMCSamplesDirectory = directory;
 }
 
 std::string NominalData :: GetToyMCSamplesDirectory()
@@ -2739,16 +2744,16 @@ void NominalData :: CalculateBinning()
     std::cout << " Recalculating binning " << std::endl;
     
     //Gadolinium:
-
+    
     if(LinearBinning)//  Linear binning
     {
         if(isH)//Hydrogen analysis linear binning
         {
             n_evis_bins=42;//match visible cuts
             n_etrue_bins=39;//match reactor data, this might be different when using IHEP reactor model for P14
-           
+            
             EVisMin = 1.5;//1.5 lower visible energy cut for Hydrogen Analysis
-
+            
             if(LoganBinning)//To test our different spectra
             {
                 EVisMin = 0;//1.5 for Hydrogen Analysis
@@ -2764,7 +2769,7 @@ void NominalData :: CalculateBinning()
         
         Double_t TrueBinWidth = (Emax - Emin)/n_etrue_bins;//if n_etrue_bins = 51 and Emin = 1.8, 0.2
         Double_t VisBinWidth = (EVisMax - EVisMin)/n_evis_bins;//if 240 and Emin = 0 it is 0.05
-
+        
         //Linear binning
         for (Int_t i = 0; i <= n_evis_bins; i++)
         {
@@ -2774,7 +2779,7 @@ void NominalData :: CalculateBinning()
         
         std::cout << " True bin width " << TrueBinWidth << std::endl;
         std::cout << " Vis bin width " << VisBinWidth << std::endl;
-
+        
     }
     else
     {
@@ -2800,7 +2805,7 @@ void NominalData :: CalculateBinning()
         {
             
             std::cout << " NEED A NON LINEAR BINNING FOR THE HYDROGEN ANALYSIS " << std::endl;
-
+            
             //Using the same than nGd at the moment:
             
             n_evis_bins=37;
@@ -2819,7 +2824,7 @@ void NominalData :: CalculateBinning()
             }
             evis_bins[n_evis_bins] = 12;
             
-           // exit(EXIT_FAILURE);
+            // exit(EXIT_FAILURE);
         }
     }
     
@@ -2870,9 +2875,9 @@ void NominalData :: ReadEventsByCell()
     std::string line;
     
     ifstream mainfile("./Inputs/HInputs/NominalToyMCEventRatio.txt");
-
+    
     Int_t linenum=0;//<---caution: only increments for lines that do not begin with #
-
+    
     while(!mainfile.eof())
     {
         std::getline(mainfile,line);
@@ -2885,10 +2890,10 @@ void NominalData :: ReadEventsByCell()
         if(linenum == 0)
         {
             Int_t AD = 0;
-
-                iss >> AD >> ADIntegral[AD];
-
-                std::cout << "line " << linenum << " the integral in AD " << AD << " is " << ADIntegral[AD] << std::endl;
+            
+            iss >> AD >> ADIntegral[AD];
+            
+            std::cout << "line " << linenum << " the integral in AD " << AD << " is " << ADIntegral[AD] << std::endl;
             
             linenum++;
         }
@@ -2898,19 +2903,19 @@ void NominalData :: ReadEventsByCell()
             Int_t idx = 0;
             Int_t idy = 0;
             
-                 iss >> AD >> idx >> idy >> CellIntegral[AD][idx][idy];
-//                if(column==0) AD=atoi(firstchar.c_str());
-//                
-//                if(column==1) idx=atoi(sub.c_str());
-//                
-//                if(column==2) idy=atoi(sub.c_str());
-//                
-//                if(column==3)
-                
-                std::cout << "line " << linenum << " the integral in AD " << AD << " cell " << idx << " , " << idy << " is " << CellIntegral[AD][idx][idy] << std::endl;
+            iss >> AD >> idx >> idy >> CellIntegral[AD][idx][idy];
+            //                if(column==0) AD=atoi(firstchar.c_str());
+            //
+            //                if(column==1) idx=atoi(sub.c_str());
+            //
+            //                if(column==2) idy=atoi(sub.c_str());
+            //
+            //                if(column==3)
+            
+            std::cout << "line " << linenum << " the integral in AD " << AD << " cell " << idx << " , " << idy << " is " << CellIntegral[AD][idx][idy] << std::endl;
             
             linenum++;
-
+            
             if(linenum>VolumeX*VolumeY)
             {
                 linenum = 0;//reset counter
@@ -2919,7 +2924,7 @@ void NominalData :: ReadEventsByCell()
     }
     
     //Draw it:
-    
+#ifndef UseVolume
     TH2D* MapEvents_ratio2center = new TH2D("MapEventsRatio2center","MapEventsRatio2center",VolumeX,VolumeX_lower,VolumeX_upper,VolumeY,VolumeY_lower,VolumeY_upper);
     
     for(Int_t AD = 0; AD<NADs; AD++)
@@ -2928,7 +2933,7 @@ void NominalData :: ReadEventsByCell()
         {
             for(Int_t idy = 0; idy<VolumeY; idy++)
             {
-                MapEvents_ratio2center->SetBinContent(idx+1,idy+1,CellIntegral[AD][idx][idy]/CellIntegral[AD][0][5]);
+                MapEvents_ratio2center->SetBinContent(idx+1,idy+1,CellIntegral[AD][idx][idy]/CellIntegral[AD][0][Int_t(VolumeY/2)]);
             }
         }
     }
@@ -2936,13 +2941,14 @@ void NominalData :: ReadEventsByCell()
     TCanvas* MapEventC = new TCanvas("MapEventRatio2Center","MapEventRatio2Center");
     
     MapEventC->cd(1);
-
+    
     MapEvents_ratio2center->Draw("colz");
     
     MapEventC->Print("./Images/Hydrogen/Detector/MapEventRatio2Center.eps");
     
     delete MapEvents_ratio2center;
     delete MapEventC;
+#endif
     
     TH2D* MapEvents_ratio2total = new TH2D("MapEventsRatio2total","MapEventsRatio2total",VolumeX,VolumeX_lower,VolumeX_upper,VolumeY,VolumeY_lower,VolumeY_upper);
     
@@ -2975,5 +2981,4 @@ void NominalData :: ReadEventsByCell()
     delete SaveFile;
     
     delete MapEvents_ratio2total;
-
 }

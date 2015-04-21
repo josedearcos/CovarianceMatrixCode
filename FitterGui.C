@@ -8,11 +8,11 @@
 #include "FitterGui.h"
 #include "GuiLinkDef.h"
 #include <stdio.h>
+#include "TColor.h"
+#include "TStyle.h"
 #include "FitBackgrounds2.h"
 #include "CovarianceMatrix3.h"
 #include "NominalData.h"
-#include "TColor.h"
-#include "TStyle.h"
 #include "CrossSection.h"
 #include <stdlib.h>
 #include "Fitter.h"
@@ -30,7 +30,6 @@
 //#define NDEBUG
 //#define TestExternalInputs
 #define PrintOnConsole
-
 //To interpolate the chi2 curves
 const Int_t InterpolationFactor = 100;
 const Int_t SetStats = 1111001;//neimr or 1111001 to show integral in statbox, 0 to don't show stats in the plots
@@ -45,6 +44,7 @@ const Int_t window_width = 1000;
 const Int_t window_height = 800;
 const Int_t button_height = 40;
 const Int_t frame_height = 350;
+
 int main(int argc, char **argv)
 {
     
@@ -4029,10 +4029,8 @@ string FitterGui :: delSpaces(string &str)
 
 void FitterGui::PlotResponseMatrix()
 {
-   
     if(Analysis==0)//Run gadollinium code to produce the new matrices and show them
     {
-        
         RunResponseMatrix();
     }
     

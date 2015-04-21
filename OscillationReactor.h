@@ -471,52 +471,46 @@ OscillationReactor :: OscillationReactor()
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
+#ifdef UseVolumes //To use 2 volumes, otherwise 100 cells.
+                if(idx==0)//GdLs
+                {
+                    DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD);
+                }
+                else//Ls
+                {
+                    DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsLs(AD);
+                }
+#else
                 if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
                 {
-                    
-#ifdef UseGdLs_LsVolumes //To use 2 volumes, otherwise 100 cells.
-                    
-                    if(idx==0)//GdLs
+                    if(isH)//Hydrogen LS
+                    {
+                        DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsLs(AD)/(XCellLimit+YCellLimit+(YCellLimit-2)*4);//52 cells (10+10+(10-2)+(10-2)+(10-2)+(10-2)) Share uniformly the mass
+                        
+                    }
+                    else//nGd only 1 volume
                     {
                         DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD);
                     }
-                    else//Ls
-                    {
-                        DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsLs(AD);
-                    }
-                    
-#else
-                    if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
-                    {
-                        if(Analysis)//Hydrogen LS
-                        {
-                            DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsLs(AD)/(XCellLimit+YCellLimit+(YCellLimit-2)*4);//52 cells (10+10+(10-2)+(10-2)+(10-2)+(10-2)) Share uniformly the mass
-                            
-                        }
-                        else//nGd only 1 volume
-                        {
-                            DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD);
-                        }
-                    }
-                    else//GdLS
-                    {
-                        DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD)/((XCellLimit-4)*(YCellLimit-2));//48 cells, Share uniformly the mass
-                    }
+                }
+                else//GdLS
+                {
+                    DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD)/((XCellLimit-4)*(YCellLimit-2));//48 cells, Share uniformly the mass
+                }
 #endif
-                
                 for (Int_t week = 0; week <Nweeks; week++)
                 {
                     NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy);
                     
                     DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]=NominalDetectorEfficiency[AD][week][idx][idy];
                 }
-            }
-        }
+            }//idy
+        }//idx
         for (Int_t week = 0; week <Nweeks; week++)
         {
             FullTime[week+AD*Nweeks] = Nom->GetFullTime(AD,week);
         }
-    }
+    }//AD
     
     delete Nom;
 }
@@ -667,11 +661,7 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
-                if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
-                {
-                    
-#ifdef UseGdLs_LsVolumes //To use 2 volumes, otherwise 100 cells.
-                    
+#ifdef UseVolumes //To use 2 volumes, otherwise 100 cells.
                     if(idx==0)//GdLs
                     {
                         DetectorProtons[AD][idx][idy] = Data->GetDetectorProtonsGdLs(AD);
@@ -680,11 +670,10 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
                     {
                         DetectorProtons[AD][idx][idy] = Data->GetDetectorProtonsLs(AD);
                     }
-                    
 #else
                     if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
                     {
-                        if(Analysis)//Hydrogen LS
+                        if(isH)//Hydrogen LS
                         {
                             DetectorProtons[AD][idx][idy] = Data->GetDetectorProtonsLs(AD)/(XCellLimit+YCellLimit+(YCellLimit-2)*4);//52 cells (10+10+(10-2)+(10-2)+(10-2)+(10-2)) Share uniformly the mass
                             
@@ -706,21 +695,23 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
                     
                     DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]=NominalDetectorEfficiency[AD][week][idx][idy];
                 }
-            }
-        }
+            }//idy
+        }//idx
         
         for (Int_t week = 0; week <Nweeks; week++)
         {
             FullTime[week+AD*Nweeks] = Data->GetFullTime(AD,week);
         }
-    }
+            
+    }//AD
     
     NominalDetectorEfficiencyDelayed = Data->GetEnergyDelayedCutDetectorEfficiency();
+
     for (Int_t AD = 0; AD<NADs; AD++)
     {
         DetectorEfficiencyDelayed[AD] = NominalDetectorEfficiencyDelayed;
     }
-    
+        
     DetectorEfficiencyRelativeError = Data->GetDetectorEfficiencyRelativeError();
     
 }

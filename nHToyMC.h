@@ -1218,7 +1218,7 @@ void nHToyMC :: Toy(bool mode)
 #endif
                 Int_t VolumeXbin, VolumeYbin;
 
-#ifdef UseGdLs_LsVolumes
+#ifdef UseVolumes
                 //Logic to detect to translate cell bins to volume bins (check if the cell is inside the GdLs or the Ls volume)
                 VolumeYbin = 1;
 
