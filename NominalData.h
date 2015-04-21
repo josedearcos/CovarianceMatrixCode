@@ -13,7 +13,7 @@
 
 bool TestAllTheSame = 0;
 
-//#define UseVolumes //To use 2 volumes, otherwise 100 cells.
+#define UseVolumes //To use 2 volumes, otherwise 100 cells.
 
 #define PrintEps//To save results in .eps files
 //#define BlindedAnalysis // To use blinded reactor model and distances. Not all the files are operative (only those coming from Christine's reactor model)
@@ -61,6 +61,7 @@ const Int_t Z_binnum  = 10;                      // ---> set option
 const Double_t Z_lower   = -2;// m                  // ---> set option
 const Double_t Z_upper   = 2;// m                   // ---> set option
 
+#ifdef UseVolumes
 const Int_t VolumeX = 2;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
 
 const Double_t VolumeX_lower  = 0;// m2                  // ---> set option
@@ -70,28 +71,17 @@ const Int_t VolumeY = 1;                      // ---> set option: divide the vol
 
 const Double_t VolumeY_lower  = 0;// m2                  // ---> set option
 const Double_t VolumeY_upper  = 1;// m2                  // ---> set option
+#else
+const Int_t VolumeX = R2_binnum;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
 
-//#ifdef UseVolumes
-//const Int_t VolumeX = 2;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
-//
-//const Double_t VolumeX_lower  = 0;// m2                  // ---> set option
-//const Double_t VolumeX_upper  = 2;// m2                  // ---> set option
-//
-//const Int_t VolumeY = 1;                      // ---> set option: divide the volume to sub-regions (1, Ls) (10 cells)
-//
-//const Double_t VolumeY_lower  = 0;// m2                  // ---> set option
-//const Double_t VolumeY_upper  = 1;// m2                  // ---> set option
-//#else
-//const Int_t VolumeX = R2_binnum;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
-//
-//const Double_t VolumeX_lower  = 0;// m2                  // ---> set option
-//const Double_t VolumeX_upper  = 4;// m2                  // ---> set option
-//
-//const Int_t VolumeY = Z_binnum;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
-//
-//const Double_t VolumeY_lower  = -2;// m2                  // ---> set option
-//const Double_t VolumeY_upper  = 2;// m2                  // ---> set option
-//#endif
+const Double_t VolumeX_lower  = 0;// m2                  // ---> set option
+const Double_t VolumeX_upper  = 4;// m2                  // ---> set option
+
+const Int_t VolumeY = Z_binnum;                      // ---> set option: divide the volume to sub-regions (2, GdLs-Ls) (10 cells = R2_binnum)
+
+const Double_t VolumeY_lower  = -2;// m2                  // ---> set option
+const Double_t VolumeY_upper  = 2;// m2                  // ---> set option
+#endif
 
 class NominalData
 {
