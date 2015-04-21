@@ -1,0 +1,52 @@
+
+# DO NOT DELETE
+
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TFile.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TDirectoryFile.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TDirectory.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TNamed.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TObject.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/Rtypes.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/RConfig.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/RVersion.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/DllImport.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/Rtypeinfo.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/snprintf.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/strlcpy.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TGenericClassInfo.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TSchemaHelper.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TStorage.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TVersionCheck.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/Riosfwd.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TBuffer.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TString.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TMathBase.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TList.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TSeqCollection.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TCollection.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TIterator.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TDatime.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TUUID.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TMap.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/THashTable.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TUrl.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TGraph.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TAttLine.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TAttFill.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TAttMarker.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TVectorFfwd.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TVectorDfwd.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TFitResultPtr.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TH1D.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TH1.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TAxis.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TAttAxis.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TArrayD.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TArray.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TArrayC.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TArrayS.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TArrayI.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/TArrayF.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/Foption.h
+./CreateWeeklyFluxRootFile_C.so: /Users/royal/root/include/cintdictversion.h /Users/royal/root/include/RVersion.h
+CreateWeeklyFluxRootFile_C__ROOTBUILDVERSION= 5.34/11

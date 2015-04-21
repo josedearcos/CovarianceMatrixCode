@@ -4179,7 +4179,7 @@ void FitterGui :: ChooseCovarianceMatrix()
     {
         case 0:
             Automatic = 1;
-            std::cout << " all Matrices " << std::endl;
+            std::cout << " All Matrices " << std::endl;
             break;
         case 1:
             VaryAccidentalMatrix=1;

@@ -165,11 +165,11 @@ private:
     TH1D* NearSpectrumH[MaxNearDetectors][MatrixBins];//
     TH1D* FarHallSpectrumH[MaxFarDetectors][MaxNearDetectors][MatrixBins];//
 
-    TH1D* NearSpectrumFractionH[NReactors][MaxNearDetectors][MatrixBins][VolumeX][VolumeY];//
-    TH1D* FarHallSpectrumFractionH[MaxFarDetectors][MaxNearDetectors][NReactors][MatrixBins][VolumeX][VolumeY];//
+    TH1D* NearSpectrumFractionH[MaxNearDetectors][NReactors][MatrixBins][VolumeX][VolumeY];//
+    TH1D* FarHallSpectrumFractionH[MaxNearDetectors][NReactors][MaxFarDetectors][MatrixBins][VolumeX][VolumeY];//
     TH1D* FarHallCellSpectrumH[MaxFarDetectors][MaxNearDetectors][MatrixBins][VolumeX][VolumeY];//
 
-    TH1D* FluxFractionH[MaxFarDetectors/2][NReactors][VolumeX][VolumeY];//
+    TH1D* FluxFractionH[MaxNearDetectors][NReactors][VolumeX][VolumeY];//
     std::vector<TH1D*> ExtrapolationH;//
     
     TH1D* TrueADSpectrumH[MaxNearDetectors][MatrixBins][VolumeX][VolumeY];//
@@ -648,11 +648,13 @@ Oscillation :: ~Oscillation()
         {
             for (Int_t reactor = 0; reactor < NReactors; reactor++)
             {
+#ifdef PlotOscillationFunctions
                 delete OscillationFunction[near*NReactors+reactor];
-                for (Int_t far = 0; far<(ADsEH3); far++)//far
-                {
-                    delete ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors];
-                }
+#endif
+//                for (Int_t far = 0; far<(ADsEH3); far++)//far
+//                {
+//                    delete ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors];
+//                }
             }
         }
         
@@ -767,6 +769,13 @@ void Oscillation :: OscillationFromNearHallData(Int_t Week,bool ToyMC,bool mode)
     //Save oscillation functions for demonstration purposes.
     CalculateOscillationFunction();
     SaveOscillationFunction();
+#endif
+    
+    //resize has to be done only once, outside the loops
+    Norma.resize(n_etrue_bins*(ADsEH1+ADsEH2));
+
+#ifdef PlotExtrapolationFactors
+    ExtrapolationH.resize(ADsEH3*NReactors*(ADsEH1+ADsEH2));
 #endif
     
     for(Int_t idx=0; idx<XCellLimit; idx++)
@@ -945,8 +954,6 @@ void Oscillation :: CalculateFluxFraction(Int_t idx, Int_t idy)
     
     Char_t filenameFluxFraction[100];
     
-    Norma.resize(n_etrue_bins*(ADsEH1+ADsEH2));
-    
     for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
     {
         for(Int_t pts=0;pts<n_etrue_bins;pts++)
@@ -1046,6 +1053,8 @@ void Oscillation :: CalculateFluxFraction(Int_t idx, Int_t idy)
         delete FluxFracC;
     }
     #endif
+    
+    std::cout << " CalculateFluxFraction ended " << std::endl;
 }
 
 void Oscillation :: NearSpectrumFraction(Int_t idx, Int_t idy)
@@ -1207,10 +1216,6 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
     Char_t filenameExtrapolation[100];
     
 #ifdef PlotExtrapolationFactors
-    ExtrapolationH.resize(ADsEH3*NReactors*(ADsEH1+ADsEH2));
-#endif
-    
-#ifdef PlotExtrapolationFactors
     Int_t cont;
     TCanvas *c2;
     if(idx==Int_t(XCellLimit/2)&&idy==Int_t(YCellLimit/2))
@@ -1220,18 +1225,18 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
         cont=0;
     }
 #endif
-    
+
     for (Int_t far = 0; far<(ADsEH3); far++)//far
     {
         for (Int_t near = 0; near<(ADsEH1+ADsEH2); near++)//near
         {
-            #ifdef PlotExtrapolationFactors
+#ifdef PlotExtrapolationFactors
             if(idx==Int_t(XCellLimit/2)&&idy==Int_t(YCellLimit/2))
             {
                 ++cont;
                 c2->cd(cont);
             }
-            #endif
+#endif
             for (Int_t reactor = 0; reactor<NReactors; reactor++)
             {
                 if(Nweeks==1)
@@ -1257,6 +1262,8 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
                     (FluxH[reactor][near][week][idx][idy]->GetBinContent(pts+1)
                     // *(DetectorEfficiency[near*Nweeks+week]*FullTime[near][week]*DetectorProtons[near])
                      *OscProb(ADdistances[near*NReactors+reactor],Energy,s22t13,dm2ee)*ADdistances[(far+(ADsEH1+ADsEH2))*NReactors+reactor]*ADdistances[(far+(ADsEH1+ADsEH2))*NReactors+reactor]);
+                    
+                    std::cout << Extrapolation[near][reactor][far][pts][idx][idy] << near << reactor << far << pts << idx << idy << " Flux: " << FluxH[reactor][far+(ADsEH1+ADsEH2)][week][idx][idy]->GetBinContent(pts+1) << std::endl;
 #ifdef PlotExtrapolationFactors
 
                     ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->SetBinContent(pts+1,Extrapolation[near][reactor][far][pts][idx][idy]);
@@ -1283,7 +1290,7 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
                 }
                 ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->Draw("same");
                 //ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->Write();
-                delete ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors];
+                //delete ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors];
 #endif
             }
         }
@@ -1297,6 +1304,8 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
     #endif
     
     //delete FactorF;
+    
+    std::cout << "Get Extrapolation ended" << std::endl;
 }
 
 void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
@@ -1821,7 +1830,7 @@ void Oscillation :: GenerateFluxHisto()
         std::cout << " NEEDED A BLINDED WEEKLY FLUX FILE" << std::endl;
         exit(EXIT_FAILURE);
 #else
-        sprintf(ReactorData, Form("./ReactorInputs/WeeklyFlux_%dweek_unblinded.root",NReactorPeriods));
+        sprintf(ReactorData, Form("./ReactorInputs/WeeklyFlux_%dweek_unblinded.root",NReactorPeriods));//Default one
 #endif
     }
     
@@ -1850,7 +1859,7 @@ void Oscillation :: GenerateFluxHisto()
             }
             else
             {
-                sprintf(ReactorSpectrum,"Week%i/%i", period, reactor);
+                sprintf(ReactorSpectrum,"Week%i/%i", period, reactor);//Default one
             }
 #ifdef NoOscillation
             //To show a flat extrapolation factor and flux fraction

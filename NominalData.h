@@ -123,7 +123,7 @@ private:
     Double_t m_detectorEfficiency_spill;
     
     //nH Efficiency map
-    TH2D *h2d_Ep_ratio2center[MaxDetectors*MaxPeriods];
+//    TH2D *h2d_Ep_ratio2center[MaxDetectors*MaxPeriods];
     
     Double_t ADIntegral[MaxDetectors];
     Double_t CellIntegral[MaxDetectors][VolumeX][VolumeY];
@@ -722,6 +722,16 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
         //Attenuation length -> Relative Energy Scale
         m_rel_escale_error = 0.0065; // 0.65%
         
+        //Efficiency errors (right now same than nGd, need to update this and consider the oscillation reactor-volume efficiency)
+        m_detectorEfficiency_Dt = 0.986;
+        m_detectorEfficiency_Ep = 0.9988;
+        m_detectorEfficiency_Ed_nominal = 0.909;
+        m_detectorEfficiency_flash = 0.9998;
+        m_detectorEfficiency_nGd = 0.838;
+        m_detectorEfficiency_spill = 1.050;
+        
+        DetectorEfficiencyRelativeError = 0.0014;
+        
         if(DataSet==1)
         {
             //p12b values
@@ -1031,16 +1041,16 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
 
 NominalData:: ~NominalData()
 {
-    if(delete_nH_maps_flag)
-    {
-        for(Int_t week = 0; week<NReactorPeriods; week++)
-        {
-            for(Int_t AD = 0; AD<NADs; AD++)
-            {
-                delete h2d_Ep_ratio2center[AD+NADs*week];
-            }
-        }
-    }
+//    if(delete_nH_maps_flag)
+//    {
+//        for(Int_t week = 0; week<NReactorPeriods; week++)
+//        {
+//            for(Int_t AD = 0; AD<NADs; AD++)
+//            {
+//                delete h2d_Ep_ratio2center[AD+NADs*week];
+//            }
+//        }
+//    }
 }
 
 void NominalData :: CopyData(NominalData * data)
@@ -1079,10 +1089,10 @@ void NominalData :: CopyData(NominalData * data)
     m_detectorEfficiency_nGd = data->m_detectorEfficiency_nGd;
     m_detectorEfficiency_spill = data->m_detectorEfficiency_spill;
     
-    if(isH)
-    {
-        std::copy(std::begin(data->h2d_Ep_ratio2center), std::end(data->h2d_Ep_ratio2center), std::begin(h2d_Ep_ratio2center));
-    }
+//    if(isH)
+//    {
+//        std::copy(std::begin(data->h2d_Ep_ratio2center), std::end(data->h2d_Ep_ratio2center), std::begin(h2d_Ep_ratio2center));
+//    }
     
     //Toy samples
     NSamples = data->NSamples;
@@ -1987,7 +1997,9 @@ Double_t NominalData :: GetDetectorEfficiency(Int_t detector, Int_t week, Int_t 
     }
     else
     {
-        return    MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorEfficiency_spill*m_detectorEfficiency_nGd*m_detectorEfficiency_Dt*m_detectorEfficiency_Ep*m_detectorEfficiency_Ed_nominal*m_detectorEfficiency_flash*h2d_Ep_ratio2center[detector+NADs*week]->GetBinContent(idx+1,idy+1);//Return by cell!, the 2d map is a ratio of the cell events to center, use the nominal efficiencies in the nH study, this users the nGd cut ones.
+        return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorEfficiency_spill*m_detectorEfficiency_nGd*m_detectorEfficiency_Dt*m_detectorEfficiency_Ep*m_detectorEfficiency_Ed_nominal*m_detectorEfficiency_flash;
+        
+        //h2d_Ep_ratio2center[detector+NADs*week]->GetBinContent(idx+1,idy+1);//Return by cell!, the 2d map is a ratio of the cell events to center, use the nominal efficiencies in the nH study, this users the nGd cut ones.
     }
 }
 
@@ -2850,18 +2862,18 @@ void NominalData :: LoadnHEfficiencyMaps()
     ReadEventsByCell();
 #endif
     //This file should have efficiencies taken from data for each week/ad/cell
-    TFile *roofile_h2d_ep_ratio2center = new TFile("./Inputs/HInputs/Data/cell_eff/h2d_ep_ratio2center.root", "read");
+//    TFile *roofile_h2d_ep_ratio2center = new TFile("./Inputs/HInputs/Data/cell_eff/h2d_ep_ratio2center.root", "read");
+//    
+//    for(Int_t week = 0; week<NReactorPeriods; week++)
+//    {
+//        for(Int_t AD = 0; AD<NADs; AD++)
+//        {
+//            h2d_Ep_ratio2center[AD+NADs*week] = (TH2D*)roofile_h2d_ep_ratio2center->Get("h2d_ep_ratio2center");
+//        }
+//    }
+//    delete roofile_h2d_ep_ratio2center;
     
-    for(Int_t week = 0; week<NReactorPeriods; week++)
-    {
-        for(Int_t AD = 0; AD<NADs; AD++)
-        {
-            h2d_Ep_ratio2center[AD+NADs*week] = (TH2D*)roofile_h2d_ep_ratio2center->Get("h2d_ep_ratio2center");
-        }
-    }
-    delete roofile_h2d_ep_ratio2center;
-    
-    delete_nH_maps_flag = 1;
+//delete_nH_maps_flag = 1;
 }
 
 void NominalData :: ReadEventsByCell()

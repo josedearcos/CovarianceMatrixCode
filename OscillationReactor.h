@@ -504,6 +504,8 @@ OscillationReactor :: OscillationReactor()
                     NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy);
                     
                     DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]=NominalDetectorEfficiency[AD][week][idx][idy];
+                    
+                       std::cout << "\t \t \t Nominal Detector Efficiency in AD" << AD << " ,week: " << week << " Cell: " << idx << "," << idy << " inside OscillationReactor.h: " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy] << std::endl;
                 }
             }//idy
         }//idx
@@ -695,6 +697,8 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
                     NominalDetectorEfficiency[AD][week][idx][idy] = Data->GetDetectorEfficiency(AD,week,idx,idy);
                     
                     DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]=NominalDetectorEfficiency[AD][week][idx][idy];
+                    std::cout << "\t \t \t Nominal Detector Efficiency in AD" << AD << " ,week: " << week << " Cell: " << idx << "," << idy << " inside OscillationReactor.h: " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy] << std::endl;
+
                 }
             }//idy
         }//idx
@@ -1800,7 +1804,7 @@ void OscillationReactor:: RandomEfficiency()
                     * DetectorEfficiencyDelayed[AD]
                     * NominalDetectorEfficiency[AD][week][idx][idy]/NominalDetectorEfficiencyDelayed;//I divide over the nominal detector efficiency delayed because it is included in the total NominalDetectorEfficiency magnitude.
                     
-                    std::cout << "\t \t \t Detector Efficiency : " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy] << std::endl;
+                       std::cout << "\t \t \t Random Detector Efficiency in AD" << AD << " ,week: " << week << " Cell: " << idx << "," << idy << " inside OscillationReactor.h: " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy] << std::endl;
                 }
             }
         }

@@ -10,6 +10,14 @@
 int CreateWeeklyFluxRootFile(){
     
     TH1::AddDirectory(kFALSE);
+    const Double_t conv_m2_per_cm2 = 1.0e-4;
+    const Double_t conv_s_per_day = 24*60*60;
+    
+    //Load Cross Section:
+    TFile* CrossSectionF = new TFile("../../CrossSections/nHCrossSection.root");//Zhe's file
+    TH1D* CrossSectionH = (TH1D*)gDirectory->Get("CrossSection");
+    CrossSectionH->Scale(10e-42);
+    delete CrossSectionF;
     
     const Int_t NReactors=6;
     const Int_t NIHEPReactorBins = 33; // 1.5, 1.75, ..., 9.25, 9.5 in 0.25 MeV steps
@@ -17,7 +25,9 @@ int CreateWeeklyFluxRootFile(){
     Double_t eMax=9.5;
     Double_t binWidth = 0.25;
     const Int_t MaxPeriods = 101;
-    TH1D* ReactorSpectrum[NReactors];
+    TH1D* ReactorSpectrum[NReactors][MaxPeriods];
+    TH1D* InclusiveReactorSpectrum[NReactors];
+
     Double_t m_dNdE_nom[NReactors*(NIHEPReactorBins+1)*MaxPeriods];
 
     Int_t curPeriod;
@@ -81,35 +91,39 @@ int CreateWeeklyFluxRootFile(){
         fileData.close();
     }
     
-    for(Int_t period = 0; period<curPeriod; period++)
+    static bool linearInterp = true;// By default, use linear interpolation between nearest sample points
+
+    for (Int_t reactor = 0; reactor < NReactors; reactor++)
     {
-        for (Int_t reactor = 0; reactor < NReactors; reactor++)
+        InclusiveReactorSpectrum[reactor] = new TH1D(Form("%i",reactor),Form("%i",reactor),NIHEPReactorBins-1,1.5,9.5);
+        
+        for(Int_t period = 0; period<curPeriod; period++)
         {
-            ReactorSpectrum[reactor] = new TH1D(Form("%i",reactor),Form("%i",reactor),NIHEPReactorBins-1,1.5,9.5);
+            ReactorSpectrum[reactor][period] = new TH1D(Form("%i%i",reactor,period),Form("%i%i",reactor,period),NIHEPReactorBins-1,1.5,9.5);
             
             for (Int_t bin = 0; bin <=NIHEPReactorBins; bin++)
             {
-                // By default, use linear interpolation between nearest sample points
-                
                 Int_t binIdxLow = bin;
                 Double_t e_nu = eMin + binIdxLow*binWidth + binWidth/2;//center of the bin
                 Double_t value = m_dNdE_nom[reactor+NReactors*bin+period*NReactors*NIHEPReactorBins];
                 
-                static bool linearInterp = true;
-                if(linearInterp){
+                if(linearInterp)
+                {
                     Int_t binIdxHigh = binIdxLow+1;
                     Double_t binLowE = eMin + binIdxLow*binWidth;
                     Double_t dE = e_nu - binLowE;
                     Double_t slope = (m_dNdE_nom[reactor+NReactors*binIdxHigh+period*NReactors*NIHEPReactorBins]
-                                    - m_dNdE_nom[reactor+NReactors*binIdxLow+period*NReactors*NIHEPReactorBins])/binWidth;
+                                      - m_dNdE_nom[reactor+NReactors*binIdxLow+period*NReactors*NIHEPReactorBins])/binWidth;
                     value += dE*slope;
                 }
-                ReactorSpectrum[reactor]->SetBinContent(bin+1,value);
+                ReactorSpectrum[reactor][period]->SetBinContent(bin+1,value*CrossSectionH->Interpolate(e_nu));
             }
+            
+            InclusiveReactorSpectrum[reactor]->Add(ReactorSpectrum[reactor][period]);
         }
     }
     
-    TFile* SaveWeeklyFluxF = new TFile(Form("../WeeklyFlux_%dweek_unblinded_inclusive.root",curPeriod),"recreate");
+    TFile* SaveWeeklyFluxF = new TFile(Form("../WeeklyFlux_%dweek_unblinded.root",curPeriod),"recreate");
     
     for(Int_t period = 0; period<curPeriod; period++)
     {
@@ -119,12 +133,27 @@ int CreateWeeklyFluxRootFile(){
 
         for (Int_t reactor = 0; reactor < NReactors; reactor++)
         {
-            ReactorSpectrum[reactor]->Write();
+            ReactorSpectrum[reactor][period]->SetName(Form("%i",reactor));
+            ReactorSpectrum[reactor][period]->SetTitle(Form("%i",reactor));
+
+            ReactorSpectrum[reactor][period]->Write();
         }
     }
     
     delete SaveWeeklyFluxF;
+    
+    TFile* SaveInclusiveWeeklyFluxF = new TFile(Form("../WeeklyFlux_%dweek_unblinded_inclusive.root",curPeriod),"recreate");
 
+        TDirectory* TotalDirectory = SaveInclusiveWeeklyFluxF->mkdir(Form("Week%i",0));
+        
+        SaveInclusiveWeeklyFluxF->cd(Form("Week%i",0));
+        
+        for (Int_t reactor = 0; reactor < NReactors; reactor++)
+        {
+            InclusiveReactorSpectrum[reactor]->Write();
+        }
+    
+    delete SaveInclusiveWeeklyFluxF;
     
     return 0;
 }
