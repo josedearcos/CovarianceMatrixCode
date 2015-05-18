@@ -1,0 +1,48 @@
+# Total number of time periods
+1
+# Volume 0=GD-LS, 1=LS Volume
+0
+# Delta M^2_{32} and uncertainty  (in eV^2)
+0.00243  0.00013
+# ===============================================================
+# Note, AD1/2 for EH1AD1/2, AD3/4 for EH2AD1/2, AD5/6/7/8 for EH3AD1/2/3/4
+# First column is time period number, second column is row number
+# The nominal period for each set of entries is one week
+# Row 0 ==>  Start UTC  |  End UTC | Start date and time
+# Row 1 ==>  Observed number of events in AD1 to AD8
+# Row 2 ==>  Live time in days for AD1 to AD8
+# Row 3 ==>  Muon veto efficiency for AD1 to AD8
+# Row 4 ==>  Multiplicity cut efficiency for AD1 to AD8
+# Row 5 ==>  Target Mass (kg) for AD1 to AD8
+# Row 6 ==>  Hydrogen capture fraction () for AD1 to AD8
+# Row 7 ==>  Efficiency of Prompt energy, Delayed energy, time, distance
+# Row 8 ==>  Uncorrelated detector efficiency uncertainty  (relative error in )
+# Row 9 ==>  Uncorrelated reactor power uncertainty (relative error in )
+#### Note: The background estimates are corrected for muon veto efficiency and multiplicity efficiency
+# Row 10 ==>  Expected number of accidental events per live day (AD1 to AD8)
+# Row 11 ==>  Absolute uncertainty on the accidental bkg per live day
+# Row 12 ==>  Expected number of fast-n events per live day (AD1 to AD8)
+# Row 13 ==>  Absolute uncertainty on the fast-n bkg per live day
+# Row 14 ==>  Expected number of li9/he8 events per live day (AD1 to AD8)
+# Row 15 ==>  Absolute uncertainty on the li9/he8 bkg per live day
+# Row 16 ==>  Expected number of AmC-corr events per live day (AD1 to AD8)
+# Row 17 ==>  Absolute uncertainty on the AmC-corr bkg per live day
+# ===============================================================
+1 0 136847404800.000000 136908489600.000000 2032636302.000000 
+1 1 44555.000000 44759.000000 42457.000000 27797.000000 8704.000000 8392.000000 8747.000000 5721.000000 
+1 2 565.434700 565.434700 568.017300 378.406300 562.412900 562.412900 562.412900 372.684300 
+1 3 0.716240 0.713536 0.750960 0.486765 0.884209 0.884208 0.884060 0.573291 
+1 4 0.886929 0.887023 0.887121 0.575185 0.886998 0.886743 0.886625 0.575086 
+1 5 19941.000000 19967.000000 19891.000000 19944.000000 19917.000000 19989.000000 19892.000000 19931.000000 
+1 6 15.700000 15.700000 15.700000 15.700000 15.700000 15.700000 15.700000 15.700000 
+1 7 0.660000 0.660000 0.660000 0.660000 0.660000 0.660000 0.660000 0.660000 
+1 8 0.670000 0.670000 0.670000 0.670000 0.670000 0.670000 0.670000 0.670000 
+1 9 0.900000 0.900000 0.900000 0.900000 0.900000 0.900000 0.900000 0.900000 
+1 10 519.485000 532.773500 494.003000 317.338500 502.312200 500.251900 522.648300 330.924700 
+1 11 0.009258 0.009496 0.007827 0.005024 0.002478 0.002470 0.002580 0.001642 
+1 12 11.110000 11.110000 8.080000 8.080000 1.010000 1.010000 1.010000 1.010000 
+1 13 0.030000 0.030000 0.020000 0.020000 0.000000 0.000000 0.000000 0.000000 
+1 14 80.800000 80.800000 67.670000 67.670000 7.070000 7.070000 7.070000 7.070000 
+1 15 0.300000 0.300000 0.240000 0.240000 0.030000 0.030000 0.030000 0.030000 
+1 16 2.020000 2.020000 2.020000 2.020000 1.010000 1.010000 1.010000 1.010000 
+1 17 0.010000 0.010000 0.010000 0.010000 0.010000 0.010000 0.010000 0.000000 

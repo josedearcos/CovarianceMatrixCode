@@ -62,7 +62,6 @@ AntineutrinoSpectrum :: AntineutrinoSpectrum()
     exit(EXIT_FAILURE);
     
     Nom = new NominalData(0,2);
-//    DetectorProtons = Nom->GetDetectorProtons(0);//  AD1
     InitialEnergy = Nom->GetEmin();
     FinalVisibleEnergy = Nom->GetEVisMax();
     Analysis = Nom->GetAnalysis();//  Gd or H data
@@ -80,7 +79,6 @@ AntineutrinoSpectrum :: AntineutrinoSpectrum()
 
 AntineutrinoSpectrum :: AntineutrinoSpectrum(NominalData* Data)
 {
-//    DetectorProtons = Data->GetDetectorProtons(0);
     InitialEnergy = Data->GetEmin();
     FinalVisibleEnergy = Data->GetEVisMax();
     Analysis = Data->GetAnalysis();//  Gd or H data

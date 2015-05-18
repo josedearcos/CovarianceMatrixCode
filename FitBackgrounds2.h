@@ -18,6 +18,8 @@ private:
     TF1* HAmCFunc;
     TF1* GdAmCFunc;
     bool isH;
+    Int_t XCellLimit;
+    Int_t YCellLimit;
     
     Int_t Nweeks;
     Int_t NADs;
@@ -31,19 +33,19 @@ private:
     TH1D* AmCH;
     TH1D* BackgroundsH[BGNDs];
     
-    TH1D* FinalAccidentalsH[MaxDetectors][MaxPeriods];
-    TH1D* FinalLiHeH[MaxDetectors][MaxPeriods];
-    TH1D* FinalFastNeutronsH[MaxDetectors][MaxPeriods];
-    TH1D* FinalAmCH[MaxDetectors][MaxPeriods];
+    TH1D* FinalAccidentalsH[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+    TH1D* FinalLiHeH[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+    TH1D* FinalFastNeutronsH[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+    TH1D* FinalAmCH[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     
-    TH1D* NearBackgroundSpectrumH[MaxDetectors][MaxPeriods];
-    TH1D* FarBackgroundSpectrumH[MaxDetectors][MaxPeriods];
+    TH1D* NearBackgroundSpectrumH[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+    TH1D* FarBackgroundSpectrumH[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     
     //  Background rates:
-    Double_t ScaleAcc[MaxDetectors][MaxPeriods];
-    Double_t ScaleLiHe[MaxDetectors][MaxPeriods];
-    Double_t ScaleFN[MaxDetectors][MaxPeriods];
-    Double_t ScaleAmC[MaxDetectors][MaxPeriods];
+    Double_t ScaleAcc[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+    Double_t ScaleLiHe[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+    Double_t ScaleFN[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+    Double_t ScaleAmC[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     
     //Binning parameters:
     Int_t n_evis_bins;
@@ -74,15 +76,20 @@ FitBackgrounds2 :: FitBackgrounds2()
     ADsEH2 = 1;
     ADsEH3 = 3;
     isH = Nom->GetAnalysis();
+    
     if(isH)
     {
         AnalysisString = "Hydrogen";
         SaveString = "HBackground";
+        XCellLimit = VolumeX;
+        YCellLimit = VolumeY;
     }
     else
     {
         AnalysisString = "Gadolinium";
         SaveString = "GDBackground";
+        XCellLimit = 1;
+        YCellLimit = 1;
     }
     if(NADs == 8)//    ADs can only be 6 or 8
     {
@@ -105,10 +112,16 @@ FitBackgrounds2 :: FitBackgrounds2()
     {
         for (Int_t week = 0; week<Nweeks; week++)
         {
-            ScaleAcc[AD][week]=Nom->GetAccidentalEvents(AD,week);
-            ScaleLiHe[AD][week]=Nom->GetLiHeEvents(AD,week);
-            ScaleFN[AD][week]=Nom->GetFNEvents(AD,week);
-            ScaleAmC[AD][week]=Nom->GetAmCEvents(AD,week);
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    ScaleAcc[AD][week][idx][idy]=Nom->GetAccidentalEvents(AD,week,idx,idy);
+                    ScaleLiHe[AD][week][idx][idy]=Nom->GetLiHeEvents(AD,week,idx,idy);
+                    ScaleFN[AD][week][idx][idy]=Nom->GetFNEvents(AD,week,idx,idy);
+                    ScaleAmC[AD][week][idx][idy]=Nom->GetAmCEvents(AD,week,idx,idy);
+                }
+            }
         }
     }
     delete Nom;
@@ -127,11 +140,15 @@ FitBackgrounds2 :: FitBackgrounds2(NominalData* Data)
     {
         AnalysisString = "Hydrogen";
         SaveString = "HBackground";
+        XCellLimit = VolumeX;
+        YCellLimit = VolumeY;
     }
     else
     {
         AnalysisString = "Gadolinium";
         SaveString = "GDBackground";
+        XCellLimit = 1;
+        YCellLimit = 1;
     }
     if(NADs == 8)//    ADs can only be 6 or 8
     {
@@ -154,10 +171,16 @@ FitBackgrounds2 :: FitBackgrounds2(NominalData* Data)
     {
         for (Int_t week = 0; week<Nweeks; week++)
         {
-            ScaleAcc[AD][week]=Data->GetAccidentalEvents(AD,week);
-            ScaleLiHe[AD][week]=Data->GetLiHeEvents(AD,week);
-            ScaleFN[AD][week]=Data->GetFNEvents(AD,week);
-            ScaleAmC[AD][week]=Data->GetAmCEvents(AD,week);
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    ScaleAcc[AD][week][idx][idy]=Data->GetAccidentalEvents(AD,week,idx,idy);
+                    ScaleLiHe[AD][week][idx][idy]=Data->GetLiHeEvents(AD,week,idx,idy);
+                    ScaleFN[AD][week][idx][idy]=Data->GetFNEvents(AD,week,idx,idy);
+                    ScaleAmC[AD][week][idx][idy]=Data->GetAmCEvents(AD,week,idx,idy);
+                }
+            }
         }
     }
 }
@@ -261,7 +284,7 @@ void FitBackgrounds2 :: ReadHBackgrounds()
         // AccidentalsH[AD]->Draw();
         BackgroundsH[AD]->Draw();
     }
-    BGNDC->Print("./Images/BackgroundVariations/HydrogenBackgrounds.eps");
+    BGNDC->Print("./Images/Hydrogen/BackgroundVariations/HydrogenBackgrounds.eps");
     
     delete BGNDC;
     #endif
@@ -363,42 +386,48 @@ void FitBackgrounds2::SaveAndDelete()
         {
             for (Int_t AD = 0; AD<NADs; AD++)
             {
-                if(BGND<NADs)//Accidentals
+                for(Int_t idx=0; idx<XCellLimit; idx++)
                 {
-                    FinalAccidentalsH[AD][week]=(TH1D*)BackgroundsH[BGND]->Clone(Form("Accidentals_AD%i",AD));
-                    FinalAccidentalsH[AD][week]=(TH1D*)FinalAccidentalsH[AD][week]->Rebin(n_evis_bins,Form("Accidentals_AD%i",AD),evis_bins);
-                    
-                    FinalAccidentalsH[AD][week]->Scale(ScaleAcc[AD][week]/FinalAccidentalsH[AD][week]->Integral());
-                    FinalAccidentalsH[AD][week]->SetTitle(Form("Accidentals_AD%i",AD));
-                    //                    std::cout <<ScaleAcc[AD][week]  << " " <<  FinalAccidentalsH[AD][week]->Integral() << std::endl;
-                }
-                else if(BGND==NADs)//LiHe
-                {
-                    FinalLiHeH[AD][week]=(TH1D*)BackgroundsH[BGND]->Clone(Form("LiHe_AD%i",AD));
-                    FinalLiHeH[AD][week]=(TH1D*)FinalLiHeH[AD][week]->Rebin(n_evis_bins,Form("LiHe_AD%i",AD),evis_bins);
-                    FinalLiHeH[AD][week]->Scale(ScaleLiHe[AD][week]/FinalLiHeH[AD][week]->Integral());
-                    FinalLiHeH[AD][week]->SetTitle("LiHe");
-                    //                    std::cout <<ScaleLiHe[AD][week]  << " " <<  FinalLiHeH[AD][week]->Integral() << std::endl;
-                    
-                }
-                else if(BGND==NADs+1)//FN
-                {
-                    FinalFastNeutronsH[AD][week]=(TH1D*)BackgroundsH[BGND]->Clone(Form("FN_AD%i",AD));
-                    FinalFastNeutronsH[AD][week]=(TH1D*)FinalFastNeutronsH[AD][week]->Rebin(n_evis_bins,Form("FN_AD%i",AD),evis_bins);
-                    FinalFastNeutronsH[AD][week]->Scale(ScaleFN[AD][week]/FinalFastNeutronsH[AD][week]->Integral());
-                    
-                    FinalFastNeutronsH[AD][week]->SetTitle("FN");
-                    //                    std::cout <<ScaleFN[AD][week]  << " " <<  FinalFastNeutronsH[AD][week]->Integral() << std::endl;
-                    
-                }
-                else//AmC
-                {
-                    FinalAmCH[AD][week]=(TH1D*)BackgroundsH[BGND]->Clone(Form("AmC_AD%i",AD));
-                    FinalAmCH[AD][week]=(TH1D*)FinalAmCH[AD][week]->Rebin(n_evis_bins,Form("AmC_AD%i",AD),evis_bins);
-                    FinalAmCH[AD][week]->Scale(ScaleAmC[AD][week]/FinalAmCH[AD][week]->Integral());
-                    FinalAmCH[AD][week]->SetTitle("AmC");
-                    //                    std::cout <<ScaleAmC[AD][week]  << " " <<  FinalAmCH[AD][week]->Integral() << std::endl;
-                    
+                    for(Int_t idy=0; idy<YCellLimit; idy++)
+                    {
+                        if(BGND<NADs)//Accidentals
+                        {
+                            FinalAccidentalsH[AD][week][idx][idy]=(TH1D*)BackgroundsH[BGND]->Clone(Form("Accidentals_AD%i_Volume%i",AD,idx));
+                            FinalAccidentalsH[AD][week][idx][idy]=(TH1D*)FinalAccidentalsH[AD][week][idx][idy]->Rebin(n_evis_bins,Form("Accidentals_AD%i_Volume%i",AD,idx),evis_bins);
+                            
+                            FinalAccidentalsH[AD][week][idx][idy]->Scale(ScaleAcc[AD][week][idx][idy]/FinalAccidentalsH[AD][week][idx][idy]->Integral());
+                            FinalAccidentalsH[AD][week][idx][idy]->SetTitle(Form("Accidentals_AD%i_Volume%i",AD,idx));
+                            //                    std::cout <<ScaleAcc[AD][week][idx][idy]  << " " <<  FinalAccidentalsH[AD][week][idx][idy]->Integral() << std::endl;
+                        }
+                        else if(BGND==NADs)//LiHe
+                        {
+                            FinalLiHeH[AD][week][idx][idy]=(TH1D*)BackgroundsH[BGND]->Clone(Form("LiHe_AD%i_Volume%i",AD,idx));
+                            FinalLiHeH[AD][week][idx][idy]=(TH1D*)FinalLiHeH[AD][week][idx][idy]->Rebin(n_evis_bins,Form("LiHe_AD%i_Volume%i",AD,idx),evis_bins);
+                            FinalLiHeH[AD][week][idx][idy]->Scale(ScaleLiHe[AD][week][idx][idy]/FinalLiHeH[AD][week][idx][idy]->Integral());
+                            FinalLiHeH[AD][week][idx][idy]->SetTitle("LiHe");
+                            //                    std::cout <<ScaleLiHe[AD][week][idx][idy]  << " " <<  FinalLiHeH[AD][week][idx][idy]->Integral() << std::endl;
+                            
+                        }
+                        else if(BGND==NADs+1)//FN
+                        {
+                            FinalFastNeutronsH[AD][week][idx][idy]=(TH1D*)BackgroundsH[BGND]->Clone(Form("FN_AD%i_Volume%i",AD,idx));
+                            FinalFastNeutronsH[AD][week][idx][idy]=(TH1D*)FinalFastNeutronsH[AD][week][idx][idy]->Rebin(n_evis_bins,Form("FN_AD%i_Volume%i",AD,idx),evis_bins);
+                            FinalFastNeutronsH[AD][week][idx][idy]->Scale(ScaleFN[AD][week][idx][idy]/FinalFastNeutronsH[AD][week][idx][idy]->Integral());
+                            
+                            FinalFastNeutronsH[AD][week][idx][idy]->SetTitle("FN");
+                            //                    std::cout <<ScaleFN[AD][week][idx][idy]  << " " <<  FinalFastNeutronsH[AD][week][idx][idy]->Integral() << std::endl;
+                            
+                        }
+                        else//AmC
+                        {
+                            FinalAmCH[AD][week][idx][idy]=(TH1D*)BackgroundsH[BGND]->Clone(Form("AmC_AD%i_Volume%i",AD,idx));
+                            FinalAmCH[AD][week][idx][idy]=(TH1D*)FinalAmCH[AD][week][idx][idy]->Rebin(n_evis_bins,Form("AmC_AD%i_Volume%i",AD,idx),evis_bins);
+                            FinalAmCH[AD][week][idx][idy]->Scale(ScaleAmC[AD][week][idx][idy]/FinalAmCH[AD][week][idx][idy]->Integral());
+                            FinalAmCH[AD][week][idx][idy]->SetTitle("AmC");
+                            //                    std::cout <<ScaleAmC[AD][week][idx][idy]  << " " <<  FinalAmCH[AD][week][idx][idy]->Integral() << std::endl;
+                            
+                        }
+                    }
                 }
             }
         }
@@ -410,29 +439,35 @@ void FitBackgrounds2::SaveAndDelete()
     {
         for (Int_t week = 0; week<Nweeks; week++)
         {
-            if(AD<ADsEH1+ADsEH2)
+            for(Int_t idx=0; idx<XCellLimit; idx++)
             {
-                NearBackgroundSpectrumH[AD][week] = new TH1D(Form("Near AD%i Nominal Background Period%d",AD,week),Form("Near AD%i Nominal Background Period%d",AD,week),n_evis_bins,evis_bins);
-                NearBackgroundSpectrumH[AD][week]->Add(FinalAccidentalsH[AD][week]);
-                NearBackgroundSpectrumH[AD][week]->Add(FinalLiHeH[AD][week]);
-                NearBackgroundSpectrumH[AD][week]->Add(FinalFastNeutronsH[AD][week]);
-                NearBackgroundSpectrumH[AD][week]->Add(FinalAmCH[AD][week]);
-                NearBackgroundSpectrumH[AD][week]->Write();
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    if(AD<ADsEH1+ADsEH2)
+                    {
+                        NearBackgroundSpectrumH[AD][week][idx][idy] = new TH1D(Form("Near AD%i Nominal Background Period%i_Volume%i",AD,week,idx),Form("Near AD%i Nominal Background Period%i_Volume%i",AD,week,idx),n_evis_bins,evis_bins);
+                        NearBackgroundSpectrumH[AD][week][idx][idy]->Add(FinalAccidentalsH[AD][week][idx][idy]);
+                        NearBackgroundSpectrumH[AD][week][idx][idy]->Add(FinalLiHeH[AD][week][idx][idy]);
+                        NearBackgroundSpectrumH[AD][week][idx][idy]->Add(FinalFastNeutronsH[AD][week][idx][idy]);
+                        NearBackgroundSpectrumH[AD][week][idx][idy]->Add(FinalAmCH[AD][week][idx][idy]);
+                        NearBackgroundSpectrumH[AD][week][idx][idy]->Write();
+                    }
+                    else
+                    {
+                        FarBackgroundSpectrumH[AD][week][idx][idy] = new TH1D(Form("Far AD%i Nominal Background Period%i_Volume%i",AD,week,idx),Form("Far AD%i Nominal Background Period%i_Volume%i",AD,week,idx),n_evis_bins,evis_bins);
+                        FarBackgroundSpectrumH[AD][week][idx][idy]->Add(FinalAccidentalsH[AD][week][idx][idy]);
+                        FarBackgroundSpectrumH[AD][week][idx][idy]->Add(FinalLiHeH[AD][week][idx][idy]);
+                        FarBackgroundSpectrumH[AD][week][idx][idy]->Add(FinalFastNeutronsH[AD][week][idx][idy]);
+                        FarBackgroundSpectrumH[AD][week][idx][idy]->Add(FinalAmCH[AD][week][idx][idy]);
+                        FarBackgroundSpectrumH[AD][week][idx][idy]->Write();
+                    }
+                    
+                    FinalAccidentalsH[AD][week][idx][idy]->Write();
+                    FinalLiHeH[AD][week][idx][idy]->Write();
+                    FinalFastNeutronsH[AD][week][idx][idy]->Write();
+                    FinalAmCH[AD][week][idx][idy]->Write();
+                }
             }
-            else
-            {
-                FarBackgroundSpectrumH[AD][week] = new TH1D(Form("Far AD%i Nominal Background Period%d",AD,week),Form("Far AD%i Nominal Background Period%d",AD,week),n_evis_bins,evis_bins);
-                FarBackgroundSpectrumH[AD][week]->Add(FinalAccidentalsH[AD][week]);
-                FarBackgroundSpectrumH[AD][week]->Add(FinalLiHeH[AD][week]);
-                FarBackgroundSpectrumH[AD][week]->Add(FinalFastNeutronsH[AD][week]);
-                FarBackgroundSpectrumH[AD][week]->Add(FinalAmCH[AD][week]);
-                FarBackgroundSpectrumH[AD][week]->Write();
-            }
-            
-            FinalAccidentalsH[AD][week]->Write();
-            FinalLiHeH[AD][week]->Write();
-            FinalFastNeutronsH[AD][week]->Write();
-            FinalAmCH[AD][week]->Write();
         }
     }
     
@@ -463,18 +498,24 @@ void FitBackgrounds2::SaveAndDelete()
         }
         for (Int_t week = 0; week<Nweeks; week++)
         {
-            delete FinalAccidentalsH[AD][week];
-            delete FinalLiHeH[AD][week];
-            delete FinalFastNeutronsH[AD][week];
-            delete FinalAmCH[AD][week];
-            
-            if(AD<ADsEH1+ADsEH2)
+            for(Int_t idx=0; idx<XCellLimit; idx++)
             {
-                delete NearBackgroundSpectrumH[AD][week];
-            }
-            else
-            {
-                delete FarBackgroundSpectrumH[AD][week];
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    delete FinalAccidentalsH[AD][week][idx][idy];
+                    delete FinalLiHeH[AD][week][idx][idy];
+                    delete FinalFastNeutronsH[AD][week][idx][idy];
+                    delete FinalAmCH[AD][week][idx][idy];
+                    
+                    if(AD<ADsEH1+ADsEH2)
+                    {
+                        delete NearBackgroundSpectrumH[AD][week][idx][idy];
+                    }
+                    else
+                    {
+                        delete FarBackgroundSpectrumH[AD][week][idx][idy];
+                    }
+                }
             }
         }
     }
@@ -609,21 +650,27 @@ void FitBackgrounds2::PrintBackgrounds()
         for (Int_t week = 0; week<Nweeks; week++)
         {
             AccidentalC->Clear();
-            AccidentalC->Divide(NADs/2,2);
+            AccidentalC->Divide(NADs/2,2*XCellLimit*YCellLimit);
             
-            for (Int_t AD = 0; AD<NADs; AD++)
+            for(Int_t idx=0; idx<XCellLimit; idx++)
             {
-                AccidentalC->cd(AD+1);
-                FinalAccidentalsH[AD][week]->SetStats(0);
-                FinalAccidentalsH[AD][week]->SetTitle(Form("Accidentals AD%d",AD+1));
-                if(!LoganBinning)
+                for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    FinalAccidentalsH[AD][week]->GetXaxis()->SetRange(1,n_evis_bins-1);
+                    for (Int_t AD = 0; AD<NADs; AD++)
+                    {
+                        AccidentalC->cd(AD+NADs*idy+NADs*YCellLimit*idx+1);
+                        FinalAccidentalsH[AD][week][idx][idy]->SetStats(0);
+                        FinalAccidentalsH[AD][week][idx][idy]->SetTitle(Form("Accidentals AD%i Volume%i",AD+1,idx));
+                        if(!LoganBinning)
+                        {
+                            FinalAccidentalsH[AD][week][idx][idy]->GetXaxis()->SetRange(1,n_evis_bins-1);
+                        }
+                        FinalAccidentalsH[AD][week][idx][idy]->Draw("HIST");
+                        AccidentalC->Modified();
+                    }
                 }
-                FinalAccidentalsH[AD][week]->Draw("HIST");
-                AccidentalC->Modified();
             }
-            AccidentalC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/AccidentalBackgroundsPeriod%d.eps",week)).c_str(),".eps");
+            AccidentalC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/AccidentalBackgroundsPeriod%i.eps",week)).c_str(),".eps");
         }
         delete AccidentalC;
         
@@ -631,21 +678,28 @@ void FitBackgrounds2::PrintBackgrounds()
         for (Int_t week = 0; week<Nweeks; week++)
         {
             LiHeC->Clear();
-            LiHeC->Divide(NADs/2,2);
+            LiHeC->Divide(NADs/2,2*XCellLimit*YCellLimit);
             
-            for (Int_t AD = 0; AD<NADs; AD++)
+          
+            for(Int_t idx=0; idx<XCellLimit; idx++)
             {
-                LiHeC->cd(AD+1);
-                FinalLiHeH[AD][week]->SetStats(0);
-                FinalLiHeH[AD][week]->SetTitle(Form("Li He AD%d",AD+1));
-                if(!LoganBinning)
+                for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    FinalLiHeH[AD][week]->GetXaxis()->SetRange(1,n_evis_bins-1);
+                    for (Int_t AD = 0; AD<NADs; AD++)
+                    {
+                        LiHeC->cd(AD+NADs*idy+NADs*YCellLimit*idx+1);
+                        FinalLiHeH[AD][week][idx][idy]->SetStats(0);
+                        FinalLiHeH[AD][week][idx][idy]->SetTitle(Form("Li He AD%i Volume%i",AD+1,idx));
+                        if(!LoganBinning)
+                        {
+                            FinalLiHeH[AD][week][idx][idy]->GetXaxis()->SetRange(1,n_evis_bins-1);
+                        }
+                        FinalLiHeH[AD][week][idx][idy]->Draw("HIST");
+                        LiHeC->Modified();
+                    }
                 }
-                FinalLiHeH[AD][week]->Draw("HIST");
-                LiHeC->Modified();
             }
-            LiHeC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/LiHeBackgroundsPeriod%d.eps",week)).c_str(),".eps");
+            LiHeC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/LiHeBackgroundsPeriod%i.eps",week)).c_str(),".eps");
         }
         delete LiHeC;
         
@@ -653,21 +707,27 @@ void FitBackgrounds2::PrintBackgrounds()
         for (Int_t week = 0; week<Nweeks; week++)
         {
             FastC->Clear();
-            FastC->Divide(NADs/2,2);
+            FastC->Divide(NADs/2,2*XCellLimit*YCellLimit);
             
-            for (Int_t AD = 0; AD<NADs; AD++)
+            for(Int_t idx=0; idx<XCellLimit; idx++)
             {
-                FastC->cd(AD+1);
-                FinalFastNeutronsH[AD][week]->SetStats(0);
-                FinalFastNeutronsH[AD][week]->SetTitle(Form("Fast Neutrons AD%d",AD+1));
-                if(!LoganBinning)
+                for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    FinalFastNeutronsH[AD][week]->GetXaxis()->SetRange(1,n_evis_bins-1);
+                    for (Int_t AD = 0; AD<NADs; AD++)
+                    {
+                        FastC->cd(AD+NADs*idy+NADs*YCellLimit*idx+1);
+                        FinalFastNeutronsH[AD][week][idx][idy]->SetStats(0);
+                        FinalFastNeutronsH[AD][week][idx][idy]->SetTitle(Form("Fast Neutrons AD%i Volume%i",AD+1,idx));
+                        if(!LoganBinning)
+                        {
+                            FinalFastNeutronsH[AD][week][idx][idy]->GetXaxis()->SetRange(1,n_evis_bins-1);
+                        }
+                        FinalFastNeutronsH[AD][week][idx][idy]->Draw("HIST");
+                        FastC->Modified();
+                    }
                 }
-                FinalFastNeutronsH[AD][week]->Draw("HIST");
-                FastC->Modified();
             }
-            FastC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/FastNeutronBackgroundsPeriod%d.eps",week)).c_str(),".eps");
+            FastC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/FastNeutronBackgroundsPeriod%i.eps",week)).c_str(),".eps");
         }
         delete FastC;
         
@@ -675,50 +735,61 @@ void FitBackgrounds2::PrintBackgrounds()
         for (Int_t week = 0; week<Nweeks; week++)
         {
             AmCC->Clear();
-            AmCC->Divide(NADs/2,2);
+            AmCC->Divide(NADs/2,2*XCellLimit*YCellLimit);
             
-            for (Int_t AD = 0; AD<NADs; AD++)
+            for(Int_t idx=0; idx<XCellLimit; idx++)
             {
-                AmCC->cd(AD+1);
-                FinalAmCH[AD][week]->SetStats(0);
-                FinalAmCH[AD][week]->SetTitle(Form("AmC AD%d",AD+1));
-                if(!LoganBinning)
+                for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    FinalAmCH[AD][week]->GetXaxis()->SetRange(1,n_evis_bins-1);
+                    for (Int_t AD = 0; AD<NADs; AD++)
+                    {
+                        AmCC->cd(AD+NADs*idy+NADs*YCellLimit*idx+1);
+                        FinalAmCH[AD][week][idx][idy]->SetStats(0);
+                        FinalAmCH[AD][week][idx][idy]->SetTitle(Form("AmC AD%i Volume%i",AD+1,idx));
+                        if(!LoganBinning)
+                        {
+                            FinalAmCH[AD][week][idx][idy]->GetXaxis()->SetRange(1,n_evis_bins-1);
+                        }
+                        FinalAmCH[AD][week][idx][idy]->Draw("HIST");
+                        AmCC->Modified();
+                    }
                 }
-                FinalAmCH[AD][week]->Draw("HIST");
-                AmCC->Modified();
             }
-            AmCC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/AmCBackgroundsPeriod%d.eps",week)).c_str(),".eps");
+            AmCC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/AmCBackgroundsPeriod%i.eps",week)).c_str(),".eps");
         }
         delete AmCC;
 
         TCanvas* NearBackgroundC = new TCanvas("NearBackgroundC","Near Backgrounds", (ADsEH1+ADsEH2)*400,400);
         TCanvas* FarBackgroundC = new TCanvas("FarBackgroundC","Far Backgrounds", (ADsEH3)*400,400);
         
-        NearBackgroundC->Divide(ADsEH1+ADsEH2,1);
-        FarBackgroundC->Divide(ADsEH3,1);
+        NearBackgroundC->Divide(ADsEH1+ADsEH2,XCellLimit*YCellLimit);
+        FarBackgroundC->Divide(ADsEH3,XCellLimit*YCellLimit);
         
         for (Int_t week = 0; week<Nweeks; week++)
         {
-            for (Int_t AD = 0; AD<NADs; AD++)
+            for(Int_t idx=0; idx<XCellLimit; idx++)
             {
-                if(AD<ADsEH1+ADsEH2)
+                for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    NearBackgroundC->cd(AD+1);
-                    NearBackgroundSpectrumH[AD][week]->Draw("HIST");
-                    NearBackgroundC->Modified();
+                    for (Int_t AD = 0; AD<NADs; AD++)
+                    {
+                        if(AD<ADsEH1+ADsEH2)
+                        {
+                            NearBackgroundC->cd(AD+NADs*idy+NADs*YCellLimit*idx+1);
+                            NearBackgroundSpectrumH[AD][week][idx][idy]->Draw("HIST");
+                            NearBackgroundC->Modified();
+                        }
+                        else
+                        {
+                            FarBackgroundC->cd(AD+NADs*idy+NADs*YCellLimit*idx+1);
+                            FarBackgroundSpectrumH[AD][week][idx][idy]->Draw("HIST");
+                            FarBackgroundC->Modified();
+                        }
+                    }
                 }
-                else
-                {
-                    FarBackgroundC->cd(AD+1);
-                    FarBackgroundSpectrumH[AD][week]->Draw("HIST");
-                    FarBackgroundC->Modified();
-                }
-                
             }
-            NearBackgroundC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/NearBackgroundsPeriod%d.eps",week)).c_str(),".eps");
-            FarBackgroundC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/FarBackgroundsPeriod%d.eps",week)).c_str(),".eps");
+            NearBackgroundC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/NearBackgroundsPeriod%i.eps",week)).c_str(),".eps");
+            FarBackgroundC->Print(("./Images/"+AnalysisString+Form("/BackgroundVariations/FarBackgroundsPeriod%i.eps",week)).c_str(),".eps");
         }
         
         delete NearBackgroundC;

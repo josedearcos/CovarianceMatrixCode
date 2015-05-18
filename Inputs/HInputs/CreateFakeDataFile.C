@@ -114,7 +114,7 @@ int CreateFakeDataFile(){
             fprintf(f, "%d %d ", period, data);//An average of the inclusive data for the expected number of events
 
             for(Int_t AD = 0; AD < NADs; AD++)
-            {
+            {`
                 if(data==0)
                 {
                     if(AD<3)//To avoid date wrong input.

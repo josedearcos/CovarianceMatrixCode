@@ -710,11 +710,15 @@ void FitterGui::RunFitter()
     
     if(Analysis)
     {
-        FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
+        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/nH_GdLS_table.txt").c_str());
+        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/HInputs/nH_LS_table.txt").c_str());
+       
+//        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
+//        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
     }
     else
     {
-        FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
+        FluxData->LoadOriginalGDMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
     }
     
     Oscillation* FluxOsc= new Oscillation(FluxData);
@@ -725,52 +729,54 @@ void FitterGui::RunFitter()
     //Chose Data Set
     if(Data->GetAnalysis())//   Hydrogen data
     {
-        if(DataSet==1) // P12E production data given by Xiang Pan
+        if(DataSet==2) // P12E production data given by Xiang Pan
         {
             if(1==Data->GetWeeks())
             {
                 std::cout << "\t Loading nH P12E Data" << std::endl;
-                Data->LoadMainData("./Inputs/HInputs/P12E_Inclusive.txt");
+                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
+                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
             }
             else
             {
-                std::cout << "\t NO MULTIPLE WEEK P12E DATA IN H ANALYSIS YET " << std::endl;
-                Data->LoadMainData(Form("./Inputs/HInputs/P12E_%d.txt",NReactorPeriods));
+                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table.txt");
+                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table.txt");
             }
         }
         else // Simple reactor model used as input data
         {
             std::cout << "\t Loading simple reactor model" << std::endl;
+            std::cout << "\t JUST CHECKING THAT THE CODE DOESN'T FOLLOW THIS PATH" << std::endl;
+            
+            exit(EXIT_FAILURE);
         }
     }
     else//  Gd data
     {
-        if(DataSet==2)// P12E production data given by Xiang Pan
+        if(DataSet==2)
         {
             if(1==Data->GetWeeks())
             {
-                std::cout << "\t Loading LBNL Gd P12E Data" << std::endl;
-                //                Data->LoadMainData("./Inputs/GdInputs/P12E_Inclusive.txt");
+                std::cout << "\t Loading 32 weeks inclusive LBNL Gd P12E Data" << std::endl;
+                Data->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_32week_inclusive.txt");
             }
             else
             {
-                std::cout << "\t NO MULTIPLE WEEK P12E DATA IN LBNL Gd ANALYSIS YET " << std::endl;
-                exit(EXIT_FAILURE);
-
-                Data->LoadMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
+                std::cout << "\t Loading 32 week LBNL Gd P12E Data" << std::endl;
+                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
             }
         }
         else if(DataSet==1)
         {
             if(1==Data->GetWeeks())
             {
-                std::cout << "\t Loading Gd Data by Xiang Pan" << std::endl;
-                //                Data->LoadMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
+                std::cout << "\t Loading 20 weeks inclusive Gd Data" << std::endl;
+                Data->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
             }
             else
             {
-                std::cout << "\t Loading 20 weeks Gd Data by Xiang Pan" << std::endl;
-                Data->LoadMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
+                std::cout << "\t Loading 20 weeks Gd Data" << std::endl;
+                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
             }
         }
         else//  Simple reactor model used as input data
@@ -1592,67 +1598,126 @@ void FitterGui::RunToyMC()
     //Chose Data Set
     if(Data->GetAnalysis())//   Hydrogen data
     {
-        switch (DataSet)
+        if(DataSet==2) // P12E production data given by Xiang Pan
         {
-            case 0://  Simple reactor model used as input data
-                std::cout << "\t Loading simple reactor model" << std::endl;
-                break;
-            case 1://   P12E
-                if(1==Data->GetWeeks())
-                {
-                    std::cout << "\t Loading nH P12E Data" << std::endl;
-                    Data->LoadMainData("./Inputs/HInputs/P12E_Inclusive.txt");
-                }
-                else
-                {
-                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN H ANALYSIS YET " << std::endl;
-                    exit(EXIT_FAILURE);
-                    Data->LoadMainData(Form("./Inputs/HInputs/P12E_%d.txt",NReactorPeriods));
-                }
-                break;
-            case 2:// LBNL
-                std::cout << "\t \t \t NEED TO ADD LOADMAIN DATA FOR H ANALYSIS" << std::endl;
-                break;
-            default:
-                break;
+            if(1==Data->GetWeeks())
+            {
+                std::cout << "\t Loading nH P12E Data" << std::endl;
+                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
+                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
+            }
+            else
+            {
+                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table.txt");
+                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table.txt");
+            }
+        }
+        else // Simple reactor model used as input data
+        {
+            std::cout << "\t Loading simple reactor model" << std::endl;
+            std::cout << "\t JUST CHECKING THAT THE CODE DOESN'T FOLLOW THIS PATH" << std::endl;
+            
+            exit(EXIT_FAILURE);
         }
     }
     else//  Gd data
     {
-        switch (DataSet)
+        if(DataSet==2)
         {
-            case 0://  Simple reactor model used as input data
-                std::cout << "\t Loading simple reactor model" << std::endl;
-                break;
-            case 1://   P12E
-                if(1==Data->GetWeeks())
-                {
-                    std::cout << "\t Loading Gd P12E Data" << std::endl;
-                    //                    Data->LoadMainData("./Inputs/GdInputs/P12E_Inclusive.txt");
-                }
-                else
-                {
-                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN Gd ANALYSIS YET " << std::endl;
-                    exit(EXIT_FAILURE);
-                    Data->LoadMainData(Form("./Inputs/GdInputs/P12E_%d.txt",NReactorPeriods));
-                }
-                break;
-            case 2:// LBNL
-                if(1==Data->GetWeeks())
-                {
-                    std::cout << "\t Loading LBNL Gd Data" << std::endl;
-                    //                    Data->LoadMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
-                }
-                else
-                {
-                    std::cout << "\t Loading weekly LBNL Gd Data" << std::endl;
-                    Data->LoadMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
-                }
-                break;
-            default:
-                break;
+            if(1==Data->GetWeeks())
+            {
+                std::cout << "\t Loading 32 weeks inclusive LBNL Gd P12E Data" << std::endl;
+                Data->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_32week_inclusive.txt");
+            }
+            else
+            {
+                std::cout << "\t Loading 32 week LBNL Gd P12E Data" << std::endl;
+                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
+            }
+        }
+        else if(DataSet==1)
+        {
+            if(1==Data->GetWeeks())
+            {
+                std::cout << "\t Loading 20 weeks inclusive Gd Data" << std::endl;
+                Data->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
+            }
+            else
+            {
+                std::cout << "\t Loading 20 weeks Gd Data" << std::endl;
+                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
+            }
+        }
+        else//  Simple reactor model used as input data
+        {
+            std::cout << "\t Loading simple reactor model" << std::endl;
         }
     }
+    
+//    //Chose Data Set
+//    if(Data->GetAnalysis())//   Hydrogen data
+//    {
+//        switch (DataSet)
+//        {
+//            case 0://  Simple reactor model used as input data
+//                std::cout << "\t Loading simple reactor model" << std::endl;
+//                break;
+//            case 1://   P12E
+//                if(1==Data->GetWeeks())
+//                {
+//                    std::cout << "\t Loading nH P12E Data" << std::endl;
+//                    Data->LoadMainData("./Inputs/HInputs/P12E_Inclusive.txt");
+//                }
+//                else
+//                {
+//                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN H ANALYSIS YET " << std::endl;
+//                    exit(EXIT_FAILURE);
+//                    Data->LoadMainData(Form("./Inputs/HInputs/P12E_%d.txt",NReactorPeriods));
+//                }
+//                break;
+//            case 2:// LBNL
+//                std::cout << "\t \t \t NEED TO ADD LOADMAIN DATA FOR H ANALYSIS" << std::endl;
+//                break;
+//            default:
+//                break;
+//        }
+//    }
+//    else//  Gd data
+//    {
+//        switch (DataSet)
+//        {
+//            case 0://  Simple reactor model used as input data
+//                std::cout << "\t Loading simple reactor model" << std::endl;
+//                break;
+//            case 1://   P12E
+//                if(1==Data->GetWeeks())
+//                {
+//                    std::cout << "\t Loading Gd P12E Data" << std::endl;
+//                    //                    Data->LoadMainData("./Inputs/GdInputs/P12E_Inclusive.txt");
+//                }
+//                else
+//                {
+//                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN Gd ANALYSIS YET " << std::endl;
+//                    exit(EXIT_FAILURE);
+//                    Data->LoadMainData(Form("./Inputs/GdInputs/P12E_%d.txt",NReactorPeriods));
+//                }
+//                break;
+//            case 2:// LBNL
+//                if(1==Data->GetWeeks())
+//                {
+//                    std::cout << "\t Loading LBNL Gd Data" << std::endl;
+//                    //                    Data->LoadMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
+//                }
+//                else
+//                {
+//                    std::cout << "\t Loading weekly LBNL Gd Data" << std::endl;
+//                    Data->LoadMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
+//                }
+//                break;
+//            default:
+//                break;
+//        }
+//    }
     
     //To check non theta13 oscillation behaviour of the fitter. To avoid any oscillation at all then theta12 has to be set to 0 too.
 #ifdef NoOscillation
@@ -1789,7 +1854,7 @@ void FitterGui::RunFlux()
     std::cout <<  "********************************************************************************************************" << std::endl;
     std::cout <<  "**********************************            MAIN             *****************************************" << std::endl;
     std::cout <<  "********************************************************************************************************" << std::endl;
-    
+
     //Chose Data Set
     if(Data->GetAnalysis())//   Hydrogen data
     {
@@ -1799,30 +1864,23 @@ void FitterGui::RunFlux()
                 std::cout << "\t Loading simple reactor model" << std::endl;
                 break;
             case 1://   P12B
-                if(1==Data->GetWeeks())
-                {
-                    std::cout << "\t NO P12B DATA FILE" << std::endl;
-                    Data->LoadMainData("./Inputs/HInputs/P12B_Inclusive.txt");
-                }
-                else
-                {
-                    std::cout << "\t \t \t NO MULTIPLE WEEK P12B DATA IN H ANALYSIS YET, USING FAKE FILE" << std::endl;
-                    Data->LoadMainData(Form("./Inputs/HInputs/P12B_%d.txt",NReactorPeriods));
-                }
+                std::cout << "\t No P12B data properly prompted" << std::endl;
                 exit(EXIT_FAILURE);
-
                 break;
             case 2:// P12E
+
                 if(1==Data->GetWeeks())
                 {
                     std::cout << "\t Loading nH P12E Data" << std::endl;
-                    Data->LoadMainData("./Inputs/HInputs/P12E_Inclusive.txt");
+                    Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
+                    Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
                 }
                 else
                 {
-                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN H ANALYSIS YET, USING FAKE FILE" << std::endl;
-                    Data->LoadMainData(Form("./Inputs/HInputs/P12E_%d.txt",NReactorPeriods));
+                    Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table.txt");
+                    Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table.txt");
                 }
+                
                 break;
             default:
                 break;
@@ -1839,25 +1897,25 @@ void FitterGui::RunFlux()
                 if(1==Data->GetWeeks())
                 {
                     std::cout << "\t Loading Gd P12E Data" << std::endl;
-                    //                    Data->LoadMainData("./Inputs/GdInputs/P12E_Inclusive.txt");
+                    //                    Data->LoadOriginalGDMainData("./Inputs/GdInputs/P12E_Inclusive.txt");
                 }
                 else
                 {
                     std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN Gd ANALYSIS YET " << std::endl;
                     exit(EXIT_FAILURE);
-                    Data->LoadMainData(Form("./Inputs/GdInputs/P12E_%d.txt",NReactorPeriods));
+                    Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/P12E_%d.txt",NReactorPeriods));
                 }
                 break;
             case 2:// LBNL
                 if(1==Data->GetWeeks())
                 {
                     std::cout << "\t Loading LBNL Gd Data" << std::endl;
-                    //                    Data->LoadMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
+                    //                    Data->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
                 }
                 else
                 {
                     std::cout << "\t Loading weekly LBNL Gd Data" << std::endl;
-                    Data->LoadMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
+                    Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
                 }
                 break;
             default:
@@ -1890,11 +1948,15 @@ void FitterGui::RunFlux()
     
     if(Analysis)
     {
-        FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
+        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/nH_GdLS_table.txt").c_str());
+        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/HInputs/nH_LS_table.txt").c_str());
+        
+        //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
+        //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
     }
     else
     {
-        FluxData->LoadMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
+        FluxData->LoadOriginalGDMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
     }
     
     Oscillation* FluxOsc= new Oscillation(FluxData);
@@ -3785,6 +3847,7 @@ void FitterGui::ChoosePlotCov()
     TFile* CovF;
     
     Int_t DataSet =2;
+    
     NominalData* Data = new NominalData(Analysis,DataSet);
     
     Double_t sen22t13 = Data->GetSin22t13();
@@ -4302,67 +4365,62 @@ void FitterGui::RunResponseMatrix()
     Data->SetWeeks(Period);
     Data->SetADs(NADs);
   
+    //Chose Data Set
     if(Data->GetAnalysis())//   Hydrogen data
     {
-        switch (DataSet)
+        if(DataSet==2) // P12E production data given by Xiang Pan
         {
-            case 0://  Simple reactor model used as input data
-                std::cout << "\t Loading simple reactor model" << std::endl;
-                break;
-            case 1://   P12E
-                if(1==Data->GetWeeks())
-                {
-                    std::cout << "\t Loading nH P12E Data" << std::endl;
-                    Data->LoadMainData("./Inputs/HInputs/P12E_Inclusive.txt");
-                }
-                else
-                {
-                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN H ANALYSIS YET " << std::endl;
-                    exit(EXIT_FAILURE);
-                    Data->LoadMainData(Form("./Inputs/HInputs/P12E_%d.txt",NReactorPeriods));
-                }
-                break;
-            case 2:// LBNL
-                std::cout << "\t \t \t NEED TO ADD LOADMAIN DATA FOR H ANALYSIS" << std::endl;
-                break;
-            default:
-                break;
+            if(1==Data->GetWeeks())
+            {
+                std::cout << "\t Loading nH P12E Data" << std::endl;
+                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
+                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
+            }
+            else
+            {
+                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table.txt");
+                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table.txt");
+            }
+        }
+        else // Simple reactor model used as input data
+        {
+            std::cout << "\t Loading simple reactor model" << std::endl;
+            std::cout << "\t JUST CHECKING THAT THE CODE DOESN'T FOLLOW THIS PATH" << std::endl;
+            
+            exit(EXIT_FAILURE);
         }
     }
     else//  Gd data
     {
-        switch (DataSet)
+        if(DataSet==2)
         {
-            case 0://  Simple reactor model used as input data
-                std::cout << "\t Loading simple reactor model" << std::endl;
-                break;
-            case 1://   P12E
-                if(1==Data->GetWeeks())
-                {
-                    std::cout << "\t Loading Gd P12E Data" << std::endl;
-                    //                    Data->LoadMainData("./Inputs/GdInputs/P12E_Inclusive.txt");
-                }
-                else
-                {
-                    std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN Gd ANALYSIS YET " << std::endl;
-                    exit(EXIT_FAILURE);
-                    Data->LoadMainData(Form("./Inputs/GdInputs/P12E_%d.txt",NReactorPeriods));
-                }
-                break;
-            case 2:// LBNL
-                if(1==Data->GetWeeks())
-                {
-                    std::cout << "\t Loading LBNL Gd Data" << std::endl;
-                    //                    Data->LoadMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
-                }
-                else
-                {
-                    std::cout << "\t Loading weekly LBNL Gd Data" << std::endl;
-                    Data->LoadMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
-                }
-                break;
-            default:
-                break;
+            if(1==Data->GetWeeks())
+            {
+                std::cout << "\t Loading 32 weeks inclusive LBNL Gd P12E Data" << std::endl;
+                Data->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_32week_inclusive.txt");
+            }
+            else
+            {
+                std::cout << "\t Loading 32 week LBNL Gd P12E Data" << std::endl;
+                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
+            }
+        }
+        else if(DataSet==1)
+        {
+            if(1==Data->GetWeeks())
+            {
+                std::cout << "\t Loading 20 weeks inclusive Gd Data" << std::endl;
+                Data->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
+            }
+            else
+            {
+                std::cout << "\t Loading 20 weeks Gd Data" << std::endl;
+                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
+            }
+        }
+        else//  Simple reactor model used as input data
+        {
+            std::cout << "\t Loading simple reactor model" << std::endl;
         }
     }
     

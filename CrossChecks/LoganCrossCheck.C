@@ -4,18 +4,21 @@ void LoganCrossCheck()
     TH1::AddDirectory(kFALSE);
     TH2::AddDirectory(kFALSE);
     
+    const Int_t volumesX = 2;//or 10
+    const Int_t volumesY = 1;//or 10
+
     //Load spectra
     TFile* LoganSpectrumF = new TFile("roofile_rawE.root");
         LoganPromptH = (TH1D*)LoganSpectrumF->Get("hEp");//prompt spectrum
         LoganDelayH = (TH1D*)LoganSpectrumF->Get("hEd");//delay spectrum
     delete LoganSpectrumF;
     
-    TH2D* NominalResponseMatrixH[10][10];//One per cell
+    TH2D* NominalResponseMatrixH[volumesX][volumesY];//One per cell
     TFile* MySpectrumF = new TFile("../ResponseMatrices/Hydrogen/NominalResponseMatrix.root");
    
-    for(Int_t x=0; x<10; x++)
+    for(Int_t x=0; x<volumesX; x++)
     {
-        for(Int_t y=0; y<10; y++)
+        for(Int_t y=0; y<volumesY; y++)
         {
             NominalResponseMatrixH[x][y] = (TH2D*)MySpectrumF->Get(Form("FineEvisEnu1,Cell%d,%d",x,y));
         }
@@ -63,7 +66,7 @@ void LoganCrossCheck()
     
     std::cout << "True Energy Spectrum dimension: x " << TrueADH->GetXaxis()->GetNbins() << std::endl;
     
-    TH1D* VisibleSpectrumH[10][10];
+    TH1D* VisibleSpectrumH[volumesX][volumesY];
     
     TH2D* AverageH;
 
@@ -81,20 +84,20 @@ void LoganCrossCheck()
     }
     else
     {
-        AverageH = new TH2D("MapEventsRatio2center","MapEventsRatio2center",10,0,4,10,-2,2);
+        AverageH = new TH2D("MapEventsRatio2center","MapEventsRatio2center",volumesX,0,4,volumesY,-2,2);
         
-        for(Int_t x=0; x<10; x++)
+        for(Int_t x=0; x<volumesX; x++)
         {
-            for(Int_t y=0; y<10; y++)
+            for(Int_t y=0; y<volumesY; y++)
             {
                 AverageH->SetBinContent(x+1,y+1,1);
             }
         }
     }
     
-    for(Int_t x=0; x<10; x++)
+    for(Int_t x=0; x<volumesX; x++)
     {
-        for(Int_t y=0; y<10; y++)
+        for(Int_t y=0; y<volumesY; y++)
         {
             VisibleSpectrumH[x][y] = new TH1D(Form("VisibleHCell%d,%d",x,y),Form("VisibleHCell%d,%d",x,y),NominalResponseMatrixH[0][0]->GetYaxis()->GetNbins(),0,12);
 
@@ -125,9 +128,9 @@ void LoganCrossCheck()
     
     TH1D* TotalVisibleSpectrumH = new TH1D("VisibleH","VisibleH",NominalResponseMatrixH[0][0]->GetYaxis()->GetNbins(),0,12);
 
-    for(Int_t x=0; x<10; x++)
+    for(Int_t x=0; x<volumesX; x++)
     {
-        for(Int_t y=0; y<10; y++)
+        for(Int_t y=0; y<volumesY; y++)
         {
             //Add all cells:
             TotalVisibleSpectrumH->Add(VisibleSpectrumH[x][y],AverageH->GetBinContent(x+1,y+1));

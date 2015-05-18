@@ -131,36 +131,36 @@ private:
     Double_t enu_bins[MaxNbins+1]; // 39 bins between 1.8 and 9.6 MeV +1 for the 9.6 limit.
     
     //Background errors:
-    Double_t AccidentalError[MaxDetectors][MaxPeriods];
-    Double_t LiHeError[MaxDetectors][MaxPeriods];
-    Double_t FastNeutronsError[MaxDetectors][MaxPeriods];
-    Double_t AmCError[MaxDetectors][MaxPeriods];
+    Double_t AccidentalError[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+    Double_t LiHeError[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+    Double_t FastNeutronsError[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+    Double_t AmCError[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     
     //Distortion function factor:
     Double_t DistortLiHe;
     Double_t DistortFN;
     Double_t DistortAmC;
     
-    Double_t ScaleFactorAccidental[MaxDetectors];
-    Double_t ScaleFactorLiHe[MaxDetectors];
-    Double_t ScaleFactorFastNeutrons[MaxDetectors];
-    Double_t ScaleFactorAmC[MaxDetectors];
+    Double_t ScaleFactorAccidental[MaxDetectors][VolumeX][VolumeY];
+    Double_t ScaleFactorLiHe[MaxDetectors][VolumeX][VolumeY];
+    Double_t ScaleFactorFastNeutrons[MaxDetectors][VolumeX][VolumeY];
+    Double_t ScaleFactorAmC[MaxDetectors][VolumeX][VolumeY];
     
     //Histograms
     
-    TH1D* BackgroundSpectrumH[MaxDetectors];
-    TH1D* NearBackgroundSpectrumH[MaxNearDetectors];
-    TH1D* FarBackgroundSpectrumH[MaxDetectors];
+    TH1D* BackgroundSpectrumH[MaxDetectors][VolumeX][VolumeY];
+    TH1D* NearBackgroundSpectrumH[MaxNearDetectors][VolumeX][VolumeY];
+    TH1D* FarBackgroundSpectrumH[MaxDetectors][VolumeX][VolumeY];
     
-    TH1D* AccidentalsH[MaxDetectors];
-    TH1D* LiHeH[MaxDetectors];
-    TH1D* FastNeutronsH[MaxDetectors];
-    TH1D* AmCH[MaxDetectors];
+    TH1D* AccidentalsH[MaxDetectors][VolumeX][VolumeY];
+    TH1D* LiHeH[MaxDetectors][VolumeX][VolumeY];
+    TH1D* FastNeutronsH[MaxDetectors][VolumeX][VolumeY];
+    TH1D* AmCH[MaxDetectors][VolumeX][VolumeY];
     
-    TH1D* RandomAccidentalsH[MaxDetectors];
-    TH1D* RandomLiHeH[MaxDetectors];
-    TH1D* RandomFastNeutronsH[MaxDetectors];
-    TH1D* RandomAmCH[MaxDetectors];
+    TH1D* RandomAccidentalsH[MaxDetectors][VolumeX][VolumeY];
+    TH1D* RandomLiHeH[MaxDetectors][VolumeX][VolumeY];
+    TH1D* RandomFastNeutronsH[MaxDetectors][VolumeX][VolumeY];
+    TH1D* RandomAmCH[MaxDetectors][VolumeX][VolumeY];
 
     TH1D* NearSpectrumH[MaxNearDetectors][MatrixBins];//
     TH1D* FarHallSpectrumH[MaxFarDetectors][MaxNearDetectors][MatrixBins];//
@@ -317,30 +317,25 @@ Oscillation :: Oscillation()
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
 #ifdef UseVolumes //To use 2 volumes, otherwise 100 cells.
-                if(idx==0)//GdLs
-                {
-                    DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD);
-                }
-                else//Ls
-                {
-                    DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsLs(AD);
-                }
+
+                DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtons(AD,idx);
+                
 #else
                 if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
                 {
                     if(Analysis)//Hydrogen LS
                     {
-                        DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsLs(AD)/(XCellLimit+YCellLimit+(YCellLimit-2)*4);//52 cells (10+10+(10-2)+(10-2)+(10-2)+(10-2)) Share uniformly the mass
+                        DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtons(AD,1)/(XCellLimit+YCellLimit+(YCellLimit-2)*4);//52 cells (10+10+(10-2)+(10-2)+(10-2)+(10-2)) Share uniformly the mass
                         
                     }
                     else//nGd only 1 volume
                     {
-                        DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD);
+                        DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtons(AD,0);
                     }
                 }
                 else//GdLS
                 {
-                    DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtonsGdLs(AD)/((XCellLimit-4)*(YCellLimit-2));//48 cells, Share uniformly the mass
+                    DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtons(AD,0)/((XCellLimit-4)*(YCellLimit-2));//48 cells, Share uniformly the mass
                 }
 #endif
                 for (Int_t week = 0; week <Nweeks; week++)
@@ -353,7 +348,13 @@ Oscillation :: Oscillation()
         
         for (Int_t week = 0; week <NReactorPeriods; week++)
         {
-            FullTime[AD][week] = Nom->GetFullTime(AD,week);
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    FullTime[AD][week] = Nom->GetFullTime(AD,week);
+                }
+            }
         }
     }
     
@@ -391,10 +392,16 @@ Oscillation :: Oscillation()
     {
         for (Int_t week = 0; week<Nweeks; week++)
         {
-            AccidentalError[AD][week]=Nom->GetAccidentalError(AD,week);
-            LiHeError[AD][week]=Nom->GetLiHeError(AD,week);
-            FastNeutronsError[AD][week]=Nom->GetFNError(AD,week);
-            AmCError[AD][week]=Nom->GetAmCError(AD,week);
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    AccidentalError[AD][week][idx][idy]=Nom->GetAccidentalError(AD,week,idx,idy);
+                    LiHeError[AD][week][idx][idy]=Nom->GetLiHeError(AD,week,idx,idy);
+                    FastNeutronsError[AD][week][idx][idy]=Nom->GetFNError(AD,week,idx,idy);
+                    AmCError[AD][week][idx][idy]=Nom->GetAmCError(AD,week,idx,idy);
+                }
+            }
         }
     }
     
@@ -474,34 +481,30 @@ Oscillation :: Oscillation(NominalData* OData)
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
+                
 #ifdef UseVolumes //To use 2 volumes, otherwise 100 cells.
-                if(idx==0)//GdLs
-                {
-                    DetectorProtons[AD][idx][idy] = OData->GetDetectorProtonsGdLs(AD);
-                }
-                else//Ls
-                {
-                    DetectorProtons[AD][idx][idy] = OData->GetDetectorProtonsLs(AD);
-                }
+                
+                DetectorProtons[AD][idx][idy] = OData->GetDetectorProtons(AD,idx);
                 
 #else
                 if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
                 {
                     if(Analysis)//Hydrogen LS
                     {
-                        DetectorProtons[AD][idx][idy] = OData->GetDetectorProtonsLs(AD)/(XCellLimit+YCellLimit+(YCellLimit-2)*4);//52 cells (10+10+(10-2)+(10-2)+(10-2)+(10-2)) Share uniformly the mass
+                        DetectorProtons[AD][idx][idy] = OData->GetDetectorProtons(AD,1)/(XCellLimit+YCellLimit+(YCellLimit-2)*4);//52 cells (10+10+(10-2)+(10-2)+(10-2)+(10-2)) Share uniformly the mass
                         
                     }
                     else//nGd only 1 volume
                     {
-                        DetectorProtons[AD][idx][idy] = OData->GetDetectorProtonsGdLs(AD);
+                        DetectorProtons[AD][idx][idy] = OData->GetDetectorProtons(AD,0);
                     }
                 }
                 else//GdLS
                 {
-                    DetectorProtons[AD][idx][idy] = OData->GetDetectorProtonsGdLs(AD)/((XCellLimit-4)*(YCellLimit-2));//48 cells, Share uniformly the mass
+                    DetectorProtons[AD][idx][idy] = OData->GetDetectorProtons(AD,0)/((XCellLimit-4)*(YCellLimit-2));//48 cells, Share uniformly the mass
                 }
 #endif
+                
                 for (Int_t week = 0; week <Nweeks; week++)
                 {
                     NominalDetectorEfficiency[AD][week][idx][idy] = OData->GetDetectorEfficiency(AD,week,idx,idy);
@@ -559,10 +562,16 @@ Oscillation :: Oscillation(NominalData* OData)
     {
         for (Int_t week = 0; week<Nweeks; week++)
         {
-            AccidentalError[AD][week]=OData->GetAccidentalError(AD,week);
-            LiHeError[AD][week]=OData->GetLiHeError(AD,week);
-            FastNeutronsError[AD][week]=OData->GetFNError(AD,week);
-            AmCError[AD][week]=OData->GetAmCError(AD,week);
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    AccidentalError[AD][week][idx][idy]=OData->GetAccidentalError(AD,week,idx,idy);
+                    LiHeError[AD][week][idx][idy]=OData->GetLiHeError(AD,week,idx,idy);
+                    FastNeutronsError[AD][week][idx][idy]=OData->GetFNError(AD,week,idx,idy);
+                    AmCError[AD][week][idx][idy]=OData->GetAmCError(AD,week,idx,idy);
+                }
+            }
         }
     }
     
@@ -600,11 +609,17 @@ Oscillation :: ~Oscillation()
     {
         for(Int_t AD=0;AD<NADs;AD++)
         {
-            delete BackgroundSpectrumH[AD];
-            delete AccidentalsH[AD];
-            delete LiHeH[AD];
-            delete AmCH[AD];
-            delete FastNeutronsH[AD];
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    delete BackgroundSpectrumH[AD][idx][idy];
+                    delete AccidentalsH[AD][idx][idy];
+                    delete LiHeH[AD][idx][idy];
+                    delete AmCH[AD][idx][idy];
+                    delete FastNeutronsH[AD][idx][idy];
+                }
+            }
         }
 
         delete NominalAmCF;
@@ -658,13 +673,19 @@ Oscillation :: ~Oscillation()
             }
         }
         
-        for (Int_t far = 0; far<(ADsEH3); far++)//far
+        for(Int_t idx=0; idx<XCellLimit; idx++)
         {
-            delete FarBackgroundSpectrumH[far];
-        }
-        for (Int_t near = 0; near<(ADsEH1+ADsEH2); near++)//near
-        {
-            delete NearBackgroundSpectrumH[near];
+            for(Int_t idy=0; idy<YCellLimit; idy++)
+            {
+                for (Int_t far = 0; far<(ADsEH3); far++)//far
+                {
+                    delete FarBackgroundSpectrumH[far][idx][idy];
+                }
+                for (Int_t near = 0; near<(ADsEH1+ADsEH2); near++)//near
+                {
+                    delete NearBackgroundSpectrumH[near][idx][idy];
+                }
+            }
         }
         for (Int_t far = 0; far<(ADsEH3); far++)//far
         {
@@ -1263,7 +1284,7 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
                     // *(DetectorEfficiency[near*Nweeks+week]*FullTime[near][week]*DetectorProtons[near])
                      *OscProb(ADdistances[near*NReactors+reactor],Energy,s22t13,dm2ee)*ADdistances[(far+(ADsEH1+ADsEH2))*NReactors+reactor]*ADdistances[(far+(ADsEH1+ADsEH2))*NReactors+reactor]);
                     
-                    std::cout << Extrapolation[near][reactor][far][pts][idx][idy] << near << reactor << far << pts << idx << idy << " Flux: " << FluxH[reactor][far+(ADsEH1+ADsEH2)][week][idx][idy]->GetBinContent(pts+1) << std::endl;
+                   // std::cout << Extrapolation[near][reactor][far][pts][idx][idy] << near << reactor << far << pts << idx << idy << " Flux: " << FluxH[reactor][far+(ADsEH1+ADsEH2)][week][idx][idy]->GetBinContent(pts+1) << std::endl;
 #ifdef PlotExtrapolationFactors
 
                     ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->SetBinContent(pts+1,Extrapolation[near][reactor][far][pts][idx][idy]);
@@ -1489,7 +1510,7 @@ void Oscillation :: LoadToyHistograms(Int_t week)
                 
                 //  In oscillationreactor ADs have been corrected.
                 
-                ADSpectrumVisH[near][idx][idy]->Add(BackgroundSpectrumH[near],-1./NumberOfCells);
+                ADSpectrumVisH[near][idx][idy]->Add(BackgroundSpectrumH[near][idx][idy],-1.);
             }
         }
     }
@@ -1498,27 +1519,40 @@ void Oscillation :: LoadToyHistograms(Int_t week)
     
     #ifdef PrintEps
 
-        TCanvas* cr = new TCanvas("cr","cr", 1200,400);
-        cr->Divide(ADsEH1+ADsEH2,1);
-        
-        for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
+    TCanvas* cr = new TCanvas("cr","cr", 1200,400);
+    cr->Divide(ADsEH1+ADsEH2,XCellLimit*YCellLimit);
+    
+    if(Analysis)
+    {
+        for(Int_t idx=0; idx<XCellLimit; idx++)
         {
-            cr->cd(near+1);
-            if(Analysis)
+            for(Int_t idy=0; idy<YCellLimit; idy++)
             {
-                ADSpectrumVisH[near][Int_t(XCellLimit/2)][Int_t(YCellLimit/2)]->Draw("HIST");
+                for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
+                {
+                    cr->cd(near+idy*(ADsEH1+ADsEH2)+(ADsEH1+ADsEH2)*YCellLimit*idx+1);
 
-            }
-            else
-            {
-                ADSpectrumVisH[near][0][0]->Draw("HIST");
+                    ADSpectrumVisH[near][idx][idy]->Draw();
+                }
             }
         }
         
-        cr->Print(("./Images/"+ AnalysisString+ "/"+RandomString+"NearReactorPredictionWithoutBackground.eps").c_str(),".eps");
-        delete cr;
-    #endif
+    }
+    else
+    {
+        for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
+        {
+            cr->cd(near+1);
+            
+            ADSpectrumVisH[near][0][0]->Draw("HIST");
+        }
+    }
     
+    cr->Print(("./Images/"+ AnalysisString+ "/"+RandomString+"NearReactorPredictionWithoutBackground.eps").c_str(),".eps");
+    delete cr;
+    
+    #endif
+
 //    TFile* checkADS = new TFile("./RootOutputs/VisibleBinCheck.root","recreate");
 //    for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
 //    {
@@ -1554,13 +1588,19 @@ void Oscillation :: LoadBackgrounds(Int_t week)
         FluctuateBackgrounds(week);//Vary backgrounds
     }
     
-    for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
+    for(Int_t idx=0; idx<XCellLimit; idx++)
     {
-        NearBackgroundSpectrumH[near]=(TH1D*)BackgroundSpectrumH[near*Nweeks+week]->Clone();
-    }
-    for (Int_t far = 0; far < ADsEH3; far++)
-    {
-        FarBackgroundSpectrumH[far]=(TH1D*)BackgroundSpectrumH[(far+ADsEH1+ADsEH2)]->Clone();
+        for(Int_t idy=0; idy<YCellLimit; idy++)
+        {
+            for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
+            {
+                NearBackgroundSpectrumH[near][idx][idy]=(TH1D*)BackgroundSpectrumH[near*Nweeks+week][idx][idy]->Clone();
+            }
+            for (Int_t far = 0; far < ADsEH3; far++)
+            {
+                FarBackgroundSpectrumH[far][idx][idy]=(TH1D*)BackgroundSpectrumH[(far+ADsEH1+ADsEH2)][idx][idy]->Clone();
+            }
+        }
     }
     
     SaveBackgrounds();
@@ -1659,7 +1699,7 @@ void Oscillation :: LoadNearData(Int_t week)
                 }
                 
                 //Substract backgrounds:
-                ADSpectrumVisH[near][idx][idy]->Add(NearBackgroundSpectrumH[near],-1./NumberOfCells);//Substract (varied if necessary) backgrounds from data
+                ADSpectrumVisH[near][idx][idy]->Add(NearBackgroundSpectrumH[near][idx][idy],-1);//Substract (varied if necessary) backgrounds from data
                 
                 for(Int_t i = 0; i< ADSpectrumVisH[near][idx][idy]->GetXaxis()->GetNbins();i++)
                 {
@@ -1775,7 +1815,8 @@ void Oscillation :: ApplyResponseMatrix()
     
     if(ADSpectrumVisH[0][0][0]->GetXaxis()->GetNbins()!=TransEnergyMatrix[0][0][0]->GetXaxis()->GetNbins())
     {
-        std::cout << "Binning disagreement between vis spectrum and response matrix" << std::endl;
+        std::cout << "Binning disagreement between vis spectrum " << ADSpectrumVisH[0][0][0]->GetXaxis()->GetNbins() << " and response matrix" << TransEnergyMatrix[0][0][0]->GetXaxis()->GetNbins() << std::endl;
+
         exit(EXIT_FAILURE);
     }
     
@@ -2098,14 +2139,20 @@ void Oscillation :: SaveBackgrounds(){
     std::cout << "\t Saving Backgrounds" << std::endl;
 
     TFile* BackgroundF1 = new TFile(("./RootOutputs/"+ AnalysisString+ "/Backgrounds/"+RandomString+"Backgrounds.root").c_str(),"recreate");
-    
-    for(Int_t near=0; near<(ADsEH1+ADsEH2); near++)
+    for(Int_t idx=0; idx<XCellLimit; idx++)
     {
-        NearBackgroundSpectrumH[near]->Write((Form("Near AD%i ",near)+RandomString+ Form(" Background Period%d",week)).c_str());
-    }
-    for(Int_t far=0; far<ADsEH3; far++)
-    {
-        FarBackgroundSpectrumH[far]->Write((Form("Far AD%i ",far)+RandomString+ Form(" Background Period%d",week)).c_str());
+        for(Int_t idy=0; idy<YCellLimit; idy++)
+        {
+            for(Int_t near=0; near<(ADsEH1+ADsEH2); near++)
+            {
+                
+                NearBackgroundSpectrumH[near][idx][idy]->Write((Form("Near AD%i_Volume%i ",near, idx)+RandomString+ Form(" Background Period%i",week)).c_str());
+            }
+            for(Int_t far=0; far<ADsEH3; far++)
+            {
+                FarBackgroundSpectrumH[far][idx][idy]->Write((Form("Far AD%i_Volume%i ",far,idx)+RandomString+ Form(" Background Period%i",week)).c_str());
+            }
+        }
     }
     delete BackgroundF1;
 }
@@ -2117,69 +2164,113 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
 {
     for (Int_t AD =0; AD<NADs; AD++)
     {
-        RandomAccidentalsH[AD]=(TH1D*)AccidentalsH[AD]->Clone();
-        RandomLiHeH[AD]=(TH1D*)LiHeH[AD]->Clone();
-        RandomFastNeutronsH[AD]=(TH1D*)FastNeutronsH[AD]->Clone();
-        RandomAmCH[AD]=(TH1D*)AmCH[AD]->Clone();
-        
-        //  Initialize scale factors
-        if(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix)
+        for(Int_t idx=0; idx<XCellLimit; idx++)
         {
-            ScaleFactorAccidental[AD]=1.;
-            ScaleFactorLiHe[AD]=1.;
-            ScaleFactorFastNeutrons[AD]=1.;
-            ScaleFactorAmC[AD]=1.;
-        }
-        
-        if(VaryAccidentalMatrix)
-        {
-            rand->SetSeed(0);
-            ScaleFactorAccidental[AD]=(1.+(AccidentalError[AD][week]*rand->Gaus(0,1)));
-            //            std::cout << "\t Accidental error " << AccidentalError[AD][week] << std::endl;
-        }
-        if(VaryLiHeMatrix)
-        {
-            rand->SetSeed(0);
-            ScaleFactorLiHe[AD]=(1.+(LiHeError[AD][week]*rand->Gaus(0,1)));
-            //            std::cout <<"\t LiHe error " << LiHeError[AD][week] << std::endl;
-        }
-        if(VaryFastNeutronsMatrix)
-        {
-            rand->SetSeed(0);
-            ScaleFactorFastNeutrons[AD]=(1.+(FastNeutronsError[AD][week]*rand->Gaus(0,1)));
-            //            std::cout <<"\t Fast Neutron error " << FastNeutronsError[AD][week] << std::endl;
-        }
-        if(VaryAmCMatrix)
-        {
-            rand->SetSeed(0);
-            ScaleFactorAmC[AD]=(1.+(AmCError[AD][week]*rand->Gaus(0,1)));
-            //            std::cout <<"\t AmC error " << AmCError[AD][week] << std::endl;
+            for(Int_t idy=0; idy<YCellLimit; idy++)
+            {
+                RandomAccidentalsH[AD][idx][idy]=(TH1D*)AccidentalsH[AD][idx][idy]->Clone();
+                RandomLiHeH[AD][idx][idy]=(TH1D*)LiHeH[AD][idx][idy]->Clone();
+                RandomFastNeutronsH[AD][idx][idy]=(TH1D*)FastNeutronsH[AD][idx][idy]->Clone();
+                RandomAmCH[AD][idx][idy]=(TH1D*)AmCH[AD][idx][idy]->Clone();
+                
+                //  Initialize scale factors
+                if(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix)
+                {
+                    ScaleFactorAccidental[AD][idx][idy]=1.;
+                    ScaleFactorLiHe[AD][idx][idy]=1.;
+                    ScaleFactorFastNeutrons[AD][idx][idy]=1.;
+                    ScaleFactorAmC[AD][idx][idy]=1.;
+                }
+                
+                if(VaryAccidentalMatrix)
+                {
+                    rand->SetSeed(0);
+                    ScaleFactorAccidental[AD][idx][idy]=(1.+(AccidentalError[AD][week][idx][idy]*rand->Gaus(0,1)));
+                    //            std::cout << "\t Accidental error " << AccidentalError[AD][week] << std::endl;
+                }
+                if(VaryLiHeMatrix)
+                {
+                    rand->SetSeed(0);
+                    ScaleFactorLiHe[AD][idx][idy]=(1.+(LiHeError[AD][week][idx][idy]*rand->Gaus(0,1)));
+                    //            std::cout <<"\t LiHe error " << LiHeError[AD][week] << std::endl;
+                }
+                if(VaryFastNeutronsMatrix)
+                {
+                    rand->SetSeed(0);
+                    ScaleFactorFastNeutrons[AD][idx][idy]=(1.+(FastNeutronsError[AD][week][idx][idy]*rand->Gaus(0,1)));
+                    //            std::cout <<"\t Fast Neutron error " << FastNeutronsError[AD][week] << std::endl;
+                }
+                if(VaryAmCMatrix)
+                {
+                    rand->SetSeed(0);
+                    ScaleFactorAmC[AD][idx][idy]=(1.+(AmCError[AD][week][idx][idy]*rand->Gaus(0,1)));
+                    //            std::cout <<"\t AmC error " << AmCError[AD][week] << std::endl;
+                }
+            }
         }
     }
     
-    //Accidentals uncorrelated
-    if(VaryLiHeMatrix)
-    {   //  LiHe correlated by hall
-        ScaleFactorLiHe[1]=ScaleFactorLiHe[0];// EH1
-        ScaleFactorLiHe[4]=ScaleFactorLiHe[3];// EH3
-        ScaleFactorLiHe[5]=ScaleFactorLiHe[3];// EH3
-    }
-    if(VaryFastNeutronsMatrix)
+    
+    for(Int_t idx=0; idx<XCellLimit; idx++)
     {
-        //  Fast neutrons by hall
-        ScaleFactorFastNeutrons[1]=ScaleFactorFastNeutrons[0];// EH1
-        ScaleFactorFastNeutrons[4]=ScaleFactorFastNeutrons[3];// EH3
-        ScaleFactorFastNeutrons[5]=ScaleFactorFastNeutrons[3];// EH3
+        for(Int_t idy=0; idy<YCellLimit; idy++)
+        {
+            //Accidentals uncorrelated
+            
+            if(VaryLiHeMatrix)
+            {   //  LiHe correlated by hall
+             
+                if(NADs==MaxDetectors)//8AD
+                {
+                    ScaleFactorLiHe[1][idx][idy]=ScaleFactorLiHe[0][idx][idy];// EH1
+                    ScaleFactorLiHe[3][idx][idy]=ScaleFactorLiHe[2][idx][idy];// EH2
+
+                    ScaleFactorLiHe[5][idx][idy]=ScaleFactorLiHe[4][idx][idy];// EH3
+                    ScaleFactorLiHe[6][idx][idy]=ScaleFactorLiHe[4][idx][idy];// EH3
+                    ScaleFactorLiHe[7][idx][idy]=ScaleFactorLiHe[4][idx][idy];// EH3
+                }
+                else//6 AD
+                {
+                    ScaleFactorLiHe[1][idx][idy]=ScaleFactorLiHe[0][idx][idy];// EH1
+                    ScaleFactorLiHe[4][idx][idy]=ScaleFactorLiHe[3][idx][idy];// EH3
+                    ScaleFactorLiHe[5][idx][idy]=ScaleFactorLiHe[3][idx][idy];// EH3
+
+                }
+            }
+            if(VaryFastNeutronsMatrix)
+            {
+                if(NADs==MaxDetectors)//8AD
+                {
+                    ScaleFactorFastNeutrons[1][idx][idy]=ScaleFactorFastNeutrons[0][idx][idy];// EH1
+                    ScaleFactorFastNeutrons[3][idx][idy]=ScaleFactorFastNeutrons[2][idx][idy];// EH2
+                    
+                    ScaleFactorFastNeutrons[5][idx][idy]=ScaleFactorFastNeutrons[4][idx][idy];// EH3
+                    ScaleFactorFastNeutrons[6][idx][idy]=ScaleFactorFastNeutrons[4][idx][idy];// EH3
+                    ScaleFactorFastNeutrons[7][idx][idy]=ScaleFactorFastNeutrons[4][idx][idy];// EH3
+                }
+                else//6 AD
+                {
+                    ScaleFactorFastNeutrons[1][idx][idy]=ScaleFactorFastNeutrons[0][idx][idy];// EH1
+                    ScaleFactorFastNeutrons[4][idx][idy]=ScaleFactorFastNeutrons[3][idx][idy];// EH3
+                    ScaleFactorFastNeutrons[5][idx][idy]=ScaleFactorFastNeutrons[3][idx][idy];// EH3
+                }
+            }
+            if(VaryAmCMatrix)
+            {   //  AmC all correlated
+                ScaleFactorAmC[1][idx][idy]=ScaleFactorAmC[0][idx][idy];
+                ScaleFactorAmC[2][idx][idy]=ScaleFactorAmC[0][idx][idy];
+                ScaleFactorAmC[3][idx][idy]=ScaleFactorAmC[0][idx][idy];
+                ScaleFactorAmC[4][idx][idy]=ScaleFactorAmC[0][idx][idy];
+                ScaleFactorAmC[5][idx][idy]=ScaleFactorAmC[0][idx][idy];
+                
+                if(NADs==MaxDetectors)//8AD
+                {
+                    ScaleFactorAmC[6][idx][idy]=ScaleFactorAmC[0][idx][idy];
+                    ScaleFactorAmC[7][idx][idy]=ScaleFactorAmC[0][idx][idy];
+                }
+            }
+        }
     }
-    if(VaryAmCMatrix)
-    {   //  AmC all correlated
-        ScaleFactorAmC[1]=ScaleFactorAmC[0];
-        ScaleFactorAmC[2]=ScaleFactorAmC[0];
-        ScaleFactorAmC[3]=ScaleFactorAmC[0];
-        ScaleFactorAmC[4]=ScaleFactorAmC[0];
-        ScaleFactorAmC[5]=ScaleFactorAmC[0];
-    }
-    
     //Since the rate distortion is not accounted here, in case we want to use all the distortions at the same time we have to distort the shape first, and then the rate:
     
     if(DistortLiHeMatrix)// Distort LiHe shape for all ADs in the same way
@@ -2209,20 +2300,25 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             
             std::cout << LiHeError << std::endl;
             
-            RandomLiHeH[NADs] = new TH1D("LiHe","LiHe",n_evis_bins,evis_bins);
-            
-            for(Int_t AD=0;AD<NADs;AD++)
+            for(Int_t idx=0; idx<XCellLimit; idx++)
             {
-                for (Int_t visbin = 1; visbin <= n_evis_bins; visbin++)
+                for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    RandomLiHeH[AD]->SetBinContent(visbin,(.9+DistortLiHeError)*LithiumH->Interpolate(RandomLiHeH[AD]->GetXaxis()->GetBinCenter(visbin))+(.1-DistortLiHeError)*HeliumH->Interpolate(RandomLiHeH[AD]->GetXaxis()->GetBinCenter(visbin)));
+                    for(Int_t AD=0;AD<NADs;AD++)
+                    {
+                        //RandomLiHeH[AD][idx][idy] = new TH1D(Form("LiHe_AD%d_volume%d",AD,idx),Form("LiHe_AD%d_volume%d",AD,idx),n_evis_bins,evis_bins);
+                        
+                        for (Int_t visbin = 1; visbin <= n_evis_bins; visbin++)
+                        {
+                            RandomLiHeH[AD][idx][idy]->SetBinContent(visbin,(.9+DistortLiHeError)*LithiumH->Interpolate(RandomLiHeH[AD][idx][idy]->GetXaxis()->GetBinCenter(visbin))+(.1-DistortLiHeError)*HeliumH->Interpolate(RandomLiHeH[AD][idx][idy]->GetXaxis()->GetBinCenter(visbin)));
+                        }
+                    }
+                    for(Int_t AD=0;AD<NADs;AD++)
+                    {
+                        RandomLiHeH[AD][idx][idy]->Scale(LiHeH[AD][idx][idy]->Integral()/RandomLiHeH[AD][idx][idy]->Integral());
+                    }
                 }
             }
-            for(Int_t AD=0;AD<NADs;AD++)
-            {
-                RandomLiHeH[AD]->Scale(LiHeH[AD]->Integral()/RandomLiHeH[AD]->Integral());
-            }
-            
             TCanvas* LiC = new TCanvas("a","");
 
                 LithiumH->Draw();
@@ -2238,11 +2334,17 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             delete HeC;
             
             TCanvas* LiHeC = new TCanvas("c","");
-            LiHeC->Divide(NADs/2,2);
+            LiHeC->Divide(NADs/2,2*XCellLimit*YCellLimit);
             for(Int_t AD=0;AD<NADs;AD++)
             {
-                LiHeC->cd(AD+1);
-                RandomLiHeH[AD]->Draw();
+                for(Int_t idx=0; idx<XCellLimit; idx++)
+                {
+                    for(Int_t idy=0; idy<YCellLimit; idy++)
+                    {
+                        LiHeC->cd(AD+idx*NADs+idy*NADs*XCellLimit+1);
+                        RandomLiHeH[AD][idx][idy]->Draw();
+                    }
+                }
             }
             LiHeC->Print(("./Images/"+AnalysisString+"/BackgroundVariations/RandomLiHe.eps").c_str());
             delete LiHeC;
@@ -2288,9 +2390,15 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
 
             for(Int_t AD=0;AD<NADs;AD++)
             {
-                RandomLiHeH[AD] = (TH1D*)OriginalLiHeH->Rebin(n_evis_bins,Form("Rebinned LiHe"),evis_bins);//Rebin to visible binning
-                
-                RandomLiHeH[AD]->Scale(LiHeH[AD]->Integral()/RandomLiHeH[AD]->Integral());
+                for(Int_t idx=0; idx<XCellLimit; idx++)
+                {
+                    for(Int_t idy=0; idy<YCellLimit; idy++)
+                    {
+                        RandomLiHeH[AD][idx][idy] = (TH1D*)OriginalLiHeH->Rebin(n_evis_bins,Form("Rebinned LiHe"),evis_bins);//Rebin to visible binning
+                        
+                        RandomLiHeH[AD][idx][idy]->Scale(LiHeH[AD][idx][idy]->Integral()/RandomLiHeH[AD][idx][idy]->Integral());
+                    }
+                }
             }
             
             delete func_LiHe_interpolated;
@@ -2301,8 +2409,14 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
 
             for(Int_t AD=0;AD<NADs;AD++)
             {
-                RandomLiHeH[AD]->Multiply(func_LiHe);
-                RandomLiHeH[AD]->Scale(LiHeH[AD]->Integral()/RandomLiHeH[AD]->Integral());
+                for(Int_t idx=0; idx<XCellLimit; idx++)
+                {
+                    for(Int_t idy=0; idy<YCellLimit; idy++)
+                    {
+                        RandomLiHeH[AD][idx][idy]->Multiply(func_LiHe);
+                        RandomLiHeH[AD][idx][idy]->Scale(LiHeH[AD][idx][idy]->Integral()/RandomLiHeH[AD][idx][idy]->Integral());
+                    }
+                }
             }
 #endif
         }
@@ -2310,8 +2424,14 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
         TFile* SaveLiHe = TFile::Open(("./RootOutputs/"+AnalysisString+Form("/Backgrounds/LiHeDistortions.root")).c_str(),"recreate");
         for(Int_t AD=0;AD<NADs;AD++)
         {
-            LiHeH[AD]->Write(Form("Nominal LiHe%d period%d",AD,week));
-            RandomLiHeH[AD]->Write(Form("LiHeAD%d period%d",AD,week));
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    LiHeH[AD][idx][idy]->Write(Form("Nominal LiHe%d period%d",AD,week));
+                    RandomLiHeH[AD][idx][idy]->Write(Form("LiHeAD%d period%d",AD,week));
+                }
+            }
         }
 
         func_LiHe->Write();
@@ -2345,23 +2465,29 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             
             for(Int_t AD=0;AD<NADs;AD++)
             {
-                if(AD<ADsEH1)
+                for(Int_t idx=0; idx<XCellLimit; idx++)
                 {
-                    RandomFastNeutronsH[AD]->Reset();
-                    RandomFastNeutronsH[AD]->Add(func_FN1);
-                    RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
-                }
-                else if(AD<(ADsEH1+ADsEH2))
-                {
-                    RandomFastNeutronsH[AD]->Reset();
-                    RandomFastNeutronsH[AD]->Add(func_FN2);
-                    RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
-                }
-                else
-                {
-                    RandomFastNeutronsH[AD]->Reset();
-                    RandomFastNeutronsH[AD]->Add(func_FN3);
-                    RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
+                    for(Int_t idy=0; idy<YCellLimit; idy++)
+                    {
+                        if(AD<ADsEH1)
+                        {
+                            RandomFastNeutronsH[AD][idx][idy]->Reset();
+                            RandomFastNeutronsH[AD][idx][idy]->Add(func_FN1);
+                            RandomFastNeutronsH[AD][idx][idy]->Scale(FastNeutronsH[AD][idx][idy]->Integral()/RandomFastNeutronsH[AD][idx][idy]->Integral());
+                        }
+                        else if(AD<(ADsEH1+ADsEH2))
+                        {
+                            RandomFastNeutronsH[AD][idx][idy]->Reset();
+                            RandomFastNeutronsH[AD][idx][idy]->Add(func_FN2);
+                            RandomFastNeutronsH[AD][idx][idy]->Scale(FastNeutronsH[AD][idx][idy]->Integral()/RandomFastNeutronsH[AD][idx][idy]->Integral());
+                        }
+                        else
+                        {
+                            RandomFastNeutronsH[AD][idx][idy]->Reset();
+                            RandomFastNeutronsH[AD][idx][idy]->Add(func_FN3);
+                            RandomFastNeutronsH[AD][idx][idy]->Scale(FastNeutronsH[AD][idx][idy]->Integral()/RandomFastNeutronsH[AD][idx][idy]->Integral());
+                        }
+                    }
                 }
             }
         }
@@ -2374,8 +2500,14 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             
             for(Int_t AD=0;AD<ADsEH1;AD++)
             {
-                RandomFastNeutronsH[AD]->Multiply(func_FN1);
-                RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
+                for(Int_t idx=0; idx<XCellLimit; idx++)
+                {
+                    for(Int_t idy=0; idy<YCellLimit; idy++)
+                    {
+                        RandomFastNeutronsH[AD][idx][idy]->Multiply(func_FN1);
+                        RandomFastNeutronsH[AD][idx][idy]->Scale(FastNeutronsH[AD][idx][idy]->Integral()/RandomFastNeutronsH[AD][idx][idy]->Integral());
+                    }
+                }
             }
             func_FN2 = new TF1("func_FN2","[0]/(0.2*pow(x,0.1))+[1]",InitialVisibleEnergy,FinalVisibleEnergy);
             
@@ -2383,8 +2515,14 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             
             for(Int_t AD=ADsEH1;AD<(ADsEH1+ADsEH2);AD++)
             {
-                RandomFastNeutronsH[AD]->Multiply(func_FN2);
-                RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
+                for(Int_t idx=0; idx<XCellLimit; idx++)
+                {
+                    for(Int_t idy=0; idy<YCellLimit; idy++)
+                    {
+                        RandomFastNeutronsH[AD][idx][idy]->Multiply(func_FN2);
+                        RandomFastNeutronsH[AD][idx][idy]->Scale(FastNeutronsH[AD][idx][idy]->Integral()/RandomFastNeutronsH[AD][idx][idy]->Integral());
+                    }
+                }
             }
             func_FN3 = new TF1("func_FN3","[0]/(0.2*pow(x,0.1))+[1]",InitialVisibleEnergy,FinalVisibleEnergy);
             
@@ -2392,16 +2530,28 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             
             for(Int_t AD=(ADsEH1+ADsEH2);AD<(ADsEH1+ADsEH2+ADsEH3);AD++)
             {
-                RandomFastNeutronsH[AD]->Multiply(func_FN3);
-                RandomFastNeutronsH[AD]->Scale(FastNeutronsH[AD]->Integral()/RandomFastNeutronsH[AD]->Integral());
+                for(Int_t idx=0; idx<XCellLimit; idx++)
+                {
+                    for(Int_t idy=0; idy<YCellLimit; idy++)
+                    {
+                        RandomFastNeutronsH[AD][idx][idy]->Multiply(func_FN3);
+                        RandomFastNeutronsH[AD][idx][idy]->Scale(FastNeutronsH[AD][idx][idy]->Integral()/RandomFastNeutronsH[AD][idx][idy]->Integral());
+                    }
+                }
             }
         }
         
         TFile* SaveFN = TFile::Open(("./RootOutputs/"+AnalysisString+Form("/Backgrounds/FNDistortions.root")).c_str(),"recreate");
         for(Int_t AD = 0; AD<NADs;AD++)
         {
-            FastNeutronsH[AD]->Write(Form("Nominal FN%d period%d",AD,week));
-            RandomFastNeutronsH[AD]->Write(Form("FN%d period%d",AD,week));
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    FastNeutronsH[AD][idx][idy]->Write(Form("Nominal FN%d period%d",AD,week));
+                    RandomFastNeutronsH[AD][idx][idy]->Write(Form("FN%d period%d",AD,week));
+                }
+            }
         }
         func_FN1->Write();
         func_FN2->Write();
@@ -2422,16 +2572,28 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
         
         for(Int_t AD=0;AD<NADs;AD++)
         {
-            RandomAmCH[AD]->Reset();
-            RandomAmCH[AD]->Add(func_AmC);
-            RandomAmCH[AD]->Scale(AmCH[AD]->Integral()/RandomAmCH[AD]->Integral());
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    RandomAmCH[AD][idx][idy]->Reset();
+                    RandomAmCH[AD][idx][idy]->Add(func_AmC);
+                    RandomAmCH[AD][idx][idy]->Scale(AmCH[AD][idx][idy]->Integral()/RandomAmCH[AD][idx][idy]->Integral());
+                }
+            }
         }
         
         TFile* SaveAmC = TFile::Open(("./RootOutputs/"+AnalysisString+Form("/Backgrounds/AmCDistortions.root")).c_str(),"recreate");
         for(Int_t AD=0;AD<NADs;AD++)
         {
-            AmCH[AD]->Write(Form("Nominal AmC%d period%d",AD,week));
-            RandomAmCH[AD]->Write(Form("AmC%d period%d",AD,week));
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    AmCH[AD][idx][idy]->Write(Form("Nominal AmC%d period%d",AD,week));
+                    RandomAmCH[AD][idx][idy]->Write(Form("AmC%d period%d",AD,week));
+                }
+            }
         }
         func_AmC->Write();
         delete SaveAmC;
@@ -2444,9 +2606,15 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
         
         for (Int_t AD =0; AD<NADs; AD++)
         {
-            RandomAccidentalsH[AD]->Scale(1.*ScaleFactorAccidental[AD]);
-            AccidentalsH[AD]->Write(Form("Nominal Accidental%d period%d",AD,week));
-            RandomAccidentalsH[AD]->Write(Form("Accidental%d period%d",AD,week));
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    RandomAccidentalsH[AD][idx][idy]->Scale(1.*ScaleFactorAccidental[AD][idx][idy]);
+                    AccidentalsH[AD][idx][idy]->Write(Form("Nominal Accidental%d period%d",AD,week));
+                    RandomAccidentalsH[AD][idx][idy]->Write(Form("Accidental%d period%d",AD,week));
+                }
+            }
         }
         delete SaveVaryACCCanvasF;
     }
@@ -2456,9 +2624,15 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
         TFile* SaveVaryLiHeCanvasF = TFile::Open(("./RootOutputs/"+AnalysisString+Form("/Backgrounds/LiHeVariations.root")).c_str(),"recreate");
         for (Int_t AD =0; AD<NADs; AD++)
         {
-            RandomLiHeH[AD]->Scale(1.*ScaleFactorLiHe[AD]);
-            LiHeH[AD]->Write(Form("Nominal LiHe%d period%d",AD,week));
-            RandomLiHeH[AD]->Write(Form("LiHe%d period%d",AD,week));
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    RandomLiHeH[AD][idx][idy]->Scale(1.*ScaleFactorLiHe[AD][idx][idy]);
+                    LiHeH[AD][idx][idy]->Write(Form("Nominal LiHe%d period%d",AD,week));
+                    RandomLiHeH[AD][idx][idy]->Write(Form("LiHe%d period%d",AD,week));
+                }
+            }
         }
         delete SaveVaryLiHeCanvasF;
     }
@@ -2468,9 +2642,15 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
         TFile* SaveVaryFNCanvasF = TFile::Open(("./RootOutputs/"+AnalysisString+Form("/Backgrounds/FNVariations.root")).c_str(),"recreate");
         for (Int_t AD =0; AD<NADs; AD++)
         {
-            RandomFastNeutronsH[AD]->Scale(1.*ScaleFactorFastNeutrons[AD]);
-            FastNeutronsH[AD]->Write(Form("Nominal FN%d period%d",AD,week));
-            RandomFastNeutronsH[AD]->Write(Form("FNAD%d period%d",AD,week));
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    RandomFastNeutronsH[AD][idx][idy]->Scale(1.*ScaleFactorFastNeutrons[AD][idx][idy]);
+                    FastNeutronsH[AD][idx][idy]->Write(Form("Nominal FN%d period%d",AD,week));
+                    RandomFastNeutronsH[AD][idx][idy]->Write(Form("FNAD%d period%d",AD,week));
+                }
+            }
         }
         delete SaveVaryFNCanvasF;
     }
@@ -2479,9 +2659,15 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
         TFile* SaveVaryAmCCanvasF = TFile::Open(("./RootOutputs/"+AnalysisString+Form("/Backgrounds/AmCVariations.root")).c_str(),"recreate");
         for (Int_t AD =0; AD<NADs; AD++)
         {
-            RandomAmCH[AD]->Scale(1.*ScaleFactorAmC[AD]);
-            AmCH[AD]->Write(Form("Nominal AmCH%d period%d",AD,week));
-            RandomAmCH[AD]->Write(Form("AmCAD%d period%d",AD,week));
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    RandomAmCH[AD][idx][idy]->Scale(1.*ScaleFactorAmC[AD][idx][idy]);
+                    AmCH[AD][idx][idy]->Write(Form("Nominal AmCH%d period%d",AD,week));
+                    RandomAmCH[AD][idx][idy]->Write(Form("AmCAD%d period%d",AD,week));
+                }
+            }
         }
         delete SaveVaryAmCCanvasF;
     }
@@ -2490,24 +2676,30 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
     
     for(Int_t AD=0; AD<NADs; AD++)
     {
-        if(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix)
+        for(Int_t idx=0; idx<XCellLimit; idx++)
         {
-            std::cout << "\n \t Background Scale Factors:" << std::endl;
-            std::cout << "\t Acc LiHe FN AmC" << std::endl;
-            std::cout << "AD: "<<AD << "\t " << ScaleFactorAccidental[AD] << "   " << ScaleFactorLiHe[AD] <<"   " <<  ScaleFactorFastNeutrons[AD] <<"   " <<  ScaleFactorAmC[AD] << std::endl;
+            for(Int_t idy=0; idy<YCellLimit; idy++)
+            {
+                if(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix)
+                {
+                    std::cout << "\n \t Background Scale Factors:" << std::endl;
+                    std::cout << "\t Acc LiHe FN AmC" << std::endl;
+                    std::cout << "AD: "<< AD << " Volume: " << idx << "\t " << ScaleFactorAccidental[AD][idx][idy] << "   " << ScaleFactorLiHe[AD][idx][idy] <<"   " <<  ScaleFactorFastNeutrons[AD][idx][idy] <<"   " <<  ScaleFactorAmC[AD][idx][idy] << std::endl;
+                }
+                
+                //  Now BackgroundSpectrumH holds random backgrounds, either varying the rate or the shape
+                BackgroundSpectrumH[AD][idx][idy]=(TH1D*)RandomAccidentalsH[AD][idx][idy]->Clone();
+                BackgroundSpectrumH[AD][idx][idy]->Add(RandomLiHeH[AD][idx][idy]);
+                BackgroundSpectrumH[AD][idx][idy]->Add(RandomFastNeutronsH[AD][idx][idy]);
+                BackgroundSpectrumH[AD][idx][idy]->Add(RandomAmCH[AD][idx][idy]);
+                BackgroundSpectrumH[AD][idx][idy]->SetTitle(Form("Random Background Spectrum_%d",AD));
+                
+        delete RandomAccidentalsH[AD][idx][idy];
+        delete RandomLiHeH[AD][idx][idy];
+        delete RandomFastNeutronsH[AD][idx][idy];
+        delete RandomAmCH[AD][idx][idy];
+            }
         }
-        
-        //  Now BackgroundSpectrumH holds random backgrounds, either varying the rate or the shape
-        BackgroundSpectrumH[AD]=(TH1D*)RandomAccidentalsH[AD]->Clone();
-        BackgroundSpectrumH[AD]->Add(RandomLiHeH[AD]);
-        BackgroundSpectrumH[AD]->Add(RandomFastNeutronsH[AD]);
-        BackgroundSpectrumH[AD]->Add(RandomAmCH[AD]);
-        BackgroundSpectrumH[AD]->SetTitle(Form("Random Background Spectrum_%d",AD));
-        
-        delete RandomAccidentalsH[AD];
-        delete RandomLiHeH[AD];
-        delete RandomFastNeutronsH[AD];
-        delete RandomAmCH[AD];
     }
 }
 
@@ -2569,27 +2761,45 @@ void Oscillation :: LoadNominalBackgrounds()
     
     for (Int_t AD =0; AD<NADs; AD++)
     {
-        AccidentalsH[AD]=(TH1D*)gDirectory->Get(Form("Accidentals_AD%i",AD));
-        LiHeH[AD]=(TH1D*)gDirectory->Get(Form("LiHe_AD%i",AD));
-        FastNeutronsH[AD]=(TH1D*)gDirectory->Get(Form("FN_AD%i",AD));
-        AmCH[AD]=(TH1D*)gDirectory->Get(Form("AmC_AD%i",AD));
+        for(Int_t idx=0; idx<XCellLimit; idx++)
+        {
+            for(Int_t idy=0; idy<YCellLimit; idy++)
+            {
+                AccidentalsH[AD][idx][idy]=(TH1D*)gDirectory->Get(Form("Accidentals_AD%i_Volume%i",AD,idx));
+                LiHeH[AD][idx][idy]=(TH1D*)gDirectory->Get(Form("LiHe_AD%i_Volume%i",AD,idx));
+                FastNeutronsH[AD][idx][idy]=(TH1D*)gDirectory->Get(Form("FN_AD%i_Volume%i",AD,idx));
+                AmCH[AD][idx][idy]=(TH1D*)gDirectory->Get(Form("AmC_AD%i_Volume%i",AD,idx));
+            }
+        }
         NominalAmCF = (TF1*)gDirectory->Get("AmCFunc");
         
         //Nominal background spectrum
-        BackgroundSpectrumH[AD] = new TH1D(Form("Background Spectrum_%d",AD),Form("Background Spectrum_%d",AD),n_evis_bins,evis_bins);
-        BackgroundSpectrumH[AD]->Add(AccidentalsH[AD]);
-        BackgroundSpectrumH[AD]->Add(LiHeH[AD]);
-        BackgroundSpectrumH[AD]->Add(FastNeutronsH[AD]);
-        BackgroundSpectrumH[AD]->Add(AmCH[AD]);
+        for(Int_t idx=0; idx<XCellLimit; idx++)
+        {
+            for(Int_t idy=0; idy<YCellLimit; idy++)
+            {
+                BackgroundSpectrumH[AD][idx][idy] = new TH1D(Form("Background Spectrum_AD%i_Volume%i",AD,idx),Form("Background Spectrum_AD%i_Volume%i",AD,idx),n_evis_bins,evis_bins);
+                BackgroundSpectrumH[AD][idx][idy]->Add(AccidentalsH[AD][idx][idy]);
+                BackgroundSpectrumH[AD][idx][idy]->Add(LiHeH[AD][idx][idy]);
+                BackgroundSpectrumH[AD][idx][idy]->Add(FastNeutronsH[AD][idx][idy]);
+                BackgroundSpectrumH[AD][idx][idy]->Add(AmCH[AD][idx][idy]);
+            }
+        }
     }
     
     #ifdef PrintEps
         TCanvas* AccidentalsC = new TCanvas("AccidentalsC","AccidentalsC");
-        AccidentalsC->Divide(NADs/2,2);
+        AccidentalsC->Divide(NADs/2,2*XCellLimit*YCellLimit);
         for(Int_t AD=0; AD<NADs; AD++)
         {
-            AccidentalsC->cd(AD+1);
-            AccidentalsH[AD]->Draw();
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    AccidentalsC->cd(AD+idx*NADs+idy*NADs*XCellLimit+1);
+                    AccidentalsH[AD][idx][idy]->Draw();
+                }
+            }
         }
         AccidentalsC->Update();
         
@@ -2598,12 +2808,17 @@ void Oscillation :: LoadNominalBackgrounds()
         delete AccidentalsC;
         
         TCanvas* LiHeC = new TCanvas("LiHeC","LiHeC");
-        LiHeC->Divide(NADs/2,2);
+        LiHeC->Divide(NADs/2,2*XCellLimit*YCellLimit);
         for(Int_t AD=0; AD<NADs; AD++)
         {
-            LiHeC->cd(AD+1);
-            LiHeH[AD]->Draw();
-            
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    LiHeC->cd(AD+idx*NADs+idy*NADs*XCellLimit+1);
+                    LiHeH[AD][idx][idy]->Draw();
+                }
+            }
         }
         LiHeC->Update();
         
@@ -2612,11 +2827,17 @@ void Oscillation :: LoadNominalBackgrounds()
         delete LiHeC;
         
         TCanvas* AmCC = new TCanvas("AmCC","AmCC");
-        AmCC->Divide(NADs/2,2);
+        AmCC->Divide(NADs/2,2*XCellLimit*YCellLimit);
         for(Int_t AD=0; AD<NADs; AD++)
         {
-            AmCC->cd(AD+1);
-            AmCH[AD]->Draw();
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    AmCC->cd(AD+idx*NADs+idy*NADs*XCellLimit+1);
+                    AmCH[AD][idx][idy]->Draw();
+                }
+            }
         }
         AmCC->Update();
         
@@ -2625,11 +2846,17 @@ void Oscillation :: LoadNominalBackgrounds()
         delete AmCC;
         
         TCanvas* FastNeutronsC = new TCanvas("FastNeutronsC","FastNeutronsC");
-        FastNeutronsC->Divide(NADs/2,2);
+        FastNeutronsC->Divide(NADs/2,2*XCellLimit*YCellLimit);
         for(Int_t AD=0; AD<NADs; AD++)
         {
-            FastNeutronsC->cd(AD+1);
-            FastNeutronsH[AD]->Draw();
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    FastNeutronsC->cd(AD+idx*NADs+idy*NADs*XCellLimit+1);
+                    FastNeutronsH[AD][idx][idy]->Draw();
+                }
+            }
         }
         FastNeutronsC->Update();
         
