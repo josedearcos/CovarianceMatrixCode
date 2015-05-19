@@ -94,7 +94,6 @@ private:
     Int_t NSteps;
     
     //Cell parameters:
-    Int_t NumberOfCells;
     Int_t XCellLimit;
     Int_t YCellLimit;
     
@@ -392,14 +391,12 @@ Prediction :: Prediction()
     if(analysis)
     {
         AnalysisString = "Hydrogen";
-        NumberOfCells = VolumeX*VolumeY;
         XCellLimit = VolumeX;
         YCellLimit = VolumeY;
     }
     else
     {
         AnalysisString = "Gadolinium";
-        NumberOfCells = 1;//Gadollinium analysis has only 1 fidutial volume
         XCellLimit = 1;
         YCellLimit = 1;
     }
@@ -510,14 +507,12 @@ Prediction :: Prediction(NominalData* data)
     if(analysis)
     {
         AnalysisString = "Hydrogen";
-        NumberOfCells = VolumeX*VolumeY;
         XCellLimit = VolumeX;
         YCellLimit = VolumeY;
     }
     else
     {
         AnalysisString = "Gadolinium";
-        NumberOfCells = 1;//Gadollinium analysis has only 1 fidutial volume
         XCellLimit = 1;
         YCellLimit = 1;
     }

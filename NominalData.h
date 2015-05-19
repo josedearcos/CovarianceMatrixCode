@@ -129,13 +129,14 @@ private:
     Double_t m_detectorEfficiency_nGd;
     Double_t m_detectorEfficiency_spill;
     
-    Double_t m_detectorGlobalEfficiency;
+    Double_t m_detectorGlobalEfficiency[VolumeX];
 
     //nH Efficiency map
 //    TH2D *h2d_Ep_ratio2center[MaxDetectors*MaxPeriods];
     
     Double_t ADIntegral[MaxDetectors];
-    Double_t CellIntegral[MaxDetectors][VolumeX][VolumeY];
+    Double_t CellIntegral[MaxDetectors*VolumeX*VolumeY];
+    Double_t PercentualEvents[MaxDetectors*VolumeX*VolumeY];
     
     bool delete_nH_maps_flag;
     
@@ -544,7 +545,8 @@ public:
     Double_t GetAmCEvents(Int_t,Int_t,Int_t,Int_t);
     
     Int_t GetNReactorPeriods();
-    //void ReadToyEventsByCell();
+    void ReadToyEventsByCell();
+    Double_t GetEventsByCell(Int_t,Int_t,Int_t);
 };
 
 NominalData :: NominalData(bool ish,Int_t dataSet)
@@ -1103,7 +1105,8 @@ void NominalData :: CopyData(NominalData * data)
     m_detectorEfficiency_flash = data->m_detectorEfficiency_flash;
     m_detectorEfficiency_nGd = data->m_detectorEfficiency_nGd;
     m_detectorEfficiency_spill = data->m_detectorEfficiency_spill;
-    m_detectorGlobalEfficiency = data->m_detectorGlobalEfficiency;
+    std::copy(std::begin(data->m_detectorGlobalEfficiency), std::end(data->m_detectorGlobalEfficiency), std::begin(m_detectorGlobalEfficiency));
+
 
     
 //    if(isH)
@@ -1155,6 +1158,10 @@ void NominalData :: CopyData(NominalData * data)
     
     std::copy(std::begin(data->ObservedEvents), std::end(data->ObservedEvents), std::begin(ObservedEvents));
     
+    std::copy(std::begin(data->ADIntegral), std::end(data->ADIntegral), std::begin(ADIntegral));
+    std::copy(std::begin(data->CellIntegral), std::end(data->CellIntegral), std::begin(CellIntegral));
+    std::copy(std::begin(data->PercentualEvents), std::end(data->PercentualEvents), std::begin(PercentualEvents));
+
     // Days and efficiencies:
     std::copy(std::begin(data->FullTime), std::end(data->FullTime), std::begin(FullTime));
     std::copy(std::begin(data->MuonEff), std::end(data->MuonEff), std::begin(MuonEff));
@@ -2029,8 +2036,9 @@ Double_t NominalData :: GetDetectorEfficiency(Int_t detector, Int_t week, Int_t 
             VolumeEfficiency = LS_volume_efficiency;
         }//Ls
 #endif
+        //VolumeEfficiency*?
         
-        return VolumeEfficiency*MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency;
+        return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx];
         //Efficiency of Prompt energy, Delayed energy, time, distance included in global efficiency. Flasher? Efficiency nGd (nH)?, spill?
         
         //h2d_Ep_ratio2center[detector+NADs*week]->GetBinContent(idx+1,idy+1);//Return by cell!, the 2d map is a ratio of the cell events to center, use the nominal efficiencies in the nH study, this users the nGd cut ones.
@@ -2521,7 +2529,7 @@ void NominalData :: LoadHydrogenMainData(const Char_t* mainmatrixname)
                         }
                     }
                     
-                    m_detectorGlobalEfficiency=readvals[AD];
+                    m_detectorGlobalEfficiency[VolumeIndex]=readvals[AD];
                 }
             }
             //row 8 -->Detector Global Efficiency error
@@ -3212,143 +3220,150 @@ void NominalData :: LoadnHEfficiencyMaps()
 //delete_nH_maps_flag = 1;
 }
 
-//void NominalData :: ReadToyEventsByCell()//Included in nHToyMC.h right now
-//{
-//    std::string line;
-//    
-//    string SystematicS;
-//    
-//    //Detector systematics have different matrices:
-//    if(IAVMatrix==1)
-//    {
-//        SystematicS = "IAV";
-//    }
-//    else if(NLMatrix==1)
-//    {
-//        SystematicS = "NL";
-//    }
-//    else if(RelativeEnergyScaleMatrix==1)
-//    {
-//        SystematicS = "RelativeEnergyScale";
-//    }
-//    else if(ResolutionMatrix==1)
-//    {
-//        SystematicS = "Resolution";
-//    }
-//    else if(EfficiencyMatrix==1)
-//    {
-//        SystematicS = "Efficiency";
-//    }
-//    else
-//    {
-//        SystematicS = "Nominal";
-//    }
-//    ifstream mainfile(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str());
-//    
-//    Int_t linenum=0;//<---caution: only increments for lines that do not begin with #
-//    
-//    while(!mainfile.eof())
-//    {
-//        std::getline(mainfile,line);
-//        std::string firstchar = line.substr(0,1);
-//        
-//        if(firstchar=="#") continue;//<-- ignore lines with comments
-//        
-//        std::istringstream iss(line);
-//        
-//        if(linenum == 0)
-//        {
-//            Int_t AD = 0;
-//            
-//            iss >> AD >> ADIntegral[AD];
-//            
-//            std::cout << "line " << linenum << " the integral in AD " << AD << " is " << ADIntegral[AD] << std::endl;
-//            
-//            linenum++;
-//        }
-//        else if(linenum <=VolumeX*VolumeY)
-//        {
-//            Int_t AD = 0;
-//            Int_t idx = 0;
-//            Int_t idy = 0;
-//            
-//            iss >> AD >> idx >> idy >> CellIntegral[AD][idx][idy];
-//            //                if(column==0) AD=atoi(firstchar.c_str());
-//            //
-//            //                if(column==1) idx=atoi(sub.c_str());
-//            //
-//            //                if(column==2) idy=atoi(sub.c_str());
-//            //
-//            //                if(column==3)
-//            
-//            std::cout << "line " << linenum << " the integral in AD " << AD << " cell " << idx << " , " << idy << " is " << CellIntegral[AD][idx][idy] << std::endl;
-//            
-//            linenum++;
-//            
-//            if(linenum>VolumeX*VolumeY)
-//            {
-//                linenum = 0;//reset counter
-//            }
-//        }
-//    }
-//
-//    //Draw it:
-//#ifndef UseVolume
-//    TH2D* MapEvents_ratio2center = new TH2D("MapEventsRatio2center","MapEventsRatio2center",VolumeX,VolumeX_lower,VolumeX_upper,VolumeY,VolumeY_lower,VolumeY_upper);
-//    
-//    for(Int_t AD = 0; AD<NADs; AD++)
-//    {
-//        for(Int_t idx = 0; idx<VolumeX; idx++)
-//        {
-//            for(Int_t idy = 0; idy<VolumeY; idy++)
-//            {
-//                MapEvents_ratio2center->SetBinContent(idx+1,idy+1,CellIntegral[AD][idx][idy]/CellIntegral[AD][0][Int_t(VolumeY/2)]);
-//            }
-//        }
-//    }
-//    
-//    TCanvas* MapEventC = new TCanvas("MapEventRatio2Center","MapEventRatio2Center");
-//    
-//    MapEventC->cd(1);
-//    
-//    MapEvents_ratio2center->Draw("colz");
-//    
-//    MapEventC->Print("./Images/Hydrogen/Detector/MapEventRatio2Center.eps");
-//    
-//    delete MapEvents_ratio2center;
-//    delete MapEventC;
-//#endif
-//    
-//    TH2D* MapEvents_ratio2total = new TH2D("MapEventsRatio2total","MapEventsRatio2total",VolumeX,VolumeX_lower,VolumeX_upper,VolumeY,VolumeY_lower,VolumeY_upper);
-//    
-//    for(Int_t AD = 0; AD<NADs; AD++)
-//    {
-//        for(Int_t idx = 0; idx<VolumeX; idx++)
-//        {
-//            for(Int_t idy = 0; idy<VolumeY; idy++)
-//            {
-//                MapEvents_ratio2total->SetBinContent(idx+1,idy+1,CellIntegral[AD][idx][idy]/ADIntegral[AD]);
-//            }
-//        }
-//    }
-//    
-//    TCanvas* MapEventTotalC = new TCanvas("MapEventRatio2Total","MapEventRatio2Total");
-//    
-//    MapEventTotalC->cd(1);
-//    
-//    MapEvents_ratio2total->Draw("colz");
-//    
-//    MapEventTotalC->Print("./Images/Hydrogen/Detector/MapEventRatio2Total.eps");
-//    
-//    delete MapEventTotalC;
-//    
-//    TFile* SaveFile = new TFile("./Inputs/HInputs/MapEventRatio2Total.root","recreate");
-//    {
-//        MapEvents_ratio2total->Write();
-//    }
-//    
-//    delete SaveFile;
-//    
-//    delete MapEvents_ratio2total;
-//}
+void NominalData :: ReadToyEventsByCell()//Included in nHToyMC.h right now
+{
+    std::string line;
+    
+    string SystematicS;
+    
+    //Detector systematics have different matrices:
+    if(IAVMatrix)
+    {
+        SystematicS = "IAV";
+    }
+    else if(NLMatrix)
+    {
+        SystematicS = "NL";
+    }
+    else if(RelativeEnergyScaleMatrix)
+    {
+        SystematicS = "RelativeEnergyScale";
+    }
+    else if(ResolutionMatrix)
+    {
+        SystematicS = "Resolution";
+    }
+    else if(EfficiencyMatrix)
+    {
+        SystematicS = "Efficiency";
+    }
+    else
+    {
+        SystematicS = "Nominal";
+    }
+    
+    ifstream mainfile(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str());
+    
+    Int_t linenum=0;//<---caution: only increments for lines that do not begin with #
+    
+    while(!mainfile.eof())
+    {
+        std::getline(mainfile,line);
+        std::string firstchar = line.substr(0,1);
+        
+        if(firstchar=="#") continue;//<-- ignore lines with comments
+        
+        std::istringstream iss(line);
+        
+        if(linenum == 0)
+        {
+            Int_t AD = 0;
+            
+            iss >> AD >> ADIntegral[AD];
+            
+            std::cout << "line " << linenum << " the integral in AD " << AD << " is " << ADIntegral[AD] << std::endl;
+            
+            linenum++;
+        }
+        else if(linenum <=VolumeX*VolumeY)
+        {
+            Int_t AD = 0;
+            Int_t idx = 0;
+            Int_t idy = 0;
+            
+            iss >> AD >> idx >> idy >> CellIntegral[AD+NADs*idx+NADs*VolumeX*idy];
+            //                if(column==0) AD=atoi(firstchar.c_str());
+            //
+            //                if(column==1) idx=atoi(sub.c_str());
+            //
+            //                if(column==2) idy=atoi(sub.c_str());
+            //
+            //                if(column==3)
+            
+            std::cout << "line " << linenum << " the integral in AD " << AD << " cell " << idx << " , " << idy << " is " << CellIntegral[AD+NADs*idx+NADs*VolumeX*idy] << std::endl;
+            
+            linenum++;
+            
+            if(linenum>VolumeX*VolumeY)
+            {
+                linenum = 0;//reset counter
+            }
+        }
+    }
 
+    //Draw it:
+#ifndef UseVolume
+    TH2D* MapEvents_ratio2center = new TH2D("MapEventsRatio2center","MapEventsRatio2center",VolumeX,VolumeX_lower,VolumeX_upper,VolumeY,VolumeY_lower,VolumeY_upper);
+    
+    for(Int_t AD = 0; AD<NADs; AD++)
+    {
+        for(Int_t idx = 0; idx<VolumeX; idx++)
+        {
+            for(Int_t idy = 0; idy<VolumeY; idy++)
+            {
+                MapEvents_ratio2center->SetBinContent(idx+1,idy+1,CellIntegral[AD+NADs*idx+NADs*VolumeX*idy]/CellIntegral[AD+NADs*0+NADs*VolumeX*Int_t(VolumeY/2)]);
+            }
+        }
+    }
+    
+    TCanvas* MapEventC = new TCanvas("MapEventRatio2Center","MapEventRatio2Center");
+    
+    MapEventC->cd(1);
+    
+    MapEvents_ratio2center->Draw("colz");
+    
+    MapEventC->Print("./Images/Hydrogen/Detector/NominalDataMapEventRatio2Center.eps");
+    
+    delete MapEvents_ratio2center;
+    delete MapEventC;
+#endif
+    
+    TH2D* MapEvents_ratio2total = new TH2D("MapEventsRatio2total","MapEventsRatio2total",VolumeX,VolumeX_lower,VolumeX_upper,VolumeY,VolumeY_lower,VolumeY_upper);
+    
+    for(Int_t AD = 0; AD<NADs; AD++)
+    {
+        for(Int_t idx = 0; idx<VolumeX; idx++)
+        {
+            for(Int_t idy = 0; idy<VolumeY; idy++)
+            {
+                PercentualEvents[AD+NADs*idx+NADs*VolumeX*idy] = (CellIntegral[AD+NADs*idx+NADs*VolumeX*idy]/ADIntegral[AD]);
+
+                MapEvents_ratio2total->SetBinContent(idx+1,idy+1,CellIntegral[AD+NADs*idx+NADs*VolumeX*idy]/ADIntegral[AD]);
+            }
+        }
+    }
+    
+    TCanvas* MapEventTotalC = new TCanvas("MapEventRatio2Total","MapEventRatio2Total");
+    
+    MapEventTotalC->cd(1);
+    
+    MapEvents_ratio2total->Draw("colz");
+    
+    MapEventTotalC->Print("./Images/Hydrogen/Detector/NominalMapEventRatio2Total.eps");
+    
+    delete MapEventTotalC;
+    
+    TFile* SaveFile = new TFile("./Inputs/HInputs/MapEventRatio2Total.root","recreate");
+    {
+        MapEvents_ratio2total->Write();
+    }
+    
+    delete SaveFile;
+    
+    delete MapEvents_ratio2total;
+}
+
+Double_t NominalData :: GetEventsByCell(Int_t AD,Int_t idx, Int_t idy)
+{
+    return PercentualEvents[AD+NADs*idx+NADs*VolumeX*idy];
+}

@@ -92,7 +92,6 @@ private:
     Int_t ADsEH3;
     
     //Cell parameters:
-    Int_t NumberOfCells;
     Int_t XCellLimit;
     Int_t YCellLimit;
     
@@ -117,6 +116,7 @@ private:
     
     Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
     Int_t n_evis_bins;
+    Int_t n_etrue_bins;
     
     Int_t Nweeks;
     
@@ -260,6 +260,7 @@ private:
     // Resolution
     // Detector resolution function
     TF1 * ResoF;
+    Double_t EventsPerVolume[MaxDetectors][VolumeX][VolumeY];
     Double_t IBDEvents[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     Double_t ObservedEvents[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     Double_t ResolutionRange; //Range of resolution
@@ -350,7 +351,8 @@ OscillationReactor :: OscillationReactor()
     BinWidth=(FinalVisibleEnergy-InitialVisibleEnergy)/TotalBins;
     
     n_evis_bins = Nom->GetVisibleBins();
-    
+    n_etrue_bins = Nom->GetTrueBins();
+
     for (Int_t i = 0; i <= n_evis_bins; i++)
     {
         evis_bins[i] = Nom->GetVisibleBinningArray(i);
@@ -363,14 +365,13 @@ OscillationReactor :: OscillationReactor()
     {
         AnalysisString = "Hydrogen";
         nHToy = new nHToyMC(Nom);//load nH Toy MC
-        NumberOfCells = VolumeX*VolumeY;
         XCellLimit = VolumeX;
         YCellLimit = VolumeY;
+        Nom->ReadToyEventsByCell();
     }
     else
     {
         AnalysisString = "Gadolinium";
-        NumberOfCells = 1;//Gadollinium analysis has only 1 fidutial volume
         XCellLimit = 1;
         YCellLimit = 1;
     }
@@ -399,6 +400,7 @@ OscillationReactor :: OscillationReactor()
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
+                    EventsPerVolume[AD][idx][idy] = Nom->GetEventsByCell(AD,idx,idy);
                     IBDEvents[AD][week][idx][idy] = Nom->GetIBDEvents(AD,week,idx,idy);
                     ObservedEvents[AD][week][idx][idy] = Nom->GetObservedEvents(AD,week,idx,idy);
                 }
@@ -546,7 +548,8 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
     BinWidth=(FinalVisibleEnergy-InitialVisibleEnergy)/TotalBins;
     
     n_evis_bins = Data->GetVisibleBins();
-    
+    n_etrue_bins = Data->GetTrueBins();
+
     for (Int_t i = 0; i <= n_evis_bins; i++)
     {
         evis_bins[i] = Data->GetVisibleBinningArray(i);
@@ -559,14 +562,13 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
     {
         AnalysisString = "Hydrogen";
         nHToy = new nHToyMC(Data);//load nH Toy MC
-        NumberOfCells = VolumeX*VolumeY;
         XCellLimit = VolumeX;
         YCellLimit = VolumeY;
+        Data->ReadToyEventsByCell();
     }
     else
     {
         AnalysisString = "Gadolinium";
-        NumberOfCells = 1;//Gadollinium analysis has only 1 fidutial volume
         XCellLimit = 1;
         YCellLimit = 1;
     }
@@ -595,6 +597,7 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
+                    EventsPerVolume[AD][idx][idy] = Data->GetEventsByCell(AD,idx,idy);
                     IBDEvents[AD][week][idx][idy] = Data->GetIBDEvents(AD,week,idx,idy);
                     ObservedEvents[AD][week][idx][idy] = Data->GetObservedEvents(AD,week,idx,idy);
                 }
@@ -1320,11 +1323,47 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                     }
                 }
 #else//This is the normal code:
+            
+            string SystematicS;
+            
+            if(Mode)
+            {
+                if(RelativeEnergyScaleMatrix)
+                {
+                    SystematicS = "RelativeEnergyScaleResponseMatrix";
+                }
+                if(IAVMatrixb)
+                {
+                    SystematicS = "IAVResponseMatrix";
+                }
+                if(ResolutionMatrix)
+                {
+                    SystematicS = "ResolutionResponseMatrix";
+                }
+                if(EfficiencyMatrix)
+                {
+                    SystematicS = "EfficiencyResponseMatrix";
+                }
+                if(NLMatrix)
+                {
+                    SystematicS = "NLResponseMatrix";
+                }
+            }
+            else
+            {
+                SystematicS = "NominalResponseMatrix";
+
+            }
+            TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/"+SystematicS+Form("%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"read");
+            
             for(Int_t idx=0; idx<XCellLimit; idx++)
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    nHPredictionMatrix[AD][idx][idy] = (TH2D*)nHToy->LoadnHMatrix(AD,idx,idy);
+                    //nHPredictionMatrix[AD][idx][idy] = (TH2D*)nHToy->LoadnHMatrix(AD,idx,idy);
+                    
+                    nHPredictionMatrix[AD][idx][idy] = (TH2D*)nHMatrixF->Get(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));
+                    
                     Ybins = nHPredictionMatrix[AD][idx][idy]->GetYaxis()->GetNbins();
                     Xbins = nHPredictionMatrix[AD][idx][idy]->GetXaxis()->GetNbins();
                     
@@ -1342,27 +1381,28 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                     }
                 }
             }
-
+            
+            delete nHMatrixF;
+            
             for(Int_t idx=0; idx<XCellLimit; idx++)
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    Double_t EventsPerVolume = nHToy->GetEventsByCell(AD,idx,idy);
 #ifdef UseVolumes
                     if(idx==0)
                     {
-                        std::cout << " Percentage of events in Gd-Ls " << EventsPerVolume << std::endl;
+                        std::cout << " Percentage of events in Gd-Ls " << EventsPerVolume[AD][idx][idy] << std::endl;
                     }
                     else
                     {
-                        std::cout << " Percentage of events in Ls " << EventsPerVolume << std::endl;
+                        std::cout << " Percentage of events in Ls " << EventsPerVolume[AD][idx][idy] << std::endl;
                     }
 #endif
                     for(Int_t i = 1; i<=Ybins; i++)//visible, 240 bins
                     {
                         for(Int_t j = 1; j<=Xbins; j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
                         {
-                            VisibleHisto[AD][idx][idy]->SetBinContent(i,VisibleHisto[AD][idx][idy]->GetBinContent(i)+EventsPerVolume*nHPredictionMatrix[AD][idx][idy]->GetBinContent(j+ShiftBin,i)*ScaledOscillatedSpectrumAD[AD][idx][idy]->GetBinContent(j));
+                            VisibleHisto[AD][idx][idy]->SetBinContent(i,VisibleHisto[AD][idx][idy]->GetBinContent(i)+EventsPerVolume[AD][idx][idy]*nHPredictionMatrix[AD][idx][idy]->GetBinContent(j+ShiftBin,i)*ScaledOscillatedSpectrumAD[AD][idx][idy]->GetBinContent(j));
                             
                             //Important to see if there is a big difference between nHToy->GetEventsByCell(AD,idx,idy) produced in the ToyMC and the data one. Might be interesting to use the data one when we fit and the toy when we produce the covariance matrices.
                             
@@ -1403,6 +1443,20 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         delete PredictionC;
     #endif
     
+    //TEST FOR NO OSCILLATION ACTUALLY PRODUCES THE SAME NEUTRINO EVENTS IN ALL DETECTORS BEFORE SCALING:
+#ifdef NoOscillation
+//    for (Int_t AD = 0; AD <NADs; AD++)
+//    {
+//        for(Int_t idx=0; idx<XCellLimit; idx++)
+//        {
+//            for(Int_t idy=0; idy<YCellLimit; idy++)
+//            {
+//                assert((VisibleHisto[AD][idx][idy]-VisibleHisto[AD][idx][idy])<=0.0000001);
+//            }
+//        }
+//    }
+#endif
+    
     for (Int_t AD = 0; AD <NADs; AD++)
     {
         for(Int_t idx=0; idx<XCellLimit; idx++)
@@ -1422,7 +1476,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 
                 //Add backgrounds:
                 
-                //Add nominal backgrounds here, this way the predictions in the far hall will carry the background variations when they are subsctracted there
+                //Add nominal backgrounds here, this way the predictions in the far hall will carry the background variations when they are substracted there
                 VisibleHisto[AD][idx][idy]->Add(BackgroundSpectrumH[AD][idx][idy],1.);
                 //if(!CovMatrix)//Covariance matrices depend on this scaling
                 {

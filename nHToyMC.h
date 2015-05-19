@@ -122,7 +122,8 @@ private:
     bool NLMatrix;
     bool ResolutionMatrix;
     bool EfficiencyMatrix;
-    
+    string SystematicS;
+
     //AD configuration parameters:
     Int_t NADs;
 
@@ -686,7 +687,7 @@ void nHToyMC :: Toy(bool mode)
             
 #ifndef ReactorShapeinToy
             etree->Fill();//To fill a flat spectrum to produce a response matrix with nearly equal statistics in every column and about 3 times more events in total
-#endif
+#endif//ReactorShapeInToy
         }
         
 #ifdef ReactorShapeinToy        ///////// Uncomment #ReactorShapeinToy to include reactor shape in the toy:
@@ -804,11 +805,11 @@ void nHToyMC :: Toy(bool mode)
             
             etree->Fill();
         }
-#endif
+#endif//ReactorShapeInToy
         etree->Write();
         roofile_etree->Close();
         
-#endif
+#endif//LoadTree
         
         //////////////////////////////////////////////////////////////////////////
         // The etree file has to have been generated before running this code:
@@ -1862,37 +1863,41 @@ void nHToyMC :: Toy(bool mode)
         
         //Save event ratios:
         
-        string outputS;
-    
         if(mode==0)
         {
-            outputS= "./Inputs/HInputs/NominalToyMCEventRatio.txt";
+            SystematicS= "Nominal";
         }
         else
         {
-             if(RelativeEnergyScaleMatrix)
-             {
-                 outputS= "./Inputs/HInputs/RelativeEnergyScaleToyMCEventRatio.txt";
-             }
-             if(IAVMatrix)
-             {
-                 outputS= "./Inputs/HInputs/IAVToyMCEventRatio.txt";
-             }
-             else if(NLMatrix)
-             {
-                 outputS= "./Inputs/HInputs/NLToyMCEventRatio.txt";
-             }
-             else if(ResolutionMatrix)
-             {
-                 outputS= "./Inputs/HInputs/ResolutionToyMCEventRatio.txt";
-             }
-             else if(EfficiencyMatrix)
-             {
-                 outputS= "./Inputs/HInputs/EfficiencyToyMCEventRatio.txt";
-             }
+            if(RelativeEnergyScaleMatrix)
+            {
+                SystematicS = "RelativeEnergyScale";
+            }
+            else if(IAVMatrix)
+            {
+                SystematicS = "IAV";
+            }
+            else if(ResolutionMatrix)
+            {
+                SystematicS = "Resolution";
+            }
+            else if(EfficiencyMatrix)
+            {
+                SystematicS = "Efficiency";
+            }
+            else if(NLMatrix)
+            {
+                SystematicS = "NL";
+            }
+            else
+            {
+                std::cout << " Case not valid" << std::endl;
+                exit(EXIT_FAILURE);
+            }
         }
+        
         //Save txt file in case we want to use it externally:
-        FILE *f = fopen(outputS.c_str(), "w");
+        FILE *f = fopen(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str(), "w");
 
         if (f == NULL)
         {
@@ -2194,84 +2199,11 @@ void nHToyMC :: Toy(bool mode)
 #endif
             }
         }
-        if(mode==0)
-        {
-            TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root","recreate");
-            
-            for(int idx=0; idx<VolumeX; idx++)
-            {
-                for(int idy=0; idy<VolumeY; idy++)
-                {
-                    for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
-                    {
-                        HighResoMatrixH[AD][idx][idy]->Write(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
-                        MatrixH[AD][idx][idy]->Write(Form("EvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
-                        TransMatrixH[AD][idx][idy]->Write(Form("EnuEvis%i,Cell%i,%i",AD+1,idx,idy));
-                    }
-                    
-                }
-            }
-            delete SaveMatrix;
-        }
-        else
-        {
-            TFile* SaveMatrix = new TFile("./ResponseMatrices/Hydrogen/RandomResponseMatrix.root","recreate");
-           
-            for(int idx=0; idx<VolumeX; idx++)
-            {
-                for(int idy=0; idy<VolumeY; idy++)
-                {
-                    for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
-                    {
-                        HighResoMatrixH[AD][idx][idy]->Write(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
-                        MatrixH[AD][idx][idy]->Write(Form("EvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
-                        TransMatrixH[AD][idx][idy]->Write(Form("EnuEvis%i,Cell%i,%i",AD+1,idx,idy));
-                    }
-                    
-                }
-            }
-            delete SaveMatrix;
-        }
-#ifdef SaveTree
-        toy->Write();
-        roofile_toy->Close();
-#endif
-
-#ifndef ReDoNominal
-    }
-    else//if mode == 0
-    {
-        //Load event ratios:
-
+        
+        //Save event ratios:
+        
         std::string line;
         
-        string SystematicS;
-        
-        //Detector systematics have different matrices:
-        if(IAVMatrix==1)
-        {
-            SystematicS = "IAV";
-        }
-        else if(NLMatrix==1)
-        {
-            SystematicS = "NL";
-        }
-        else if(RelativeEnergyScaleMatrix==1)
-        {
-            SystematicS = "RelativeEnergyScale";
-        }
-        else if(ResolutionMatrix==1)
-        {
-            SystematicS = "Resolution";
-        }
-        else if(EfficiencyMatrix==1)
-        {
-            SystematicS = "Efficiency";
-        }
-        else
-        {
-            SystematicS = "Nominal";
-        }
         ifstream mainfile(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str());
         
         Int_t linenum=0;//<---caution: only increments for lines that do not begin with #
@@ -2323,9 +2255,59 @@ void nHToyMC :: Toy(bool mode)
                 }
             }
         }
-
         
-        TFile* NominalMatrixF = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root");
+        if(mode==0)//This only happens when ReDoNominal is defined
+        {
+            TFile* SaveMatrix = new TFile(Form("./ResponseMatrices/Hydrogen/NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins),"recreate");
+            
+            for(int idx=0; idx<VolumeX; idx++)
+            {
+                for(int idy=0; idy<VolumeY; idy++)
+                {
+                    for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+                    {
+                        HighResoMatrixH[AD][idx][idy]->Write(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                        MatrixH[AD][idx][idy]->Write(Form("EvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                        TransMatrixH[AD][idx][idy]->Write(Form("EnuEvis%i,Cell%i,%i",AD+1,idx,idy));
+                    }
+                    
+                }
+            }
+            delete SaveMatrix;
+        }
+        else
+        {
+            TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/"+SystematicS+Form("ResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"recreate");
+            
+            //TFile* SaveMatrix = new TFile(Form("./ResponseMatrices/Hydrogen/RandomResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins),"recreate");
+           
+            for(int idx=0; idx<VolumeX; idx++)
+            {
+                for(int idy=0; idy<VolumeY; idy++)
+                {
+                    for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+                    {
+                        PercentualEvents[AD][idx][idy] = CellIntegral[AD][idx][idy]/ADIntegral[AD];
+
+                        HighResoMatrixH[AD][idx][idy]->Write(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                        MatrixH[AD][idx][idy]->Write(Form("EvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                        TransMatrixH[AD][idx][idy]->Write(Form("EnuEvis%i,Cell%i,%i",AD+1,idx,idy));
+                    }
+                    
+                }
+            }
+            delete nHMatrixF;
+        }
+#ifdef SaveTree
+        toy->Write();
+        roofile_toy->Close();
+#endif
+
+#ifndef ReDoNominal
+    }
+    else//if mode == 0 //Load file if we don't re do the nominal
+    {
+        TFile* NominalMatrixF = new TFile(Form("./ResponseMatrices/Hydrogen/NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins));
         
         for(int idx=0; idx<VolumeX; idx++)
         {
@@ -2333,15 +2315,12 @@ void nHToyMC :: Toy(bool mode)
             {
                 for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
                 {
-                    PercentualEvents[AD][idx][idy] = CellIntegral[AD][idx][idy]/ADIntegral[AD];
-                    
                     HighResoMatrixH[AD][idx][idy] = (TH2D*)NominalMatrixF->Get(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
                 }
             }
         }
         delete NominalMatrixF;
     }
-    
 #endif
 }
 

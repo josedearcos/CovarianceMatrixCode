@@ -114,9 +114,9 @@ private:
     //For the kind of data
     bool Analysis;
     std::string AnalysisString;
+    std::string FluxInputS;
     Int_t DataSet;
     //Cell parameters:
-    Int_t NumberOfCells;//Not necessary if I have background information
     Int_t XCellLimit;
     Int_t YCellLimit;
     
@@ -264,15 +264,15 @@ Oscillation :: Oscillation()
     Analysis = Nom->GetAnalysis();
     if(Analysis)
     {
+        FluxInputS = "HInputs";
         AnalysisString = "Hydrogen";
-        NumberOfCells = VolumeX*VolumeY;
         XCellLimit = VolumeX;
         YCellLimit = VolumeY;
     }
     else
     {
+        FluxInputS="GdInputs";
         AnalysisString = "Gadolinium";
-        NumberOfCells = 1;//Gadollinium analysis has only 1 fidutial volume
         XCellLimit = 1;
         YCellLimit = 1;
     }
@@ -427,15 +427,15 @@ Oscillation :: Oscillation(NominalData* OData)
     Analysis = OData->GetAnalysis();
     if(Analysis)
     {
+        FluxInputS = "HInputs";
         AnalysisString = "Hydrogen";
-        NumberOfCells = VolumeX*VolumeY;
         XCellLimit = VolumeX;
         YCellLimit = VolumeY;
     }
     else
     {
+        FluxInputS="GdInputs";
         AnalysisString = "Gadolinium";
-        NumberOfCells = 1;//Gadollinium analysis has only 1 fidutial volume
         XCellLimit = 1;
         YCellLimit = 1;
     }
@@ -801,8 +801,8 @@ void Oscillation :: OscillationFromNearHallData(Int_t Week,bool ToyMC,bool mode)
     {
         for(Int_t idy=0; idy<YCellLimit; idy++)
         {
-            CalculateFluxFraction(idx,idy);
-            GetExtrapolation(idx,idy);
+            CalculateFluxFraction(idx,idy);// If we only use muon and multi eff this doesn't depend on the volume, nevertheless the global efficiency of each volume is different, but the definition of superflux removes the constants in time and probably this is superfluous and could be eliminated. Since it doesn't hurt (just 1 more loop run) and it's a waste of time to change back the code, I will leave it like this at the moment, but removing the idx,idy dependency could be a small improvement.
+            GetExtrapolation(idx,idy);//Same here
             NearSpectrumFraction(idx,idy);
             FarSpectrumPrediction(idx,idy);
         }
@@ -1237,12 +1237,11 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
 #ifdef PlotExtrapolationFactors
     Int_t cont;
     TCanvas *c2;
-    if(idx==Int_t(XCellLimit/2)&&idy==Int_t(YCellLimit/2))
-    {
-        c2 = new TCanvas("Extrapolation","Extrapolation",900,900);
-        c2->Divide(3,3);
-        cont=0;
-    }
+
+    c2 = new TCanvas("Extrapolation","Extrapolation",900,900);
+    c2->Divide(3,3);
+    cont=0;
+    
 #endif
 
     for (Int_t far = 0; far<(ADsEH3); far++)//far
@@ -1315,11 +1314,20 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
         }
     }
     #ifdef PlotExtrapolationFactors
-    if(idx==Int_t(XCellLimit/2)&&idy==Int_t(YCellLimit/2))
+   
+    if(idx==1)
     {
-        c2->Print(("./Images/"+AnalysisString+"/ExtrapolationFactors.eps").c_str());
-        delete c2;
+        c2->Print(("./Images/"+AnalysisString+"/ExtrapolationFactorsLsVolume.eps").c_str());
+
     }
+    if(idx==0)
+    {
+        c2->Print(("./Images/"+AnalysisString+"/ExtrapolationFactorsGdLSVolume.eps").c_str());
+    }
+    
+    //just to check that they are identical, (they should)
+    delete c2;
+    
     #endif
     
     //delete FactorF;
@@ -1743,7 +1751,7 @@ void Oscillation :: ApplyResponseMatrix()
 {
     if(!strcmp((ResponseDirectory).c_str(),""))
     {
-        TFile* TransEnergyMatrixDataF = new TFile(("./ResponseMatrices/"+ AnalysisString+ "/NominalResponseMatrix.root").c_str());
+        TFile* TransEnergyMatrixDataF = new TFile(("./ResponseMatrices/"+ AnalysisString+Form("/NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str());
         for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
         {
             for(Int_t idx=0; idx<XCellLimit; idx++)
@@ -1975,14 +1983,26 @@ void Oscillation :: GenerateFluxHisto()
                         
                         InclusiveFluxH[reactor][AD][idx][idy]->Add(FluxH[reactor][AD][week][idx][idy]);
                         
-                        FluxH[reactor][AD][week][idx][idy]->Scale(1./scale);//if fluxh are used weekly we don't need to correct their efficiencies
-                        
+                        if(scale==0)
+                        {
+                            FluxH[reactor][AD][week][idx][idy]->Scale(0);//Some weeks have 0 eff, livetime etc, be careful with NaNs.
+                        }
+                        else
+                        {
+                            FluxH[reactor][AD][week][idx][idy]->Scale(1./scale);//if fluxh are used weekly we don't need to correct their efficiencies
+                        }
                         //Rebin Flux Spectrum to match the data binning
                         FluxH[reactor][AD][week][idx][idy]=(TH1D*)FluxH[reactor][AD][week][idx][idy]->Rebin(n_etrue_bins,Form("Rebinned Flux Spectrum from reactor%i with week%i ad%i cell%i,%i efficiencies",reactor+1,week+1,AD+1,idx,idy),enu_bins);
                         
                     }
-                    
-                    InclusiveFluxH[reactor][AD][idx][idy]->Scale(1./scalesum);
+                    if(scalesum==0)
+                    {
+                        InclusiveFluxH[reactor][AD][idx][idy]->Scale(0);
+                    }
+                    else
+                    {
+                        InclusiveFluxH[reactor][AD][idx][idy]->Scale(1./scalesum);
+                    }
                     //Rebin Flux Spectrum to match the data binning
                     InclusiveFluxH[reactor][AD][idx][idy]=(TH1D*)InclusiveFluxH[reactor][AD][idx][idy]->Rebin(n_etrue_bins,Form("Rebinned Flux Spectrum from reactor%d with ad%d cell%i,%i efficiencies",reactor+1,AD+1,idx,idy),enu_bins);
                 }
@@ -1995,18 +2015,24 @@ void Oscillation :: GenerateFluxHisto()
     {
         TCanvas* WeeklyFluxC = new TCanvas("WeeklyFluxC","WeeklyFluxC");
         
-        WeeklyFluxC->Divide(NReactors,NADs);
+        WeeklyFluxC->Divide(NReactors*XCellLimit,NADs);
         
-        for(Int_t AD=0;AD<NADs;AD++)
+        for(Int_t idx=0; idx<XCellLimit; idx++)
         {
-            for(Int_t reactor=0;reactor<NReactors;reactor++)
+            for(Int_t idy=0; idy<YCellLimit; idy++)
             {
-                WeeklyFluxC->cd(reactor+AD*NReactors+1);
-                FluxH[reactor][AD][week][Int_t(XCellLimit/2)][Int_t(YCellLimit/2)]->Draw();
+                for(Int_t AD=0;AD<NADs;AD++)
+                {
+                    for(Int_t reactor=0;reactor<NReactors;reactor++)
+                    {
+                        WeeklyFluxC->cd(reactor+AD*NReactors+1+NReactors*NADs*idx);
+                        FluxH[reactor][AD][week][idx][idy]->Draw();
+                    }
+                }
             }
         }
         
-        WeeklyFluxC->Print(Form("./Images/Reactor/Weekly%dFluxes.eps",week));
+        WeeklyFluxC->Print(("./Images/Reactor/"+AnalysisString+Form("/Weekly%dFluxes.eps",week)).c_str());
         
         delete WeeklyFluxC;
     }
@@ -2015,23 +2041,29 @@ void Oscillation :: GenerateFluxHisto()
     
     FluxC->Divide(NReactors,NADs);
     
-    for(Int_t AD=0;AD<NADs;AD++)
+    for(Int_t idx=0; idx<XCellLimit; idx++)
     {
-        for(Int_t reactor=0;reactor<NReactors;reactor++)
+        for(Int_t idy=0; idy<YCellLimit; idy++)
         {
-            FluxC->cd(reactor+AD*NReactors+1);
-            InclusiveFluxH[reactor][AD][Int_t(XCellLimit/2)][Int_t(YCellLimit/2)]->Draw();
+            for(Int_t AD=0;AD<NADs;AD++)
+            {
+                for(Int_t reactor=0;reactor<NReactors;reactor++)
+                {
+                    FluxC->cd(reactor+AD*NReactors+1+NReactors*NADs*idx);
+                    InclusiveFluxH[reactor][AD][idx][idy]->Draw();
+                }
+            }
         }
     }
     
-    FluxC->Print("./Images/Reactor/InclusiveAndWeeklyFluxes.eps");
+    FluxC->Print(("./Images/Reactor/"+AnalysisString+"/InclusiveAndWeeklyFluxes.eps").c_str());
     
     delete FluxC;
 #endif
     
     delete ReactorDataF;
     
-    TFile* FluxF = new TFile(Form("./Inputs/SuperFlux%d.root",NReactorPeriods),"recreate");
+    TFile* FluxF = new TFile(("./Inputs/"+FluxInputS+Form("/SuperFlux%i.root",NReactorPeriods)).c_str(),"recreate");
     
     for(Int_t AD=0;AD<NADs;AD++)
     {
@@ -2068,7 +2100,7 @@ void Oscillation :: LoadFluxHisto()//weekly data periods
 //    }
 //    else
 //    {
-        FluxF = new TFile(Form("./Inputs/SuperFlux%d.root",NReactorPeriods));
+        FluxF = new TFile(("./Inputs/"+FluxInputS+Form("/SuperFlux%i.root",NReactorPeriods)).c_str());
 //    }
     
     if(Nweeks==1)//Inclusive fit

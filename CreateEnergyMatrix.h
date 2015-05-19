@@ -619,7 +619,7 @@ void CreateEnergyMatrix :: GenerateEnergyMatrix(Double_t sin22t13, Double_t dm2_
         
         Char_t EnergyMatrixC[50];
         
-        sprintf(EnergyMatrixC,("./ResponseMatrices/"+AnalysisString+"/NominalResponseMatrix.root").c_str());
+        sprintf(EnergyMatrixC,("./ResponseMatrices/"+AnalysisString+Form("/NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str());
         
         Char_t OptionS[20];
         
@@ -1679,7 +1679,7 @@ void CreateEnergyMatrix :: GenerateLBNLEnergyMatrix(Double_t sin22t13, Double_t 
     //        }
     //    }
     
-    TFile* EnergyMatrixDataF = new TFile(("./ResponseMatrices/"+AnalysisString+"/NominalResponseMatrix.root").c_str(),"recreate");
+    TFile* EnergyMatrixDataF = new TFile(("./ResponseMatrices/"+AnalysisString+Form("/NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"recreate");
     
     for(Int_t AD=0;AD<NADs;AD++)//For nGD detectors are identical and only one fidutial volume is used
     {

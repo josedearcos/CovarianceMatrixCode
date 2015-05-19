@@ -1459,7 +1459,7 @@ void Test::TestSuperHistograms()
     
     delete LBNLSuperHistoF;
     
-    TFile* MySuperHistoF = new TFile("/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/Inputs/SuperFlux20.root");
+    TFile* MySuperHistoF = new TFile("/Users/royal/DayaBay/jdearcos/CovarianceMatrixCode/Inputs/Gadolinium/SuperFlux20.root");
     
     TH1F* MySuperHisto[6][6];
     TH1F* MySuperHistoRatio[6][6];
@@ -1877,7 +1877,7 @@ void Test::LoganCrossCheck()
     TH1D* LoganDelayH = (TH1D*)LoganSpectrumF->Get("hEd");//delay spectrum
     delete LoganSpectrumF;
     
-    TFile* MySpectrumF = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix.root");
+    TFile* MySpectrumF = new TFile("./ResponseMatrices/Hydrogen/NominalResponseMatrix37_39.root");
     
     TH2D* NominalResponseMatrixH = (TH2D*)MySpectrumF->Get("FineEvisEnu1");
     

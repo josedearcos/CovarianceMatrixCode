@@ -1,0 +1,39 @@
+
+ \begin{sidewaystable}
+  \caption{A glance of images}
+  \centering
+  \begin{tabular}{| c ||c| c| c |c| c|| c |c| c|c|c| }
+  \hline
+  \backslashbox{Theme}{Class} &\multicolumn{5}{|c|}{Class 0} & \multicolumn{5}{|c|}{Class 1}  \\
+  \hline
+
+  \hline
+          1 &
+          \includegraphics[scale=2]{../../results/1/0_1.eps}
+          &\includegraphics[scale=2]{../../results/1/0_2.eps}
+          &\includegraphics[scale=2]{../../results/1/0_3.eps}
+          &\includegraphics[scale=2]{../../results/1/0_4.eps}
+          &\includegraphics[scale=2]{../../results/1/0_5.eps}
+          &\includegraphics[scale=2]{../../results/1/1_1.eps}
+          &\includegraphics[scale=2]{../../results/1/1_2.eps}
+          &\includegraphics[scale=2]{../../results/1/1_3.eps}
+          &\includegraphics[scale=2]{../../results/1/1_4.eps}
+          &\includegraphics[scale=2]{../../results/1/1_5.eps}      \\
+  \hline
+  
+\newcounter{themenumber}
+\newcounter{classnumber}
+\newcounter{imagenumber}
+\forloop{themenumber}{1}{\value{themenumber} < 24}{
+    % \hline <-- Error here
+    \arabic{themenumber}
+    \forloop{classnumber}{0}{\value{classnumber} < 2}{
+        \forloop{imagenumber}{1}{\value{imagenumber} < 6}{
+            & \includegraphics[scale=2]{
+                ../../results/\arabic{themenumber}/\arabic{classnumber}_\arabic{imagenumber}.eps
+            }
+        }
+    }
+    \\
+    \hline
+}

@@ -468,7 +468,7 @@ void CreateEnergyMatrix :: GenerateEnergyMatrix(Double_t sin22t13, Double_t dm2_
     
     Char_t EnergyMatrixC[50];
 
-    sprintf(EnergyMatrixC,"./ResponseMatrices/NominalResponseMatrix.root");
+    sprintf(EnergyMatrixC,"./ResponseMatrices/NominalResponseMatrix%i_%i.root.root",n_evis_bins,n_etrue_bins);
 
     TFile* EnergyMatrixDataF = TFile::Open(EnergyMatrixC,"recreate");
     

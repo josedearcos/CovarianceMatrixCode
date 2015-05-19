@@ -24,10 +24,10 @@
 #include "TPaletteAxis.h"
 #include "TLegend.h"
 #include "TKey.h"
-#include <assert.h> // Used to debug, if you don't want it to run, uncomment the following line:
+#include <assert.h> // Used to debug, if you don't want it to run, uncomment the following line: (#define NDEBUG)
+//#define NDEBUG
 
 //#define NoOscillation //this sets sin22t13 and sin22t13 = 0, also uses the reactor antineutrino model to reset the flux
-//#define NDEBUG
 //#define TestExternalInputs
 #define PrintOnConsole
 //To interpolate the chi2 curves
@@ -711,7 +711,7 @@ void FitterGui::RunFitter()
     if(Analysis)
     {
         FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/nH_GdLS_table.txt").c_str());
-        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/HInputs/nH_LS_table.txt").c_str());
+        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/nH_LS_table.txt").c_str());
        
 //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
 //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
@@ -1949,7 +1949,7 @@ void FitterGui::RunFlux()
     if(Analysis)
     {
         FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/nH_GdLS_table.txt").c_str());
-        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/HInputs/nH_LS_table.txt").c_str());
+        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/nH_LS_table.txt").c_str());
         
         //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
         //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
@@ -4151,7 +4151,7 @@ void FitterGui :: ChooseResponseMatrix()
 {
     TH2D* EnergyMatrix;
     
-    TFile* TransEnergyMatrixDataF = TFile::Open(("./ResponseMatrices/"+AnalysisString+"/NominalResponseMatrix.root").c_str());
+    TFile* TransEnergyMatrixDataF = TFile::Open(("./ResponseMatrices/"+AnalysisString+Form("/NominalResponseMatrix%i_%i.root",visible_bins,true_bins)).c_str());
     
     if(Analysis)
     {
@@ -5263,6 +5263,8 @@ void FitterGui :: CalculateBinning()
             visible_bins=37;
         }
     }
+    
+    true_bins = 39; //(so far the flux data is given in this binning);
     
     std::cout << " visible bins in fitter: " << visible_bins << std::endl;
 }

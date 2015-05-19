@@ -27,7 +27,7 @@
 # Row 15 ==>  Absolute uncertainty on the li9/he8 bkg per live day
 # Row 16 ==>  Expected number of AmC-corr events per live day (AD1 to AD8)
 # Row 17 ==>  Absolute uncertainty on the AmC-corr bkg per live day
-
+# ===============================================================
 1     0  1324684800   1325289600   20111224    
 1     1  1851       1925       1500       0          617        607        725        0         
 1     2  6.0059     6.0059     5.9733     0.0000     5.9758     5.9758     5.9758     0.0000    

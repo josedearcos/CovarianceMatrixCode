@@ -175,6 +175,7 @@ private:
     TGCompositeFrame* fFitterFrame2;
     
     Int_t visible_bins;
+    Int_t true_bins;
     Int_t Period;
     Int_t NReactorPeriods;
     Int_t NADs;

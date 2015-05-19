@@ -26,13 +26,13 @@ int CreateInclusiveFile(){
             FileS = "LS";
             VolumeID = 1;
         }
-        
+
         std::cout << " Creating " << FileS << " Inclusive File " << std::endl;
         
         index++;
         
         const Int_t NADs =8;
-        const Int_t DataStored = 17;
+        const Int_t DataStored = 18;
         Int_t NewPeriods = 101;
         //Read Inclusive File
         std::string line;
@@ -40,6 +40,7 @@ int CreateInclusiveFile(){
         Int_t week=0;
         Double_t readvals[DataStored][NADs]={0};
         Int_t Nweeks;
+        Int_t EmptyPeriods = 0;
         
         ifstream mainfile(("./nH_"+FileS+"_table.txt").c_str());
         while(!mainfile.eof())
@@ -69,6 +70,8 @@ int CreateInclusiveFile(){
                 std::istringstream iss(line);
                 Int_t row=0;
                 Int_t column=0;
+                bool Flag_Empty = 0;
+                Double_t value = 0;
                 while(iss)
                 {
                     std::string sub; iss >> sub;
@@ -85,15 +88,33 @@ int CreateInclusiveFile(){
                     //                }
                     //                else
                     //                {
-                    if(column>1 && sub!="") readvals[row][column-2]+=atof(sub.c_str());
+                    
+                    
+                    if(column>1 && sub!="")
+                    {
+                        value += atof(sub.c_str());
+                        
+                        readvals[row][column-2]+=atof(sub.c_str());
+                        
+                        if((row == 2) && (value == 0))
+                        {
+                            Flag_Empty = 1;
+                        };
+                    }
                     //                }
                     column+=1;
                 }//looping over columns
+                
+                if(Flag_Empty)//Lifetime is empty
+                {
+                    EmptyPeriods++;
+                }
             }
             
             linenum++;//only lines >2
         }
         
+        std::cout << " EMPTY PERIODS " << EmptyPeriods << std::endl;
         
         //Create a file with evenly distributed data, it is fake, need real data:
         
@@ -138,7 +159,7 @@ int CreateInclusiveFile(){
 ,VolumeID);
         
         
-        for(Int_t data = 0; data <= DataStored; data++)
+        for(Int_t data = 0; data < DataStored; data++)
         {
             fprintf(f, "%d %d ", 1, data);
             
@@ -148,16 +169,25 @@ int CreateInclusiveFile(){
                 {
                     if(AD<3)//To avoid date wrong input.
                     {
-                        fprintf(f,"%f ",readvals[data][AD]);
+                        fprintf(f,"%.3f ",readvals[data][AD]);
                     }
                 }
                 else if(data==3||data==4||data==5||data==6||data==7||data==8||data==9||data==11||data==13||data==15||data==17)
                 {
-                    fprintf(f,"%f ",readvals[data][AD]/double(NewPeriods));//Divide Efficiencies, sum rates
+                    
+                    if(data==3||data==4||data==11)
+                    {
+                        fprintf(f,"%.3f ",readvals[data][AD]/double(NewPeriods-EmptyPeriods));//Average Efficiencies, taking zero rates out, sum rates
+                    }
+                    else
+                    {
+                        fprintf(f,"%.3f ",readvals[data][AD]/double(NewPeriods));//Average Efficiencies, sum rates
+
+                    }
                 }
                 else
                 {
-                    fprintf(f,"%f ",readvals[data][AD]);
+                    fprintf(f,"%.3f ",readvals[data][AD]);
                 }
             }
             
