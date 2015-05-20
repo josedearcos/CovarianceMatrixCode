@@ -31,8 +31,13 @@ using namespace std;
 const double Rshield = 2259.15;  // position of radial shield [mm]
 const double ZreflectorTop = 2104.5;  // position of top reflector ESR [mm]
 const double ZreflectorBottom = -2027.45;  // position of bottom reflector ESR [mm]
-const double deltaRoav = 8.0;  // +-8.0 mm variation in diameter within ADs 1 & 2
-const double deltaZoav = 3.0;  // +-3.0 mm discrepancy between specification and measurement of ADs 1 & 2
+
+//Uncomment to turn on OAV uncertainty:
+//const double deltaRoav = 8.0;  // +-8.0 mm variation in diameter within ADs 1 & 2
+//const double deltaZoav = 3.0;  // +-3.0 mm discrepancy between specification and measurement of ADs 1 & 2
+
+const double deltaRoav = 0;  // +-8.0 mm variation in diameter within ADs 1 & 2
+const double deltaZoav = 0;  // +-3.0 mm discrepancy between specification and measurement of ADs 1 & 2
 
 //#ifdef SpecialCuts  /// Time cuts are not currently applied.
 //    const double EpromptCutLow=0.0, EpromptCutHigh=12.0, EdelayCutLow=0.0, EdelayCutHigh=3.3;// 1.5, 12.0, 1.5, 3.3
@@ -64,7 +69,6 @@ const double deltaZoav = 3.0;  // +-3.0 mm discrepancy between specification and
 #endif
 
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- Global
-//#define ReDoNominal // if you change binning use this to remake the nominal matrix
 #define FullEnergyResolution
 //#define SaveTree // To save toy tree
 //#define LoadTree // To load eprompt tree
@@ -84,6 +88,7 @@ TString roostr;
 
 //const Int_t unified_nl_pars = 4;//Number of curves used in the NL error calculation
 const Int_t unified_nl_pars = 1;//After the last nl-update, not using marginal curves, instead 1 sigma band
+const Int_t NSystematic = 6;//IAV, Reso, Relative Energy Scale, NL, Efficiency(If only global eff this is not applied here actually) + Nominal + AllSystematics
 
 class nHToyMC
 {
@@ -99,7 +104,8 @@ private:
 //    TH1D *hEp_cl[MaxColumnNum];
 //    TH1D *hEd_cl[MaxColumnNum];
     
-    Double_t GausRelative,GausIAV,GausReso,GausResoCorr,GausEff;
+    Double_t GausRelative,GausIAV,GausReso,GausResoCorr;
+//    Double_t GausEff;
     Double_t GausNL[unified_nl_pars];
     Double_t ResolutionError,ResolutionErrorUncorrelated;
     
@@ -121,7 +127,8 @@ private:
     bool IAVMatrix;
     bool NLMatrix;
     bool ResolutionMatrix;
-    bool EfficiencyMatrix;
+//    bool EfficiencyMatrix;
+    bool AllMatrix;
     string SystematicS;
 
     //AD configuration parameters:
@@ -166,20 +173,20 @@ private:
     Double_t func_EnergyResolution(double*,double*);
     void func_initialization();
     Int_t  RootCellToVisCell(Int_t RootCell);
-    TH1D* TruePredictionH[MaxDetectors][VolumeX][VolumeY];
-    TH1D* VisiblePredictionH[MaxDetectors][VolumeX][VolumeY];
-    TH1D* DelayedVisiblePredictionH[MaxDetectors][VolumeX][VolumeY];
-    TH2D* TransMatrixH[MaxDetectors][VolumeX][VolumeY];
-    TH2D* HighResoTransMatrixH[MaxDetectors][VolumeX][VolumeY];
-    TH2D* MatrixH[MaxDetectors][VolumeX][VolumeY];
+    TH1D* TruePredictionH[NSystematic][MaxDetectors][VolumeX][VolumeY];
+    TH1D* VisiblePredictionH[NSystematic][MaxDetectors][VolumeX][VolumeY];
+    TH1D* DelayedVisiblePredictionH[NSystematic][MaxDetectors][VolumeX][VolumeY];
+    TH2D* TransMatrixH[NSystematic][MaxDetectors][VolumeX][VolumeY];
+    TH2D* HighResoTransMatrixH[NSystematic][MaxDetectors][VolumeX][VolumeY];
+    TH2D* MatrixH[NSystematic][MaxDetectors][VolumeX][VolumeY];
 public:
     nHToyMC(NominalData*);//constructor
     ~nHToyMC();//destructor
-    void Toy(bool);//main
-    TH2D* LoadnHMatrix(Int_t,Int_t,Int_t);
-    Double_t GetEventsByCell(Int_t,Int_t,Int_t);
-    TH2D* HighResoMatrixH[MaxDetectors][VolumeX][VolumeY];
-    Double_t PercentualEvents[MaxDetectors][VolumeX][VolumeY];
+    void Toy();//main
+//    TH2D* LoadnHMatrix(Int_t,Int_t,Int_t);
+//    Double_t GetEventsByCell(Int_t,Int_t,Int_t);
+    TH2D* HighResoMatrixH[NSystematic][MaxDetectors][VolumeX][VolumeY];
+    Double_t PercentualEvents[NSystematic][MaxDetectors][VolumeX][VolumeY];
 };
 
 // constructor:
@@ -225,7 +232,7 @@ nHToyMC :: nHToyMC(NominalData* Data)
     IAVMatrix = Data->GetIAVMatrix();
     NLMatrix = Data->GetNLMatrix();
     ResolutionMatrix = Data->GetResolutionMatrix();
-    EfficiencyMatrix = Data->GetEfficiencyMatrix();
+//    EfficiencyMatrix = Data->GetEfficiencyMatrix();
     
     //Errors in parameters:
     ResolutionError = Data->GetResolutionError();
@@ -235,46 +242,48 @@ nHToyMC :: nHToyMC(NominalData* Data)
     
     for(Int_t AD = 0; AD < NADs; AD++)
     {
-        for(int idx=0; idx<VolumeX; idx++)
+        for(Int_t Systematic = 0; Systematic<NSystematic;Systematic++)
         {
-            for(int idy=0; idy<VolumeY; idy++)
+            for(int idx=0; idx<VolumeX; idx++)
             {
-                HighResoMatrixH[AD][idx][idy] = new TH2D(Form("Fine_nHResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),Form("Fine_nHResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from true to visible
-                
-                MatrixH[AD][idx][idy] = new TH2D(Form("nHResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),Form("nHResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),n_etrue_bins,enu_bins,n_evis_bins,evis_bins);//from true to visible
-                
-                TransMatrixH[AD][idx][idy] = new TH2D(Form("nHTransResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),Form("nHTransResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),n_evis_bins,evis_bins,n_etrue_bins,enu_bins);//from visible to true
-                
-                HighResoTransMatrixH[AD][idx][idy] = new TH2D(Form("Fine_nHTransResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),Form("Fine_nHTransResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from visible to true
-                
-                TruePredictionH[AD][idx][idy] = new TH1D(Form("Pred_AD%i, Cell%i,%i",AD+1,idx,idy),Form("Pred_AD%i, Cell%i,%i",AD+1,idx,idy), Nbins, InitialEnergy, FinalEnergy);
-                
-                VisiblePredictionH[AD][idx][idy] = new TH1D(Form("VisPred_AD%i, Cell%i,%i",AD+1,idx,idy),Form("VisPred_AD%i, Cell%i,%i",AD+1,idx,idy), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
-                
-                DelayedVisiblePredictionH[AD][idx][idy] = new TH1D(Form("DelayedVisPred_AD%i, Cell%i,%i",AD+1,idx,idy),Form("DelayedVisPred_AD%i, Cell%i,%i",AD+1,idx,idy), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
+                for(int idy=0; idy<VolumeY; idy++)
+                {
+                    HighResoMatrixH[Systematic][AD][idx][idy] = new TH2D(Form("Fine_nHResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),Form("Fine_nHResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from true to visible
+                    
+                    MatrixH[Systematic][AD][idx][idy] = new TH2D(Form("nHResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),Form("nHResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),n_etrue_bins,enu_bins,n_evis_bins,evis_bins);//from true to visible
+                    
+                    TransMatrixH[Systematic][AD][idx][idy] = new TH2D(Form("nHTransResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),Form("nHTransResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),n_evis_bins,evis_bins,n_etrue_bins,enu_bins);//from visible to true
+                    
+                    HighResoTransMatrixH[Systematic][AD][idx][idy] = new TH2D(Form("Fine_nHTransResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),Form("Fine_nHTransResponseMatrix_AD%i, Cell%i,%i",AD+1,idx,idy),MatrixBins,0,FinalVisibleEnergy,MatrixBins,0,FinalVisibleEnergy);//from visible to true
+                    
+                    TruePredictionH[Systematic][AD][idx][idy] = new TH1D(Form("Pred_AD%i, Cell%i,%i",AD+1,idx,idy),Form("Pred_AD%i, Cell%i,%i",AD+1,idx,idy), Nbins, InitialEnergy, FinalEnergy);
+                    
+                    VisiblePredictionH[Systematic][AD][idx][idy] = new TH1D(Form("VisPred_AD%i, Cell%i,%i",AD+1,idx,idy),Form("VisPred_AD%i, Cell%i,%i",AD+1,idx,idy), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
+                    
+                    DelayedVisiblePredictionH[Systematic][AD][idx][idy] = new TH1D(Form("DelayedVisPred_AD%i, Cell%i,%i",AD+1,idx,idy),Form("DelayedVisPred_AD%i, Cell%i,%i",AD+1,idx,idy), MatrixBins, InitialVisibleEnergy, FinalVisibleEnergy);
+                }
             }
         }
-        
-        
     }
-    
-    
 }
 
 nHToyMC :: ~nHToyMC()
 {
-    for(Int_t AD = 0; AD < NADs; AD++)
+    for(Int_t Systematic = 0; Systematic<NSystematic;Systematic++)
     {
-        for(int idx=0; idx<VolumeX; idx++)
+        for(Int_t AD = 0; AD < NADs; AD++)
         {
-            for(int idy=0; idy<VolumeY; idy++)
+            for(int idx=0; idx<VolumeX; idx++)
             {
-                delete TruePredictionH[AD][idx][idy];
-                delete HighResoMatrixH[AD][idx][idy];
-                delete MatrixH[AD][idx][idy];
-                delete TransMatrixH[AD][idx][idy];
-                delete VisiblePredictionH[AD][idx][idy];
-                delete DelayedVisiblePredictionH[AD][idx][idy];
+                for(int idy=0; idy<VolumeY; idy++)
+                {
+                    delete TruePredictionH[Systematic][AD][idx][idy];
+                    delete HighResoMatrixH[Systematic][AD][idx][idy];
+                    delete MatrixH[Systematic][AD][idx][idy];
+                    delete TransMatrixH[Systematic][AD][idx][idy];
+                    delete VisiblePredictionH[Systematic][AD][idx][idy];
+                    delete DelayedVisiblePredictionH[Systematic][AD][idx][idy];
+                }
             }
         }
     }
@@ -341,14 +350,8 @@ Int_t nHToyMC :: RootCellToVisCell(Int_t RootCell)
 // --- ---- --- ---- --- ---- --- ---- ---      --- ---- --- ---- --- ---- --- ---- --- ---- ---
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- ---- --- ---- --- ---- --- ---- --- ---- ---
 
-void nHToyMC :: Toy(bool mode)
+void nHToyMC :: Toy()
 {
-
-#ifndef ReDoNominal
-    if(mode!=0)
-    {
-#endif
-        
         func_initialization();
         
 //        Double_t cap_Ev;             // neutrino energy
@@ -1203,36 +1206,107 @@ void nHToyMC :: Toy(bool mode)
 //        for(int idx=0; idx<MaxColumnNum; idx++)
 //        {
 //            roostr = TString::Format("hEp_cl_%03d", idx);
-//            hEp_cl[idx] = new TH1D(roostr, roostr, hEp_bin, hEp_low, hEp_hgh);
-//            
-//            roostr = TString::Format("hEd_cl_%03d", idx);
-//            hEd_cl[idx] = new TH1D(roostr, roostr, hEd_bin, hEd_low, hEd_hgh);
-//        }
+    //            hEp_cl[idx] = new TH1D(roostr, roostr, hEp_bin, hEp_low, hEp_hgh);
+    //
+    //            roostr = TString::Format("hEd_cl_%03d", idx);
+    //            hEd_cl[idx] = new TH1D(roostr, roostr, hEd_bin, hEd_low, hEd_hgh);
+    //        }
+    
+    Double_t IntegralEvents[NSystematic][NADs][VolumeX][VolumeY];
+    Double_t ADIntegralEvents[NSystematic][NADs];
+    
+    Double_t distPD=0;
+    
+    cout.precision(3);
+   
+    //From Logan NL discussion:
+    
+//    Since most gammas are 0.51 MeV, I assume that the gammas have all the same uncertainties and are fully correlated.  I assume that the positron is also fully correlated because the gamma curve is derived from the beta.  These assumptions give the following standard deviation due to nonlinearity divided among the three particles
+//    
+//    sigma_NL = sigma_e + 2*sigma_g
+//    
+//    Assuming equal contributions from the Boron12 and gamma data to the overall uncertainty and that they correspond directly to sigma_e and sigma_g, gives
+//    
+//    sigma_e = sigma_NL / 2
+//    sigma_g = sigma_NL / 4
+//    
+//    The above was ignoring electronics.  Assuming equal contributions from both scintillator and electronics gives
+//    
+//    sigma_e = sigma_NL / (2*sqrt(2))
+//    sigma_g = sigma_NL / (4*sqrt(2))
+//    
+//    for each component (scintillator and FEE), giving two identical pairs of expressions.
+//        
+//        This result should not be conservative (the only uncorrelated items are the scintillator and FEE components), but I think it is the best estimate of reality.  In addition, we can compare the result with a conservative estimate of
+//        
+//        sigma_e = sigma_NL / (sqrt(2)*sqrt(2))
+//        sigma_g = sigma_NL / (sqrt(8)*sqrt(2))
+    
+    Double_t Sigma_Electron = 2*TMath::Sqrt(2);
+    Double_t Sigma_Gamma = 4*TMath::Sqrt(2);
+    
+    //Process tree
+    for(long ientry=0; ientry<entries_etree_read; ientry++)
+    {
+        etree_read->GetEntry(ientry);
         
-        Double_t IntegralEvents[NADs][VolumeX][VolumeY];
-        Double_t ADIntegralEvents[NADs];
-        
-        //Use the loaded tree data in each AD in an independent way:
+        //Use the loaded tree data in each AD in an independent way: And for each systematic as well, so we don't need to run this slow process once per systematic!
         for(Int_t AD = 0; AD<NADs;AD++)
         {
-            seed_generator = 1;//this way all matrices will be random but have a common nominal spectrum
-            seed_generator_corr = 1431655765; //=(4294967295/3) for correlated systematics, chose maxseed/3 to make it different to 'seed_generator' as a precaution so I don't use the same seeds.
-           
-            Double_t distPD=0;
-
-            //Process tree
-            for(long ientry=0; ientry<entries_etree_read; ientry++)
+            for(Int_t Systematic = 0; Systematic<NSystematic;Systematic++)
             {
-                etree_read->GetEntry(ientry);
+                RelativeEnergyScaleMatrix = 0;
+                IAVMatrix = 0;
+                NLMatrix = 0;
+                ResolutionMatrix = 0;
+//                EfficiencyMatrix = 0;
+                AllMatrix = 0;
                 
-                cout.precision(3);
+                switch (Systematic)
+                {
+                    case 0:
+                        //std::cout << " Nominal Matrix " << std::endl;
+                        break;
+                    case 1:
+                        IAVMatrix = 1;
+                        //std::cout << " IAV Matrix " << std::endl;
+                        break;
+                    case 2:
+                        NLMatrix = 1;
+                        //std::cout << " NL Matrix " << std::endl;
+                        break;
+                    case 3:
+                        ResolutionMatrix = 1;
+                        //std::cout << " Reso Matrix " << std::endl;
+                        break;
+                    case 4:
+                        RelativeEnergyScaleMatrix = 1;
+                        //std::cout << " RelativeEnergyScale Matrix " << std::endl;
+                        break;
+                    case 5:
+                        AllMatrix = 1;
+                        //std::cout << " All Detector Systematics Matrix " << std::endl;
+                        break;
+//                    case 6:
+//                        EfficiencyMatrix = 1;
+//                        //std::cout << " Efficiency Matrix " << std::endl;
+//                        break;
+                    default:
+                        std::cout << " DEFAULT SHOULDN'T HAPPEN" << std::endl;
+                        exit(EXIT_FAILURE);
+                        break;
+                }
+                
+                seed_generator = 1;//this way all matrices will be random but have a common nominal spectrum
+                seed_generator_corr = 1431655765; //=(4294967295/3) for correlated systematics, chose maxseed/3 to make it different to 'seed_generator' as a precaution so I don't use the same seeds.
+                
                 if(ientry%20000==0)
                     cout<<" ---> processing response matrix in AD" << AD << " " <<ientry*100./entries_etree_read<<"%"<<endl;
                 
                 Int_t seed_rand = 0;
                 Int_t seed_corr =0;
                 Int_t seed_uncorr = 0;
-          
+                
                 if( ientry%100==0 )
                 {
                     seed_generator += 1;
@@ -1242,14 +1316,14 @@ void nHToyMC :: Toy(bool mode)
                     seed_rand = 2 *seed_generator +1;
                     seed_corr = 2 *seed_generator_corr +1;
                     seed_uncorr = 2 *seed_generator_uncorr +1;
-//
-//                    std::cout << "uncorrelated seed: " << seed_generator_uncorr << "- AD: " << AD << "- entry: " << ientry << std::endl;
-//                    std::cout << "correlated seed: " << seed_generator_corr << "- AD: " << AD << "- entry: " << ientry << std::endl;
-
+                    //
+                    //                    std::cout << "uncorrelated seed: " << seed_generator_uncorr << "- AD: " << AD << "- entry: " << ientry << std::endl;
+                    //                    std::cout << "correlated seed: " << seed_generator_corr << "- AD: " << AD << "- entry: " << ientry << std::endl;
+                    
                     gRandom3->SetSeed(seed_rand);
                     RandomSysUncorr->SetSeed(seed_uncorr);
                     RandomSysCorr->SetSeed(seed_corr);
-
+                    
                 }
                 
                 //each event has a different systematic error:
@@ -1265,41 +1339,57 @@ void nHToyMC :: Toy(bool mode)
                 }
                 GausReso=0;
                 GausResoCorr=0;
-                GausEff= 0;
+//                GausEff= 0;
                 
-                if(mode!=0)//If not nominal values, vary systematic for each entry and for each AD (uncorrelated)
+                if(RelativeEnergyScaleMatrix)
                 {
-                    if(RelativeEnergyScaleMatrix)
-                    {
-                        GausRelative = RandomSysUncorr->Gaus(0,1);
-                    }
-                    if(IAVMatrix)
-                    {
-                        GausIAV = RandomSysUncorr->Gaus(0,1);
-                    }
-                    if(NLMatrix)
-                    {
-                        for (Int_t ierr = 0; ierr < unified_nl_pars; ierr++)
-                        {
-                            GausNL[ierr] = RandomSysUncorr->Gaus(0,1);
-                        }
-                    }
-                    if(ResolutionMatrix)
-                    {
-                        GausReso = RandomSysUncorr->Gaus(0,1);
-                        GausResoCorr = RandomSysCorr->Gaus(0,1);
-                    }
-                    if(EfficiencyMatrix)
-                    {
-                        GausEff = RandomSysUncorr->Gaus(0,1);
-                    }
-
-                    //factor that is multiplied by the random error so it's added to the nominal by using:  Value = NominalValue + gRandom3->Gauss(0,1)*1sigmaError;
+                    GausRelative = RandomSysUncorr->Gaus(0,1);
                 }
+                if(IAVMatrix)
+                {
+                    GausIAV = RandomSysUncorr->Gaus(0,1);
+                }
+                if(NLMatrix)
+                {
+                    for (Int_t ierr = 0; ierr < unified_nl_pars; ierr++)
+                    {
+                        GausNL[ierr] = RandomSysUncorr->Gaus(0,1);
+                    }
+                }
+                if(ResolutionMatrix)
+                {
+                    GausReso = RandomSysUncorr->Gaus(0,1);
+                    GausResoCorr = RandomSysCorr->Gaus(0,1);
+                }
+//                if(EfficiencyMatrix)
+//                {
+//                    GausEff = RandomSysUncorr->Gaus(0,1);
+//                }
+                if(AllMatrix)
+                {
+                    GausRelative = RandomSysUncorr->Gaus(0,1);
+                    
+                    GausIAV = RandomSysUncorr->Gaus(0,1);
+                    
+                    for (Int_t ierr = 0; ierr < unified_nl_pars; ierr++)
+                    {
+                        GausNL[ierr] = RandomSysUncorr->Gaus(0,1);
+                    }
+                    
+                    GausReso = RandomSysUncorr->Gaus(0,1);
+                    
+                    GausResoCorr = RandomSysCorr->Gaus(0,1);
+                    
+//                    GausEff = RandomSysUncorr->Gaus(0,1);
+                    
+                }
+                
+                //factor that is multiplied by the random error so it's added to the nominal by using:  Value = NominalValue + gRandom3->Gauss(0,1)*1sigmaError;
+                
                 if(ientry%1000000==0)//show only a few
                 {
                     std::cout << "IAV uncorrelated should be the different for different ads and same event: " << GausIAV << "ad: " << AD << " - event: " << ientry <<  std::endl;
-
+                    
                     std::cout << "gaus reso correlated should be the same for different ads and same event: " << GausResoCorr << "ad: " << AD << " - event: " << ientry <<  std::endl;
                     std::cout << "gaus reso uncorrelated should be different for different ads and same event" << GausReso << "ad: " << AD << " - event: " << ientry <<  std::endl;
                     
@@ -1307,8 +1397,8 @@ void nHToyMC :: Toy(bool mode)
                     
                     std::cout << "Relative Energy uncorrelated should be different for different ads and same event" << GausRelative << "ad: " << AD << " - event: " << ientry <<  std::endl;
                     
-                    std::cout << "Efficiency Energy uncorrelated should be different for different ads and same event" << GausEff << "ad: " << AD << " - event: " << ientry <<  std::endl;
-
+//                    std::cout << "Efficiency Energy uncorrelated should be different for different ads and same event" << GausEff << "ad: " << AD << " - event: " << ientry <<  std::endl;
+//                    
                 }
                 
                 //to check the random numbers are properly generated:
@@ -1369,7 +1459,7 @@ void nHToyMC :: Toy(bool mode)
                  - (EtotE_Ng-EdepE_Ng) * graph_electron_LY->Eval( EtotE_Ng-EdepE_Ng, 0, "s" );
                  */
                 
-            
+                
                 
                 Double_t RandomEdepScint_P,RandomEdepScint_Pg1,RandomEdepScint_Pg2;
                 //Iav uncertainty considered for prompt signal. 0.1% bin-to-bin uncorrelated.
@@ -1377,65 +1467,65 @@ void nHToyMC :: Toy(bool mode)
                 RandomEdepScint_Pg1 = EdepScint_Pg1*(1+GausIAV*IAVNominalError);
                 RandomEdepScint_Pg2 = EdepScint_Pg2*(1+GausIAV*IAVNominalError);
                 //here I am applying the same variation to the three particles at once, one variation for each event.
-
+                
                 if( GausIAV*IAVNominalError < -1) continue;//Very unlikely, but just in case.
-
+                
                 /// case02: default
                 EendScint_P = EtotScint_P-RandomEdepScint_P;//Edep_P;
                 EendScint_Pg1 = EtotScint_Pg1-RandomEdepScint_Pg1;//Edep_Pg1;
                 EendScint_Pg2 = EtotScint_Pg2-RandomEdepScint_Pg2;//Edep_Pg2;
                 //EendScint_Ng = EtotScint_Ng-EdepScint_Ng;//Edep_Ng;
                 
-//                P_Scint = EtotScint_P-RandomEdep_P;
-//                Pg1_Scint = EtotScint_Pg1-RandomEdep_Pg1;
-//                Pg2_Scint = EtotScint_Pg2-RandomEdep_Pg2;
-//                Ng_Scint = EtotScint_Ng-Edep_Ng;
+                //                P_Scint = EtotScint_P-RandomEdep_P;
+                //                Pg1_Scint = EtotScint_Pg1-RandomEdep_Pg1;
+                //                Pg2_Scint = EtotScint_Pg2-RandomEdep_Pg2;
+                //                Ng_Scint = EtotScint_Ng-Edep_Ng;
                 
                 /// prompt
-//                LY_E_P = EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" ) - P_Scint * graph_electron_LY->Eval( P_Scint, 0, "s" );
-//                LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" ) - Pg1_Scint * graph_gamma_LY->Eval( Pg1_Scint, 0, "s" );
-//                LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" ) - Pg2_Scint * graph_gamma_LY->Eval( Pg2_Scint, 0, "s" );
-//                LY_E_N = Etot_N * ( 0.186 + exp(-1.142-126.4*Etot_N) + exp(-1.217-17.90*Etot_N) ) * graph_electron_LY->Eval( 0.2, 0, "s" );
+                //                LY_E_P = EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" ) - P_Scint * graph_electron_LY->Eval( P_Scint, 0, "s" );
+                //                LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" ) - Pg1_Scint * graph_gamma_LY->Eval( Pg1_Scint, 0, "s" );
+                //                LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" ) - Pg2_Scint * graph_gamma_LY->Eval( Pg2_Scint, 0, "s" );
+                //                LY_E_N = Etot_N * ( 0.186 + exp(-1.142-126.4*Etot_N) + exp(-1.217-17.90*Etot_N) ) * graph_electron_LY->Eval( 0.2, 0, "s" );
                 LY_E_P = 0;
                 LY_E_Pg1 = 0;
                 LY_E_Pg2 = 0;
                 LY_E_N = 0;
                 
-                LY_E_P += EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_P)*GausNL[0]/TMath::Sqrt(3)));
-
+                LY_E_P += EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_P)*GausNL[0]/Sigma_Electron));
+                
                 if( EendScint_P>0.000001 ) // calculate leakage effect only when significant
                 {
-                    LY_E_P -= EendScint_P * graph_electron_LY->Eval( EendScint_P, 0, "s" )*(1+ (ErrorBand->Interpolate(EendScint_P)*GausNL[0]/TMath::Sqrt(3)));
+                    LY_E_P -= EendScint_P * graph_electron_LY->Eval( EendScint_P, 0, "s" )*(1+ (ErrorBand->Interpolate(EendScint_P)*GausNL[0]/Sigma_Electron));
                 }
                 
-                LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_Pg1)*GausNL[0]/TMath::Sqrt(3)));
+                LY_E_Pg1 = EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_Pg1)*GausNL[0]/Sigma_Gamma));
                 
                 if( EendScint_Pg1>0.000001 ) // calculate leakage effect only when significant
                 {
-                    LY_E_Pg1 -= EendScint_Pg1 * graph_gamma_LY->Eval( EendScint_Pg1, 0, "s" )*(1+ (ErrorBand->Interpolate(EendScint_Pg1)*GausNL[0]/TMath::Sqrt(3)));
+                    LY_E_Pg1 -= EendScint_Pg1 * graph_gamma_LY->Eval( EendScint_Pg1, 0, "s" )*(1+ (ErrorBand->Interpolate(EendScint_Pg1)*GausNL[0]/Sigma_Gamma));
                 }
                 
-                LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_Pg2)*GausNL[0]/TMath::Sqrt(3)));
-
+                LY_E_Pg2 = EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_Pg2)*GausNL[0]/Sigma_Gamma));
+                
                 if( EendScint_Pg2>0.000001 ) // calculate leakage effect only when significant
                 {
-                    LY_E_Pg2 -= EendScint_Pg2 * graph_gamma_LY->Eval( EendScint_Pg2, 0, "s" )*(1+ (ErrorBand->Interpolate(EendScint_Pg2)*GausNL[0]/TMath::Sqrt(3)));
+                    LY_E_Pg2 -= EendScint_Pg2 * graph_gamma_LY->Eval( EendScint_Pg2, 0, "s" )*(1+ (ErrorBand->Interpolate(EendScint_Pg2)*GausNL[0]/Sigma_Gamma));
                 }
                 
-               /// delayed - loop over gammas
+                /// delayed - loop over gammas
                 
                 LY_E_Ng = 0;
                 for( int k=0; k<10; k++ )
                 {
                     if( EtotScint_Ng[k]<=0 ) continue;  // most array elements will be zero
                     
-                    LY_E_Ng += EtotScint_Ng[k] * graph_gamma_LY->Eval( EtotScint_Ng[k], 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_Ng[k])*GausNL[0]/TMath::Sqrt(3)));
+                    LY_E_Ng += EtotScint_Ng[k] * graph_gamma_LY->Eval( EtotScint_Ng[k], 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_Ng[k])*GausNL[0]/Sigma_Gamma));
                     
                     EendScint_Ng = EtotScint_Ng[k]-EdepScint_Ng[k];//Edep_Ng[k];
                     
                     if( EendScint_Ng>0.000001 ) // calculate leakage effect only when significant
                     {
-                        LY_E_Ng -= EendScint_Ng * graph_gamma_LY->Eval( EendScint_Ng, 0, "s" )*(1+ (ErrorBand->Interpolate(EendScint_Ng)*GausNL[0]/TMath::Sqrt(3)));
+                        LY_E_Ng -= EendScint_Ng * graph_gamma_LY->Eval( EendScint_Ng, 0, "s" )*(1+ (ErrorBand->Interpolate(EendScint_Ng)*GausNL[0]/Sigma_Gamma));
                     }
                     
                     //if( EendScint_Ng<-0.000001 ) {
@@ -1444,70 +1534,70 @@ void nHToyMC :: Toy(bool mode)
                     //}
                 }
                 
-                LY_E_N = EtotScint_N * ( 0.186 + exp(-1.142-126.4*EtotScint_N) + exp(-1.217-17.90*EtotScint_N) ) * graph_electron_LY->Eval( 0.2, 0, "s" )*(1+ (ErrorBand->Interpolate(0.2)*GausNL[0]/TMath::Sqrt(3)));
-
+                LY_E_N = EtotScint_N * ( 0.186 + exp(-1.142-126.4*EtotScint_N) + exp(-1.217-17.90*EtotScint_N) ) * graph_electron_LY->Eval( 0.2, 0, "s" )*(1+ (ErrorBand->Interpolate(0.2)*GausNL[0]/Sigma_Electron));
                 
-//               LY_E_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" ) - Ng_Scint * graph_gamma_LY->Eval( Ng_Scint, 0, "s" );
+                
+                //               LY_E_Ng = EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" ) - Ng_Scint * graph_gamma_LY->Eval( Ng_Scint, 0, "s" );
                 
                 //Random NL: // In each event the NL curve is varied //if GausNL = 0 the energy would be the nominal NL function, otherwise energy = nl_nominal_energy(1+Σerrors)
                 //We don't have pull curves for each term (electron, gamma and electronic), so far use the nominal error in each of the curves and divide by square root of 3 asigning to each particle a proportial side of the band (e+ = 2*E(gamma) + e-)/TMath::Sqrt(3)
-
-           
-// This code was design for marginal curves (unified_nl_pars dependency)
-//                
-//                for (Int_t ierr = 0; ierr < unified_nl_pars; ierr++)
-//                {
-//                    LY_E_P += EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_P)*GausNL[ierr]/TMath::Sqrt(3)));
-////                    - P_Scint * graph_electron_LY->Eval( P_Scint, 0, "s" )*(1+ (ErrorBand->Interpolate(P_Scint)*GausNL[ierr]/TMath::Sqrt(3)));
-//
-//                    if( EendScint_P>0.000001 ) // calculate leakage effect only when significant
-//                    {
-//                        LY_E_P -= EendScint_P * graph_electron_LY->Eval( EendScint_P, 0, "s" )*(1+ (ErrorBand->Interpolate(EendScint_P)*GausNL[ierr]/TMath::Sqrt(3)));
-//                    }
-//                    
-//                    LY_E_Pg1 += EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_Pg1)*GausNL[ierr]/TMath::Sqrt(3)))
-//                    - Pg1_Scint * graph_gamma_LY->Eval( Pg1_Scint, 0, "s" )*(1+ (ErrorBand->Interpolate(Pg1_Scint)*GausNL[ierr]/TMath::Sqrt(3)));
-//            
-//                    LY_E_Pg2 += EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_Pg2)*GausNL[ierr]/TMath::Sqrt(3)))
-//                    - Pg2_Scint * graph_gamma_LY->Eval( Pg2_Scint, 0, "s" )*(1+ (ErrorBand->Interpolate(Pg2_Scint)*GausNL[ierr]/TMath::Sqrt(3)));
-//                    
-//                    // ------------------------ //
-////                    /// neutron - determined from NuWa for 0-0.18 MeV (does not consider leakage)
-//                   LY_E_N += EtotScint_N * ( 0.186 + exp(-1.142-126.4*EtotScint_N) + exp(-1.217-17.90*EtotScint_N) ) * graph_electron_LY->Eval( 0.2, 0, "s" )*(1+ (ErrorBand->Interpolate(0.2)*GausNL[ierr]/TMath::Sqrt(3)));
-//
-////         Uncomment to use marginal curves, also remove Sqrt(3);
-//                    
-////                    LY_E_P += EtotScint_P * (graph_electron_LY->Eval( EtotScint_P, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( EtotScint_P, 0, "s" ))*(GausNL[ierr]/TMath::Sqrt(3)
-////                    - P_Scint * (graph_electron_LY->Eval( P_Scint, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( P_Scint, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
-////                    
-////                    
-////                    LY_E_Pg1 += EtotScint_Pg1 * (graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( EtotScint_Pg1, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3)
-////                    - Pg1_Scint * (graph_gamma_LY->Eval( Pg1_Scint, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( Pg1_Scint, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
-////                    
-////                    LY_E_Pg2 += EtotScint_Pg2 * (graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( EtotScint_Pg2, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3)
-////                    - Pg2_Scint * (graph_gamma_LY->Eval( Pg2_Scint, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( Pg2_Scint, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
-////                    
-////                    // ------------------------ //
-////                    /// neutron - determined from NuWa for 0-0.18 MeV (does not consider leakage)
-////                    LY_E_N += Etot_N * ( 0.186 + exp(-1.142-126.4*Etot_N) + exp(-1.217-17.90*Etot_N) ) * (graph_electron_LY->Eval( 0.2, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( 0.2, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
-////                    
-//                    /// delayed
-////                    LY_E_Ng += EtotScint_Ng * (graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( EtotScint_Ng, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3) - Ng_Scint * (graph_gamma_LY->Eval( Ng_Scint, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( Ng_Scint, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
-//                    
-//                    LY_E_Ng += EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_Ng)*GausNL[ierr]/TMath::Sqrt(3))) - Ng_Scint * graph_gamma_LY->Eval( Ng_Scint, 0, "s" )*(1+ (ErrorBand->Interpolate(Ng_Scint)*GausNL[ierr]/TMath::Sqrt(3)));
-//                }
-//                
-//                // ------------------------ //
-//                /// neutron - determined from NuWa for 0-0.18 MeV (does not consider leakage)
-//                LY_E_N = EtotScint_N * ( 0.186 + exp(-1.142-126.4*EtotScint_N) + exp(-1.217-17.90*EtotScint_N) ) * graph_electron_LY->Eval( 0.2, 0, "s" );
-//
-//
-                    
+                
+                
+                // This code was design for marginal curves (unified_nl_pars dependency)
+                //
+                //                for (Int_t ierr = 0; ierr < unified_nl_pars; ierr++)
+                //                {
+                //                    LY_E_P += EtotScint_P * graph_electron_LY->Eval( EtotScint_P, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_P)*GausNL[ierr]/TMath::Sqrt(3)));
+                ////                    - P_Scint * graph_electron_LY->Eval( P_Scint, 0, "s" )*(1+ (ErrorBand->Interpolate(P_Scint)*GausNL[ierr]/TMath::Sqrt(3)));
+                //
+                //                    if( EendScint_P>0.000001 ) // calculate leakage effect only when significant
+                //                    {
+                //                        LY_E_P -= EendScint_P * graph_electron_LY->Eval( EendScint_P, 0, "s" )*(1+ (ErrorBand->Interpolate(EendScint_P)*GausNL[ierr]/TMath::Sqrt(3)));
+                //                    }
+                //
+                //                    LY_E_Pg1 += EtotScint_Pg1 * graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_Pg1)*GausNL[ierr]/TMath::Sqrt(3)))
+                //                    - Pg1_Scint * graph_gamma_LY->Eval( Pg1_Scint, 0, "s" )*(1+ (ErrorBand->Interpolate(Pg1_Scint)*GausNL[ierr]/TMath::Sqrt(3)));
+                //
+                //                    LY_E_Pg2 += EtotScint_Pg2 * graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_Pg2)*GausNL[ierr]/TMath::Sqrt(3)))
+                //                    - Pg2_Scint * graph_gamma_LY->Eval( Pg2_Scint, 0, "s" )*(1+ (ErrorBand->Interpolate(Pg2_Scint)*GausNL[ierr]/TMath::Sqrt(3)));
+                //
+                //                    // ------------------------ //
+                ////                    /// neutron - determined from NuWa for 0-0.18 MeV (does not consider leakage)
+                //                   LY_E_N += EtotScint_N * ( 0.186 + exp(-1.142-126.4*EtotScint_N) + exp(-1.217-17.90*EtotScint_N) ) * graph_electron_LY->Eval( 0.2, 0, "s" )*(1+ (ErrorBand->Interpolate(0.2)*GausNL[ierr]/TMath::Sqrt(3)));
+                //
+                ////         Uncomment to use marginal curves, also remove Sqrt(3);
+                //
+                ////                    LY_E_P += EtotScint_P * (graph_electron_LY->Eval( EtotScint_P, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( EtotScint_P, 0, "s" ))*(GausNL[ierr]/TMath::Sqrt(3)
+                ////                    - P_Scint * (graph_electron_LY->Eval( P_Scint, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( P_Scint, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
+                ////
+                ////
+                ////                    LY_E_Pg1 += EtotScint_Pg1 * (graph_gamma_LY->Eval( EtotScint_Pg1, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( EtotScint_Pg1, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3)
+                ////                    - Pg1_Scint * (graph_gamma_LY->Eval( Pg1_Scint, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( Pg1_Scint, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
+                ////
+                ////                    LY_E_Pg2 += EtotScint_Pg2 * (graph_gamma_LY->Eval( EtotScint_Pg2, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( EtotScint_Pg2, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3)
+                ////                    - Pg2_Scint * (graph_gamma_LY->Eval( Pg2_Scint, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( Pg2_Scint, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
+                ////
+                ////                    // ------------------------ //
+                ////                    /// neutron - determined from NuWa for 0-0.18 MeV (does not consider leakage)
+                ////                    LY_E_N += Etot_N * ( 0.186 + exp(-1.142-126.4*Etot_N) + exp(-1.217-17.90*Etot_N) ) * (graph_electron_LY->Eval( 0.2, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( 0.2, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
+                ////
+                //                    /// delayed
+                ////                    LY_E_Ng += EtotScint_Ng * (graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( EtotScint_Ng, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3) - Ng_Scint * (graph_gamma_LY->Eval( Ng_Scint, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( Ng_Scint, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
+                //
+                //                    LY_E_Ng += EtotScint_Ng * graph_gamma_LY->Eval( EtotScint_Ng, 0, "s" )*(1+ (ErrorBand->Interpolate(EtotScint_Ng)*GausNL[ierr]/TMath::Sqrt(3))) - Ng_Scint * graph_gamma_LY->Eval( Ng_Scint, 0, "s" )*(1+ (ErrorBand->Interpolate(Ng_Scint)*GausNL[ierr]/TMath::Sqrt(3)));
+                //                }
+                //
+                //                // ------------------------ //
+                //                /// neutron - determined from NuWa for 0-0.18 MeV (does not consider leakage)
+                //                LY_E_N = EtotScint_N * ( 0.186 + exp(-1.142-126.4*EtotScint_N) + exp(-1.217-17.90*EtotScint_N) ) * graph_electron_LY->Eval( 0.2, 0, "s" );
+                //
+                //
+                
                 /// prompt SUM
                 LY_E_P_Sum = LY_E_P + LY_E_Pg1 + LY_E_Pg2 + LY_E_N;
                 //------------------------ //
                 
-
+                
                 ///////////////////////////// Optical NU
                 /*
                  usr_opt_attenuation_P = 0;
@@ -1516,43 +1606,43 @@ void nHToyMC :: Toy(bool mode)
                  usr_pmt_coverage_Ng  = 0;
                  */
                 /// prompt
-                 usr_r2_P = (X_P*X_P+Y_P*Y_P) * 1e-6;  // mm2 ---> m2
-                 usr_z_P  = Z_P * 1e-3;  // mm ---> m
+                usr_r2_P = (X_P*X_P+Y_P*Y_P) * 1e-6;  // mm2 ---> m2
+                usr_z_P  = Z_P * 1e-3;  // mm ---> m
                 
-                 global_bin_num = hist_findbin->FindBin(usr_r2_P, usr_z_P);
-                 hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
-                 
-                 if( local_zbin != 0) continue;
+                global_bin_num = hist_findbin->FindBin(usr_r2_P, usr_z_P);
+                hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
                 
-                 usr_opt_attenuation_P = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);//Relative energy scale
-                 usr_pmt_coverage_P  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
+                if( local_zbin != 0) continue;
+                
+                usr_opt_attenuation_P = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);//Relative energy scale
+                usr_pmt_coverage_P  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
                 
                 if(RelativeEnergyScaleMatrix)
                 {
                     usr_opt_attenuation_P = usr_opt_attenuation_P*(1+RelativeNominalError*GausRelative);
                 }
                 
-                 Opt_E_P_Sum = LY_E_P_Sum * usr_opt_attenuation_P * usr_pmt_coverage_P;  // nH analysis
-                 
+                Opt_E_P_Sum = LY_E_P_Sum * usr_opt_attenuation_P * usr_pmt_coverage_P;  // nH analysis
+                
                 // AdSimple_P = ( (7.84628 * (1 + 3.41294e-02*usr_r2_P) * (1 - 1.21750e-02*usr_z_P - 1.64275e-02*usr_z_P*usr_z_P + 7.33006e-04*pow(usr_z_P,3)))/8.05 );  // AdSimple
-               
+                
                 // Doc7334(old function), updated from http://dayabay.ihep.ac.cn/tracs/dybsvn/browser/dybgaudi/trunk/Reconstruction/QsumEnergy/src/components/QsumEnergyTool.cc
                 
-               //Opt_E_P_Sum = LY_E_P_Sum * AdSimple_P;
+                //Opt_E_P_Sum = LY_E_P_Sum * AdSimple_P;
                 
-                 usr_r2_Ng = (X_Ng*X_Ng+Y_Ng*Y_Ng) * 1e-6;  // mm2 ---> m2
-                 usr_z_Ng  = Z_Ng * 1e-3;  // mm ---> m
+                usr_r2_Ng = (X_Ng*X_Ng+Y_Ng*Y_Ng) * 1e-6;  // mm2 ---> m2
+                usr_z_Ng  = Z_Ng * 1e-3;  // mm ---> m
                 
-                 global_bin_num = hist_findbin->FindBin(usr_r2_Ng, usr_z_Ng);
-                 hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
-                 
-                 if( local_zbin != 0) continue;
-                 
-                 usr_opt_attenuation_Ng = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);
-                 usr_pmt_coverage_Ng  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
-                 
-                 Opt_E_Ng = LY_E_Ng * usr_opt_attenuation_Ng * usr_pmt_coverage_Ng;  // nH analysis
-                 
+                global_bin_num = hist_findbin->FindBin(usr_r2_Ng, usr_z_Ng);
+                hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
+                
+                if( local_zbin != 0) continue;
+                
+                usr_opt_attenuation_Ng = hist_map_attenuation->GetBinContent(local_xbin, local_ybin);
+                usr_pmt_coverage_Ng  = hist_map_pmt_coverage->GetBinContent(local_xbin, local_ybin);
+                
+                Opt_E_Ng = LY_E_Ng * usr_opt_attenuation_Ng * usr_pmt_coverage_Ng;  // nH analysis
+                
                 // AdSimple_Ng = ( (7.84628 * (1 + 3.41294e-02*usr_r2_Ng) * (1 - 1.21750e-02*usr_z_Ng - 1.64275e-02*usr_z_Ng*usr_z_Ng + 7.33006e-04*pow(usr_z_Ng,3)))/8.05 );  // AdSimple
                 // Doc7334(old function), updated from http://dayabay.ihep.ac.cn/tracs/dybsvn/browser/dybgaudi/trunk/Reconstruction/QsumEnergy/src/components/QsumEnergyTool.cc
                 
@@ -1561,7 +1651,7 @@ void nHToyMC :: Toy(bool mode)
                 ///////////////////////////// FEE
                 /// prompt
                 //if( Opt_E_P_Sum!=Opt_E_P_Sum ) continue;//Maybe eliminate it, it produces problems. See April 16th Logan's email
-                    
+                
                 /// prompt
                 if( Opt_E_P_Sum!=Opt_E_P_Sum || Opt_E_P_Sum<0 )
                 {
@@ -1571,7 +1661,7 @@ void nHToyMC :: Toy(bool mode)
                 
                 FEE_E_P_Sum = 0;
                 
-                FEE_E_P_Sum = Opt_E_P_Sum * graph_electronic->Eval( Opt_E_P_Sum, 0, "s" )*(1+ (ErrorBand->Interpolate(Opt_E_P_Sum)*GausNL[0]/TMath::Sqrt(3)));
+                FEE_E_P_Sum = Opt_E_P_Sum * graph_electronic->Eval( Opt_E_P_Sum, 0, "s" )*(1+ (ErrorBand->Interpolate(Opt_E_P_Sum)*GausNL[0]/Sigma_Electron));
                 
                 if( FEE_E_P_Sum!=FEE_E_P_Sum || FEE_E_P_Sum<0 ) {
                     cout<<" FEE_E_P_Sum = "<< FEE_E_P_Sum <<endl;
@@ -1580,16 +1670,16 @@ void nHToyMC :: Toy(bool mode)
                 
                 //Random NL: // In each event the NL curve is varied //if GausNL = 0 the energy would be the nominal NL function, otherwise energy = nl_nominal_energy(1+Σerrors)
                 //We don't have pull curves for each term (electron, gamma and electronic), so far use the nominal error in each of the curves.
-                  
-                    
-//                for (Int_t ierr = 0; ierr < unified_nl_pars; ierr++)
-//                {
-////                    FEE_E_P_Sum += Opt_E_P_Sum * (graph_electronic->Eval( Opt_E_P_Sum, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( Opt_E_P_Sum, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
-//                    
-//                    FEE_E_P_Sum += Opt_E_P_Sum * graph_electronic->Eval( Opt_E_P_Sum, 0, "s" )*(1+ (ErrorBand->Interpolate(Opt_E_P_Sum)*GausNL[ierr]/TMath::Sqrt(3)));
-//
-//
-//                }
+                
+                
+                //                for (Int_t ierr = 0; ierr < unified_nl_pars; ierr++)
+                //                {
+                ////                    FEE_E_P_Sum += Opt_E_P_Sum * (graph_electronic->Eval( Opt_E_P_Sum, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( Opt_E_P_Sum, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
+                //
+                //                    FEE_E_P_Sum += Opt_E_P_Sum * graph_electronic->Eval( Opt_E_P_Sum, 0, "s" )*(1+ (ErrorBand->Interpolate(Opt_E_P_Sum)*GausNL[ierr]/TMath::Sqrt(3)));
+                //
+                //
+                //                }
                 
                 ///////////////////////////// EnergyScale
                 /// prompt
@@ -1612,24 +1702,24 @@ void nHToyMC :: Toy(bool mode)
                 
                 FEE_E_Ng = 0;
                 
-                FEE_E_Ng = Opt_E_Ng * graph_electronic->Eval( Opt_E_Ng, 0, "s" )*(1+ (ErrorBand->Interpolate(Opt_E_Ng)*GausNL[0]/TMath::Sqrt(3)));
+                FEE_E_Ng = Opt_E_Ng * graph_electronic->Eval( Opt_E_Ng, 0, "s" )*(1+ (ErrorBand->Interpolate(Opt_E_Ng)*GausNL[0]/Sigma_Gamma));
                 
                 if( FEE_E_Ng!=FEE_E_Ng || FEE_E_Ng<0 ) {
                     cout<<" FEE_E_Ng = "<< FEE_E_Ng <<", Opt_E_Ng = "<< Opt_E_Ng <<endl;
                     continue;
                 }
                 
-//                for (Int_t ierr = 0; ierr < unified_nl_pars; ierr++)
-//                {
-////                    FEE_E_Ng += Opt_E_Ng * (graph_electronic->Eval( Opt_E_Ng, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( Opt_E_Ng, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
-//                    
-//                    FEE_E_Ng += Opt_E_Ng * graph_electronic->Eval( Opt_E_Ng, 0, "s" )*(1+ (ErrorBand->Interpolate(Opt_E_Ng)*GausNL[ierr]/TMath::Sqrt(3)));
-//
-//                }
+                //                for (Int_t ierr = 0; ierr < unified_nl_pars; ierr++)
+                //                {
+                ////                    FEE_E_Ng += Opt_E_Ng * (graph_electronic->Eval( Opt_E_Ng, 0, "s" ) - g_unified_positron_nl_pulls[ierr]->Eval( Opt_E_Ng, 0, "s" ))*GausNL[ierr]/TMath::Sqrt(3);
+                //
+                //                    FEE_E_Ng += Opt_E_Ng * graph_electronic->Eval( Opt_E_Ng, 0, "s" )*(1+ (ErrorBand->Interpolate(Opt_E_Ng)*GausNL[ierr]/TMath::Sqrt(3)));
+                //
+                //                }
                 ///////////////////////////// EnergyScale
                 /// delayed
                 Scale_E_Ng = FEE_E_Ng *EnergyScale;
-
+                
                 if( Scale_E_Ng!=Scale_E_Ng || Scale_E_Ng<0 ) {
                     cout<<" Scale_E_Ng = "<< Scale_E_Ng <<endl;
                     continue;
@@ -1692,19 +1782,19 @@ void nHToyMC :: Toy(bool mode)
                     cout<<" Res_E_Ng = "<< Res_E_Ng <<", R_average="<< R_average <<", Scale_E_Ng="<< Scale_E_Ng <<", energy_sigma="<< energy_sigma <<endl;
                     continue;
                 }
-
+                
                 /// Estimate an "Erec" on which to apply cuts
                 ///////////////////////////// Reconstructed Energy
                 /// delayed
                 Erec_Ng = Res_E_Ng / (usr_opt_attenuation_Ng * usr_pmt_coverage_Ng);  // nH analysis
                 //Erec_Ng = Res_E_Ng / AdSimple_Ng;  // AdSimple
-
+                
                 ///////////////////////////// Cell
                 ///////////////////////////// Cell
                 
                 ////// Cuts:
                 //////
-//                if( cap_Target==64 ) continue;  // reject nGd events because not properly considered in toyMC input sample
+                //                if( cap_Target==64 ) continue;  // reject nGd events because not properly considered in toyMC input sample
                 
                 if( Res_E_P_Sum!=Res_E_P_Sum || Res_E_Ng!=Res_E_Ng ) {
                     cout<<" Res_E_P_Sum = "<< Res_E_P_Sum <<", Res_E_Ng = "<< Res_E_Ng << endl;
@@ -1719,13 +1809,13 @@ void nHToyMC :: Toy(bool mode)
                     distPD = sqrt( (X_Ng-X_P)*(X_Ng-X_P) + (Y_Ng-Y_P)*(Y_Ng-Y_P) + (Z_Ng-Z_P)*(Z_Ng-Z_P) );
                     if( distPD>distCut ) continue;
                 }
-
+                
                 // cut events due to variation in OAV dimensions
                 if( deltaRoav<0 && sqrt(X_P*X_P+Y_P*Y_P)<-deltaRoav ) continue;
                 if( deltaRoav>0 && sqrt(X_P*X_P+Y_P*Y_P)>Rshield-deltaRoav ) continue;
                 if( deltaZoav<0 && Z_P<ZreflectorBottom-deltaZoav ) continue;
                 if( deltaZoav>0 && Z_P>ZreflectorTop-deltaZoav ) continue;
-
+                
                 //Efficiency correction:
                 Double_t Eff_p_content = 0;
                 
@@ -1755,11 +1845,11 @@ void nHToyMC :: Toy(bool mode)
                     Eff_d_content = h2d_Ed_ratio2center->GetBinContent(local_xbin, local_ybin);
                 }
                 Int_t VolumeXbin, VolumeYbin;
-
+                
 #ifdef UseVolumes
                 //Logic to detect to translate cell bins to volume bins (check if the cell is inside the GdLs or the Ls volume)
                 VolumeYbin = 1;
-
+                
                 if((local_ybin==1||local_ybin==(Z_binnum)||local_xbin>(R2_binnum-4)))//nH LS
                 {
                     VolumeXbin = 2;
@@ -1773,132 +1863,150 @@ void nHToyMC :: Toy(bool mode)
                 VolumeYbin = local_ybin;
 #endif
                 
-                //Fill histograms:
-                TruePredictionH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(Ev,Eff_p_content);
-                VisiblePredictionH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_P_Sum,Eff_p_content);
+                //Fill histograms: Apply efficiency of the cell to each event, and then add that event in the matrix of the corresponding volume after calculating if the cell is inside the Ls or Gd-Ls
+                TruePredictionH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Ev,Eff_p_content);
+                VisiblePredictionH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_P_Sum,Eff_p_content);
                 
-                DelayedVisiblePredictionH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_Ng,Eff_d_content);
-                HighResoMatrixH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(Ev,Res_E_P_Sum,Eff_p_content);//Fine grid
-                MatrixH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(Ev,Res_E_P_Sum,Eff_p_content);//neutrino energy vs visible energy
-                TransMatrixH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_P_Sum,Ev,Eff_p_content);
-                HighResoTransMatrixH[AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_P_Sum,Ev,Eff_p_content);//Fine grid
+                DelayedVisiblePredictionH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_Ng,Eff_d_content);
+                HighResoMatrixH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Ev,Res_E_P_Sum,Eff_p_content);//Fine grid
+                MatrixH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Ev,Res_E_P_Sum,Eff_p_content);//neutrino energy vs visible energy
+                TransMatrixH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_P_Sum,Ev,Eff_p_content);
+                HighResoTransMatrixH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_P_Sum,Ev,Eff_p_content);//Fine grid
+
+                //Save number of events in each cell to properly scale the cells afterwards:
                 
-#ifdef SaveTree
-                toy->Fill();
-#endif
-            }//events
-            
-//            //Efficiency map:
-//            
-//            double entries=0, Effcontent=0;
-//            
-//            for(int idx=0; idx<MaxCellNum; idx++)
-//            {
-//                entries = 0;
-//                entries = hEp_cc[idx]->GetEntries();
-//                if( entries>10 )
-//                {
-//                    // hEp_cc[idx]->Write();
-//                    hEp_cc_clone[idx]->Add(hEp_cc[idx]);
-//                }
-//                
-//                entries = hEd_cc[idx]->GetEntries();
-//                if( entries>10 )
-//                {
-//                    // hEd_cc[idx]->Write();
-//                    hEd_cc_clone[idx]->Add(hEd_cc[idx]);
-//                }
-//                
-//                //////
-//                hist_findbin->GetBinXYZ(idx, local_xbin, local_ybin, local_zbin);
-//                if( local_zbin==0 && local_xbin>=1 && local_xbin<=R2_binnum && local_ybin>=1 && local_ybin<=Z_binnum )
-//                {
-//                    Effcontent = 0;
-//                    
-//                    //if(local_ybin<=1 || local_ybin>=Z_binnum)  continue;  // exclude bottom and top rows from columns
-//                    
-//                    entries = hEp_cc_clone[idx]->Integral(1,hEp_bin);
-//                    Effcontent = h2d_Ep_ratio2center->GetBinContent(local_xbin, local_ybin);
-//                    hEp_cc_clone[idx]->Scale(Effcontent/entries);
-//                    hEp_cl[local_xbin]->Add(hEp_cc_clone[idx]);//Efficiency corrected histogram
-//                    
-//                    entries = hEd_cc_clone[idx]->Integral(1,hEd_bin);
-//                    Effcontent = h2d_Ed_ratio2center->GetBinContent(local_xbin, local_ybin);
-//                    hEd_cc_clone[idx]->Scale(Effcontent/entries);
-//                    hEd_cl[local_xbin]->Add(hEd_cc_clone[idx]);//Efficiency corrected histogram
-//                }
-//            }
-//            
-//            //Reset histograms
-//            for(int idx=0; idx<MaxCellNum; idx++)
-//            {
-//                hEp_cc[idx]->Reset();
-//                hEd_cc[idx]->Reset();
-//                hEd_cc_clone[idx]->Reset();
-//                hEp_cc_clone[idx]->Reset();
-//            }
-//            for(int idx=0; idx<MaxColumnNum; idx++)
-//            {
-//                hEp_cl[idx]->Reset();
-//                hEd_cl[idx]->Reset();
-//            }
-            
-            
-            //Save number of events in each cell to properly scale the cells afterwards:
-            
-            ADIntegralEvents[AD] = 0;//initialize
-            
-            for(int idx=0; idx<VolumeX; idx++)
-            {
-                for(int idy=0; idy<VolumeY; idy++)
+                ADIntegralEvents[Systematic][AD] = 0;//initialize
+                
+                for(Int_t idx=0; idx<VolumeX; idx++)
                 {
-                    IntegralEvents[AD][idx][idy] = VisiblePredictionH[AD][idx][idy]->Integral();
-                    ADIntegralEvents[AD] = ADIntegralEvents[AD] + IntegralEvents[AD][idx][idy];
+                    for(Int_t idy=0; idy<VolumeY; idy++)
+                    {
+                        IntegralEvents[Systematic][AD][idx][idy] = VisiblePredictionH[Systematic][AD][idx][idy]->Integral();
+                        ADIntegralEvents[Systematic][AD] = ADIntegralEvents[Systematic][AD] + IntegralEvents[Systematic][AD][idx][idy];
+                    }
                 }
-            }
-        }//ADs
+            }//Systematics
+            
+            //            //Efficiency map:
+            //
+            //            double entries=0, Effcontent=0;
+            //
+            //            for(int idx=0; idx<MaxCellNum; idx++)
+            //            {
+            //                entries = 0;
+            //                entries = hEp_cc[idx]->GetEntries();
+            //                if( entries>10 )
+            //                {
+            //                    // hEp_cc[idx]->Write();
+            //                    hEp_cc_clone[idx]->Add(hEp_cc[idx]);
+            //                }
+            //
+            //                entries = hEd_cc[idx]->GetEntries();
+            //                if( entries>10 )
+            //                {
+            //                    // hEd_cc[idx]->Write();
+            //                    hEd_cc_clone[idx]->Add(hEd_cc[idx]);
+            //                }
+            //
+            //                //////
+            //                hist_findbin->GetBinXYZ(idx, local_xbin, local_ybin, local_zbin);
+            //                if( local_zbin==0 && local_xbin>=1 && local_xbin<=R2_binnum && local_ybin>=1 && local_ybin<=Z_binnum )
+            //                {
+            //                    Effcontent = 0;
+            //
+            //                    //if(local_ybin<=1 || local_ybin>=Z_binnum)  continue;  // exclude bottom and top rows from columns
+            //
+            //                    entries = hEp_cc_clone[idx]->Integral(1,hEp_bin);
+            //                    Effcontent = h2d_Ep_ratio2center->GetBinContent(local_xbin, local_ybin);
+            //                    hEp_cc_clone[idx]->Scale(Effcontent/entries);
+            //                    hEp_cl[local_xbin]->Add(hEp_cc_clone[idx]);//Efficiency corrected histogram
+            //
+            //                    entries = hEd_cc_clone[idx]->Integral(1,hEd_bin);
+            //                    Effcontent = h2d_Ed_ratio2center->GetBinContent(local_xbin, local_ybin);
+            //                    hEd_cc_clone[idx]->Scale(Effcontent/entries);
+            //                    hEd_cl[local_xbin]->Add(hEd_cc_clone[idx]);//Efficiency corrected histogram
+            //                }
+            //            }
+            //
+            //            //Reset histograms
+            //            for(int idx=0; idx<MaxCellNum; idx++)
+            //            {
+            //                hEp_cc[idx]->Reset();
+            //                hEd_cc[idx]->Reset();
+            //                hEd_cc_clone[idx]->Reset();
+            //                hEp_cc_clone[idx]->Reset();
+            //            }
+            //            for(int idx=0; idx<MaxColumnNum; idx++)
+            //            {
+            //                hEp_cl[idx]->Reset();
+            //                hEd_cl[idx]->Reset();
+            //            }
+        }//AD
+#ifdef SaveTree
+        toy->Fill();
+#endif
+    }//Events
+    
+    delete h2d_Ep_ratio2center;
+    delete h2d_Ed_ratio2center;
+    
+    //Save event ratios:
+    
+    for(Int_t Systematic = 0; Systematic<NSystematic;Systematic++)
+    {
+        RelativeEnergyScaleMatrix = 0;
+        IAVMatrix = 0;
+        NLMatrix = 0;
+        ResolutionMatrix = 0;
+        //EfficiencyMatrix = 0;
+        AllMatrix = 0;
         
-        delete h2d_Ep_ratio2center;
-        delete h2d_Ed_ratio2center;
-        
-        //Save event ratios:
-        
-        if(mode==0)
+        switch (Systematic)
         {
-            SystematicS= "Nominal";
-        }
-        else
-        {
-            if(RelativeEnergyScaleMatrix)
-            {
-                SystematicS = "RelativeEnergyScale";
-            }
-            else if(IAVMatrix)
-            {
+            case 0:
+                SystematicS = "Nominal";
+                std::cout << " Nominal Matrix " << std::endl;
+                break;
+            case 1:
+                IAVMatrix = 1;
                 SystematicS = "IAV";
-            }
-            else if(ResolutionMatrix)
-            {
-                SystematicS = "Resolution";
-            }
-            else if(EfficiencyMatrix)
-            {
-                SystematicS = "Efficiency";
-            }
-            else if(NLMatrix)
-            {
+                std::cout << " IAV Matrix " << std::endl;
+                break;
+            case 2:
                 SystematicS = "NL";
-            }
-            else
-            {
-                std::cout << " Case not valid" << std::endl;
+                NLMatrix = 1;
+                std::cout << " NL Matrix " << std::endl;
+                break;
+            case 3:
+                ResolutionMatrix = 1;
+                SystematicS = "Resolution";
+                std::cout << " Reso Matrix " << std::endl;
+                break;
+            case 4:
+                RelativeEnergyScaleMatrix = 1;
+                SystematicS = "RelativeEnergyScale";
+                std::cout << " RelativeEnergyScale Matrix " << std::endl;
+                break;
+            case 5:
+                SystematicS = "AllSystematics";
+                AllMatrix = 1;
+                std::cout << " All Detector Systematics Matrix " << std::endl;
+                break;
+//            case 6:
+//                SystematicS = "Efficiency";
+//                EfficiencyMatrix = 1;
+//                std::cout << " Efficiency Matrix " << std::endl;
+//                break;
+            default:
+                std::cout << " DEFAULT SHOULDN'T HAPPEN" << std::endl;
                 exit(EXIT_FAILURE);
-            }
+                break;
         }
+        
         
         //Save txt file in case we want to use it externally:
         FILE *f = fopen(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str(), "w");
-
+        
         if (f == NULL)
         {
             printf("Error opening file!\n");
@@ -1909,22 +2017,21 @@ void nHToyMC :: Toy(bool mode)
         for(Int_t AD = 0; AD<NADs; AD++)
         {
             fprintf(f, "#ToyEvents in each AD\n");
-
-            fprintf(f, "%d %f\n", AD, ADIntegralEvents[AD]);
-
+            
+            fprintf(f, "%d %f\n", AD, ADIntegralEvents[Systematic][AD]);
+            
             fprintf(f, "#Events in each cell for AD %d\n", AD);
-
+            
             for(int idx=0; idx<VolumeX; idx++)
             {
                 for(int idy=0; idy<VolumeY; idy++)
                 {
-                    fprintf(f, "%d %d %d %f\n", AD, idx, idy, IntegralEvents[AD][idx][idy] );
+                    fprintf(f, "%d %d %d %f\n", AD, idx, idy, IntegralEvents[Systematic][AD][idx][idy] );
                 }
             }
         }
-
+        
         fclose(f);
-
         
         //Draw it:
 #ifndef UseVolume
@@ -1936,7 +2043,7 @@ void nHToyMC :: Toy(bool mode)
             {
                 for(Int_t idy = 0; idy<VolumeY; idy++)
                 {
-                    MapEvents_ratio2center->SetBinContent(idx+1,idy+1,IntegralEvents[AD][idx][idy]/IntegralEvents[AD][0][Int_t(VolumeY/2)]);
+                    MapEvents_ratio2center->SetBinContent(idx+1,idy+1,IntegralEvents[Systematic][AD][idx][idy]/IntegralEvents[Systematic][AD][0][Int_t(VolumeY/2)]);
                 }
             }
         }
@@ -1947,7 +2054,7 @@ void nHToyMC :: Toy(bool mode)
         
         MapEvents_ratio2center->Draw("colz");
         
-        MapEventC->Print("./Images/Hydrogen/Detector/MapEventRatio2Center.eps");
+        MapEventC->Print(("./Images/Hydrogen/Detector/"+SystematicS+"MapEventRatio2Center.eps").c_str());
         
         delete MapEvents_ratio2center;
         delete MapEventC;
@@ -1961,9 +2068,9 @@ void nHToyMC :: Toy(bool mode)
             {
                 for(Int_t idy = 0; idy<VolumeY; idy++)
                 {
-                    PercentualEvents[AD][idx][idy] = IntegralEvents[AD][idx][idy]/ADIntegralEvents[AD];
-
-                    MapEvents_ratio2total->SetBinContent(idx+1,idy+1,PercentualEvents[AD][idx][idy]);
+                    PercentualEvents[Systematic][AD][idx][idy] = IntegralEvents[Systematic][AD][idx][idy]/ADIntegralEvents[Systematic][AD];
+                    
+                    MapEvents_ratio2total->SetBinContent(idx+1,idy+1,PercentualEvents[Systematic][AD][idx][idy]);
                 }
             }
         }
@@ -1974,7 +2081,7 @@ void nHToyMC :: Toy(bool mode)
         
         MapEvents_ratio2total->Draw("colz");
         
-        MapEventTotalC->Print("./Images/Hydrogen/Detector/MapEventRatio2Total.eps");
+        MapEventTotalC->Print(("./Images/Hydrogen/Detector/"+SystematicS+"MapEventRatio2Total.eps").c_str());
         
         delete MapEventTotalC;
         
@@ -1987,68 +2094,66 @@ void nHToyMC :: Toy(bool mode)
         
         delete MapEvents_ratio2total;
         
-//        for(int idx=0; idx<MaxCellNum; idx++)
-//        {
-//            delete hEp_cc[idx];
-//            
-//            delete hEd_cc[idx];
-//            
-//            delete hEp_cc_clone[idx];
-//            
-//            delete hEd_cc_clone[idx];
-//        }
-//        for(int idx=0; idx<MaxColumnNum; idx++)
-//        {
-//            delete hEp_cl[idx];
-//            
-//            delete hEd_cl[idx];
-//        }
+        //        for(int idx=0; idx<MaxCellNum; idx++)
+        //        {
+        //            delete hEp_cc[idx];
+        //
+        //            delete hEd_cc[idx];
+        //
+        //            delete hEp_cc_clone[idx];
+        //
+        //            delete hEd_cc_clone[idx];
+        //        }
+        //        for(int idx=0; idx<MaxColumnNum; idx++)
+        //        {
+        //            delete hEp_cl[idx];
+        //
+        //            delete hEd_cl[idx];
+        //        }
         
-        if(mode!=0)
+        
+        delete gRandom3;
+        delete RandomSysUncorr;
+        delete RandomSysCorr;
+        
+#ifdef PrintEps
+        TCanvas* NNFineMatrixC = new TCanvas("NNF","NNF");
+        NNFineMatrixC->Divide(NADs/2,2);
+        
+        TCanvas* NNMatrixC = new TCanvas("NNM","NNM");
+        NNMatrixC->Divide(NADs/2,2);
+        
+        TCanvas* NNTransC = new TCanvas("NNT","NNT");
+        NNTransC->Divide(NADs/2,2);
+        
+        TCanvas* NNFineTransC = new TCanvas("NNFT","NNFT");
+        NNFineTransC->Divide(NADs/2,2);
+        
+        for(Int_t i = 0; i<NADs;i++)
         {
-            delete gRandom3;
-            delete RandomSysUncorr;
-            delete RandomSysCorr;
+            NNMatrixC->cd(i+1);
+            MatrixH[Systematic][i][0][0]->Draw("colz");
+            
+            NNFineMatrixC->cd(i+1);
+            HighResoMatrixH[Systematic][i][0][0]->Draw("colz");
+            
+            NNTransC->cd(i+1);
+            TransMatrixH[Systematic][i][0][0]->Draw("colz");
+            
+            NNFineTransC->cd(i+1);
+            HighResoTransMatrixH[Systematic][i][0][0]->Draw("colz");
         }
         
-        #ifdef PrintEps
-            TCanvas* NNFineMatrixC = new TCanvas("NNF","NNF");
-            NNFineMatrixC->Divide(NADs/2,2);
-            
-            TCanvas* NNMatrixC = new TCanvas("NNM","NNM");
-            NNMatrixC->Divide(NADs/2,2);
-            
-            TCanvas* NNTransC = new TCanvas("NNT","NNT");
-            NNTransC->Divide(NADs/2,2);
-            
-            TCanvas* NNFineTransC = new TCanvas("NNFT","NNFT");
-            NNFineTransC->Divide(NADs/2,2);
-            
-            for(Int_t i = 0; i<NADs;i++)
-            {
-                NNMatrixC->cd(i+1);
-                MatrixH[i][0][0]->Draw("colz");
-                
-                NNFineMatrixC->cd(i+1);
-                HighResoMatrixH[i][0][0]->Draw("colz");
-                
-                NNTransC->cd(i+1);
-                TransMatrixH[i][0][0]->Draw("colz");
-                
-                NNFineTransC->cd(i+1);
-                HighResoTransMatrixH[i][0][0]->Draw("colz");
-            }
-            
-            NNFineMatrixC->Print("./Images/Hydrogen/ResponseMatrices/NoNormFineHydrogenResponseMatrix.eps");
-            NNMatrixC->Print("./Images/Hydrogen/ResponseMatrices/NoNormHydrogenResponseMatrix.eps");
-            NNTransC->Print("./Images/Hydrogen/ResponseMatrices/NoNormTransposeHydrogenMatrix.eps");
-            NNFineTransC->Print("./Images/Hydrogen/ResponseMatrices/NoNormFineTransposeHydrogenMatrix.eps");
-            
-            delete NNMatrixC;
-            delete NNFineMatrixC;
-            delete NNTransC;
-            delete NNFineTransC;
-        #endif
+        NNFineMatrixC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"NoNormFineHydrogenResponseMatrix.eps").c_str());
+        NNMatrixC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"NoNormHydrogenResponseMatrix.eps").c_str());
+        NNTransC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"NoNormTransposeHydrogenMatrix.eps").c_str());
+        NNFineTransC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"NoNormFineTransposeHydrogenMatrix.eps").c_str());
+        
+        delete NNMatrixC;
+        delete NNFineMatrixC;
+        delete NNTransC;
+        delete NNFineTransC;
+#endif
         
         Double_t Norma[n_etrue_bins];//true->vis
         Double_t HighResoNorma[MatrixBins];//true->vis
@@ -2066,7 +2171,7 @@ void nHToyMC :: Toy(bool mode)
                         Norma[i]=0;
                         for(Int_t j=0;j<n_evis_bins;j++)
                         {
-                            Norma[i] = Norma[i]+MatrixH[AD][idx][idy]->GetBinContent(i+1,j+1);// true->vis
+                            Norma[i] = Norma[i]+MatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1);// true->vis
                         }
                     }
                     
@@ -2076,7 +2181,7 @@ void nHToyMC :: Toy(bool mode)
                         
                         for(Int_t j=0;j<n_etrue_bins;j++)
                         {
-                            NormaTrans[i] = NormaTrans[i]+TransMatrixH[AD][idx][idy]->GetBinContent(i+1,j+1);// vis->true
+                            NormaTrans[i] = NormaTrans[i]+TransMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1);// vis->true
                         }
                     }
                     
@@ -2086,7 +2191,7 @@ void nHToyMC :: Toy(bool mode)
                         {
                             if(Norma[i]!=0)
                             {
-                                MatrixH[AD][idx][idy]->SetBinContent(i+1,j+1,MatrixH[AD][idx][idy]->GetBinContent(i+1,j+1)/Norma[i]);//true->vis
+                                MatrixH[Systematic][AD][idx][idy]->SetBinContent(i+1,j+1,MatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1)/Norma[i]);//true->vis
                             }
                         }
                     }
@@ -2097,7 +2202,7 @@ void nHToyMC :: Toy(bool mode)
                         {
                             if(NormaTrans[i]!=0)
                             {
-                                TransMatrixH[AD][idx][idy]->SetBinContent(i+1,j+1,TransMatrixH[AD][idx][idy]->GetBinContent(i+1,j+1)/NormaTrans[i]);
+                                TransMatrixH[Systematic][AD][idx][idy]->SetBinContent(i+1,j+1,TransMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1)/NormaTrans[i]);
                             }
                             
                         }
@@ -2110,8 +2215,8 @@ void nHToyMC :: Toy(bool mode)
                         
                         for(Int_t j=0;j<MatrixBins;j++)
                         {
-                            HighResoNorma[i] = HighResoNorma[i]+HighResoMatrixH[AD][idx][idy]->GetBinContent(i+1,j+1);// true->vis
-                            HighResoNormaTrans[i] = HighResoNormaTrans[i]+HighResoTransMatrixH[AD][idx][idy]->GetBinContent(i+1,j+1);// vis->true
+                            HighResoNorma[i] = HighResoNorma[i]+HighResoMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1);// true->vis
+                            HighResoNormaTrans[i] = HighResoNormaTrans[i]+HighResoTransMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1);// vis->true
                             
                         }
                     }
@@ -2122,12 +2227,12 @@ void nHToyMC :: Toy(bool mode)
                         {
                             if(HighResoNorma[i]!=0)
                             {
-                                HighResoMatrixH[AD][idx][idy]->SetBinContent(i+1,j+1,HighResoMatrixH[AD][idx][idy]->GetBinContent(i+1,j+1)/HighResoNorma[i]);//true->vis
+                                HighResoMatrixH[Systematic][AD][idx][idy]->SetBinContent(i+1,j+1,HighResoMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1)/HighResoNorma[i]);//true->vis
                             }
                             
                             if(HighResoNormaTrans[i]!=0)
                             {
-                                HighResoTransMatrixH[AD][idx][idy]->SetBinContent(i+1,j+1,HighResoTransMatrixH[AD][idx][idy]->GetBinContent(i+1,j+1)/HighResoNormaTrans[i]);
+                                HighResoTransMatrixH[Systematic][AD][idx][idy]->SetBinContent(i+1,j+1,HighResoTransMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1)/HighResoNormaTrans[i]);
                             }
                         }
                     }
@@ -2159,34 +2264,34 @@ void nHToyMC :: Toy(bool mode)
                     for(Int_t i = 0; i<NADs;i++)
                     {
                         PredictionC->cd(i+1);
-                        TruePredictionH[i][idx][idy]->Draw();
+                        TruePredictionH[Systematic][i][idx][idy]->Draw();
                         
                         VisPredictionC->cd(i+1);
-                        VisiblePredictionH[i][idx][idy]->Draw();
+                        VisiblePredictionH[Systematic][i][idx][idy]->Draw();
                         
                         DelayedVisPredictionC->cd(i+1);
-                        DelayedVisiblePredictionH[i][idx][idy]->Draw();
+                        DelayedVisiblePredictionH[Systematic][i][idx][idy]->Draw();
                         
                         MatrixC->cd(i+1);
-                        MatrixH[i][idx][idy]->Draw("colz");
+                        MatrixH[Systematic][i][idx][idy]->Draw("colz");
                         
                         FineMatrixC->cd(i+1);
-                        HighResoMatrixH[i][idx][idy]->Draw("colz");
+                        HighResoMatrixH[Systematic][i][idx][idy]->Draw("colz");
                         
                         TransC->cd(i+1);
-                        TransMatrixH[i][idx][idy]->Draw("colz");
+                        TransMatrixH[Systematic][i][idx][idy]->Draw("colz");
                         
                         FineTransC->cd(i+1);
-                        HighResoTransMatrixH[i][idx][idy]->Draw("colz");
+                        HighResoTransMatrixH[Systematic][i][idx][idy]->Draw("colz");
                     }
                     
-                    PredictionC->Print("./Images/Hydrogen/ToyMCOutputs/ToyMCTrueHydrogenPrediction.eps");
-                    VisPredictionC->Print("./Images/Hydrogen/ToyMCOutputs/ToyMCVisibleHydrogenPrediction.eps");
-                    DelayedVisPredictionC->Print("./Images/Hydrogen/ToyMCOutputs/ToyMCDelayedVisibleHydrogenPrediction.eps");
-                    FineMatrixC->Print("./Images/Hydrogen/ResponseMatrices/FineHydrogenResponseMatrix.eps");
-                    MatrixC->Print("./Images/Hydrogen/ResponseMatrices/HydrogenResponseMatrix.eps");
-                    TransC->Print("./Images/Hydrogen/ResponseMatrices/TransposeHydrogenMatrix.eps");
-                    FineTransC->Print("./Images/Hydrogen/ResponseMatrices/FineTransposeHydrogenMatrix.eps");
+                    PredictionC->Print(("./Images/Hydrogen/ToyMCOutputs/"+SystematicS+"ToyMCTrueHydrogenPrediction.eps").c_str());
+                    VisPredictionC->Print(("./Images/Hydrogen/ToyMCOutputs/"+SystematicS+"ToyMCVisibleHydrogenPrediction.eps").c_str());
+                    DelayedVisPredictionC->Print(("./Images/Hydrogen/ToyMCOutputs/"+SystematicS+"ToyMCDelayedVisibleHydrogenPrediction.eps").c_str());
+                    FineMatrixC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"FineHydrogenResponseMatrix.eps").c_str());
+                    MatrixC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"HydrogenResponseMatrix.eps").c_str());
+                    TransC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"TransposeHydrogenMatrix.eps").c_str());
+                    FineTransC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"FineTransposeHydrogenMatrix.eps").c_str());
                     
                     delete PredictionC;
                     delete VisPredictionC;
@@ -2200,114 +2305,67 @@ void nHToyMC :: Toy(bool mode)
             }
         }
         
-        //Save event ratios:
-        
-        std::string line;
-        
-        ifstream mainfile(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str());
-        
-        Int_t linenum=0;//<---caution: only increments for lines that do not begin with #
-        
-        Double_t CellIntegral[MaxDetectors][VolumeX][VolumeY];
-        Double_t ADIntegral[MaxDetectors];
-        
-        while(!mainfile.eof())
-        {
-            std::getline(mainfile,line);
-            std::string firstchar = line.substr(0,1);
-            
-            if(firstchar=="#") continue;//<-- ignore lines with comments
-            
-            std::istringstream iss(line);
-            
-            if(linenum == 0)
-            {
-                Int_t AD = 0;
-                
-                iss >> AD >> ADIntegral[AD];
-                
-                std::cout << "line " << linenum << " the integral in AD " << AD << " is " << ADIntegral[AD] << std::endl;
-                
-                linenum++;
-            }
-            else if(linenum <=VolumeX*VolumeY)
-            {
-                Int_t AD = 0;
-                Int_t idx = 0;
-                Int_t idy = 0;
-                
-                iss >> AD >> idx >> idy >> CellIntegral[AD][idx][idy];
-                //                if(column==0) AD=atoi(firstchar.c_str());
-                //
-                //                if(column==1) idx=atoi(sub.c_str());
-                //
-                //                if(column==2) idy=atoi(sub.c_str());
-                //
-                //                if(column==3)
-                
-                std::cout << "line " << linenum << " the integral in AD " << AD << " cell " << idx << " , " << idy << " is " << CellIntegral[AD][idx][idy] << std::endl;
-                
-                linenum++;
-                
-                if(linenum>VolumeX*VolumeY)
-                {
-                    linenum = 0;//reset counter
-                }
-            }
-        }
-        
-        if(mode==0)//This only happens when ReDoNominal is defined
-        {
-            TFile* SaveMatrix = new TFile(Form("./ResponseMatrices/Hydrogen/NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins),"recreate");
-            
-            for(int idx=0; idx<VolumeX; idx++)
-            {
-                for(int idy=0; idy<VolumeY; idy++)
-                {
-                    for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
-                    {
-                        HighResoMatrixH[AD][idx][idy]->Write(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
-                        MatrixH[AD][idx][idy]->Write(Form("EvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
-                        TransMatrixH[AD][idx][idy]->Write(Form("EnuEvis%i,Cell%i,%i",AD+1,idx,idy));
-                    }
-                    
-                }
-            }
-            delete SaveMatrix;
-        }
-        else
-        {
-            TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/"+SystematicS+Form("ResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"recreate");
-            
-            //TFile* SaveMatrix = new TFile(Form("./ResponseMatrices/Hydrogen/RandomResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins),"recreate");
-           
-            for(int idx=0; idx<VolumeX; idx++)
-            {
-                for(int idy=0; idy<VolumeY; idy++)
-                {
-                    for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
-                    {
-                        PercentualEvents[AD][idx][idy] = CellIntegral[AD][idx][idy]/ADIntegral[AD];
+ 
+//        
+//        //Load event ratios:
+//        
+//        std::string line;
+//        
+//        ifstream mainfile(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str());
+//        
+//        Int_t linenum=0;//<---caution: only increments for lines that do not begin with #
+//        
 
-                        HighResoMatrixH[AD][idx][idy]->Write(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
-                        MatrixH[AD][idx][idy]->Write(Form("EvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
-                        TransMatrixH[AD][idx][idy]->Write(Form("EnuEvis%i,Cell%i,%i",AD+1,idx,idy));
-                    }
-                    
-                }
-            }
-            delete nHMatrixF;
-        }
-#ifdef SaveTree
-        toy->Write();
-        roofile_toy->Close();
-#endif
+//        
+//        while(!mainfile.eof())
+//        {
+//            std::getline(mainfile,line);
+//            std::string firstchar = line.substr(0,1);
+//            
+//            if(firstchar=="#") continue;//<-- ignore lines with comments
+//            
+//            std::istringstream iss(line);
+//            
+//            if(linenum == 0)
+//            {
+//                Int_t AD = 0;
+//                
+//                iss >> AD >> ADIntegral[Systematic][AD];
+//                
+//                std::cout << "line " << linenum << " the integral in AD " << AD << " is " << ADIntegral[Systematic][AD] << std::endl;
+//                
+//                linenum++;
+//            }
+//            else if(linenum <=VolumeX*VolumeY)
+//            {
+//                Int_t AD = 0;
+//                Int_t idx = 0;
+//                Int_t idy = 0;
+//                
+//                iss >> AD >> idx >> idy >> CellIntegral[Systematic][AD][idx][idy];
+//                //                if(column==0) AD=atoi(firstchar.c_str());
+//                //
+//                //                if(column==1) idx=atoi(sub.c_str());
+//                //
+//                //                if(column==2) idy=atoi(sub.c_str());
+//                //
+//                //                if(column==3)
+//                
+//                std::cout << "line " << linenum << " the integral in AD " << AD << " cell " << idx << " , " << idy << " is " << CellIntegral[Systematic][AD][idx][idy] << std::endl;
+//                
+//                linenum++;
+//                
+//                if(linenum>VolumeX*VolumeY)
+//                {
+//                    linenum = 0;//reset counter
+//                }
+//            }
+//        }
+        
 
-#ifndef ReDoNominal
-    }
-    else//if mode == 0 //Load file if we don't re do the nominal
-    {
-        TFile* NominalMatrixF = new TFile(Form("./ResponseMatrices/Hydrogen/NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins));
+        TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/"+SystematicS+Form("ResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"recreate");
+        
+        //TFile* SaveMatrix = new TFile(Form("./ResponseMatrices/Hydrogen/RandomResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins),"recreate");
         
         for(int idx=0; idx<VolumeX; idx++)
         {
@@ -2315,12 +2373,19 @@ void nHToyMC :: Toy(bool mode)
             {
                 for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
                 {
-                    HighResoMatrixH[AD][idx][idy] = (TH2D*)NominalMatrixF->Get(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                    HighResoMatrixH[Systematic][AD][idx][idy]->Write(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                    MatrixH[Systematic][AD][idx][idy]->Write(Form("EvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                    TransMatrixH[Systematic][AD][idx][idy]->Write(Form("EnuEvis%i,Cell%i,%i",AD+1,idx,idy));
                 }
+                
             }
         }
-        delete NominalMatrixF;
-    }
+        delete nHMatrixF;
+    }//Systematic
+    
+#ifdef SaveTree
+        toy->Write();
+        roofile_toy->Close();
 #endif
 }
 
@@ -2418,15 +2483,15 @@ void nHToyMC :: func_initialization()
     roofunc_EnergyResolution = new TF1("roofunc_EnergyResolution", this, &nHToyMC::func_EnergyResolution, 0,20, 1,"nHToyMC","func_EnergyResolution");
 }
 
-TH2D* nHToyMC :: LoadnHMatrix(Int_t AD,Int_t idx, Int_t idy)
-{
-    return HighResoMatrixH[AD][idx][idy];
-}
-
-Double_t nHToyMC :: GetEventsByCell(Int_t AD,Int_t idx, Int_t idy)
-{
-    return PercentualEvents[AD][idx][idy];
-}
+//TH2D* nHToyMC :: LoadnHMatrix(Int_t AD,Int_t idx, Int_t idy)
+//{
+//    return HighResoMatrixH[AD][idx][idy];
+//}
+//
+//Double_t nHToyMC :: GetEventsByCell(Int_t AD,Int_t idx, Int_t idy)
+//{
+//    return PercentualEvents[AD][idx][idy];
+//}
 
 //Double_t nHToyMC :: GetMarginanNL(TGraph* Full_NL, TGraph* NLscint, TGraph* NLcerenkov, TGraph* NLelectronics, Double_t Energy, Int_t mode)
 //{

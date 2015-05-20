@@ -294,8 +294,6 @@ private:
     void LoadExternalInputs();
     void LoadNominalBackgrounds();
     
-    nHToyMC* nHToy;
-    
 public:
     OscillationReactor();
     OscillationReactor(NominalData*);
@@ -364,7 +362,6 @@ OscillationReactor :: OscillationReactor()
     if(isH)
     {
         AnalysisString = "Hydrogen";
-        nHToy = new nHToyMC(Nom);//load nH Toy MC
         XCellLimit = VolumeX;
         YCellLimit = VolumeY;
         Nom->ReadToyEventsByCell();
@@ -561,7 +558,6 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
     if(isH)
     {
         AnalysisString = "Hydrogen";
-        nHToy = new nHToyMC(Data);//load nH Toy MC
         XCellLimit = VolumeX;
         YCellLimit = VolumeY;
         Data->ReadToyEventsByCell();
@@ -717,10 +713,6 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
 OscillationReactor :: ~OscillationReactor()
 {
     delete rand;
-    if(isH)
-    {
-        delete nHToy;
-    }
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                                                  GETTERS AND SETTERS
@@ -1282,17 +1274,6 @@ void OscillationReactor :: GenerateVisibleSpectrum()
     {
         //  Here generate Xiang Pan/Logan Toy MC matrix and multiply by the reactor spectrum (his Toy MC is produced from a flat antineutrino spectrum, with no oscillation/reactor information inside the prediction)
         
-#ifndef TestDiagonalMatrix //If it is test mode we don't need to waste time producing the matrix
-            if(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix||DistortLiHeMatrix||DistortFastNeutronsMatrix||DistortAmCMatrix||IsotopeMatrix||ReactorPowerMatrix||Sin22t12Matrix)
-            {
-                nHToy->Toy(0);//Produce enu-evis matrix with nominal values if only reactor or backgrounds are fluctuated.
-                //This is done to steep up the calculation by using the option //#define ReDoNominal inside nHToyMC.h
-            }
-            else//Detector systematics
-            {
-                nHToy->Toy(Mode);//Produce enu-evis matrix with nominal or varied values
-            }
-#endif
         TH2D* nHPredictionMatrix[MaxDetectors][VolumeX][VolumeY];
         
         Int_t ShiftBin = Int_t(InitialEnergy*MatrixBins/(FinalEnergy));
@@ -1360,8 +1341,6 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    //nHPredictionMatrix[AD][idx][idy] = (TH2D*)nHToy->LoadnHMatrix(AD,idx,idy);
-                    
                     nHPredictionMatrix[AD][idx][idy] = (TH2D*)nHMatrixF->Get(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));
                     
                     Ybins = nHPredictionMatrix[AD][idx][idy]->GetYaxis()->GetNbins();

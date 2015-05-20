@@ -4092,10 +4092,8 @@ string FitterGui :: delSpaces(string &str)
 
 void FitterGui::PlotResponseMatrix()
 {
-    if(Analysis==0)//Run gadollinium code to produce the new matrices and show them
-    {
-        RunResponseMatrix();
-    }
+
+    RunResponseMatrix();
     
     TGMainFrame *fPlotResponseFrame = new TGMainFrame(gClient->GetRoot(),window_width,window_height,kMainFrame | kVerticalFrame);
     fPlotResponseFrame->SetName("fResponse");
@@ -4424,14 +4422,23 @@ void FitterGui::RunResponseMatrix()
         }
     }
     
-    CreateEnergyMatrix* GenMatrix = new CreateEnergyMatrix(Data);
-    
-    GenMatrix->GenerateEnergyMatrix(sin22t13,deltaM,Period);//GenerateLBNLEnergyMatrix to try their code
-    
-    delete GenMatrix;
-    
+    if(Analysis==0)//Run gadollinium code to produce the new matrices and show them
+    {
+        CreateEnergyMatrix* GenMatrix = new CreateEnergyMatrix(Data);
+        
+        GenMatrix->GenerateEnergyMatrix(sin22t13,deltaM,Period);//GenerateLBNLEnergyMatrix to try their code
+        
+        delete GenMatrix;
+    }
+    else
+    {
+        nHToyMC* nHToy = new nHToyMC(Data);
+        
+        nHToy->Toy();//Produce enu-evis matrix with nominal and varied values
+        
+        delete nHToy;
+    }
     delete Data;
-
     std::cout << " Finished Generating Response Matrix for sin22t13 :" << sin22t13 << " and deltaM : " << deltaM << std::endl;
 }
 
