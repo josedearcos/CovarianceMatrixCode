@@ -735,7 +735,7 @@ void Toy()
     Res_E_P_Sum = gRandom3->Gaus( Scale_E_P_Sum, energy_sigma );
     if( Res_E_P_Sum < 0 )  // some low-energy events are smeared to below zero 
       Res_E_P_Sum = -Res_E_P_Sum;
-    if( Res_E_P_Sum!=Res_E_P_Sum ) {
+    if( Res_E_P_Sum!=Res_E_P_Sum ){
       cout<<" Res_E_P_Sum = "<< Res_E_P_Sum <<", R_average="<< R_average <<", Scale_E_P_Sum="<< Scale_E_P_Sum <<", energy_sigma="<< energy_sigma <<endl;
       //continue;
     }

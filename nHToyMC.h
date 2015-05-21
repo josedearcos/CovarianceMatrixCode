@@ -70,8 +70,8 @@ const double deltaZoav = 0;  // +-3.0 mm discrepancy between specification and m
 
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- Global
 #define FullEnergyResolution
-//#define SaveTree // To save toy tree
-//#define LoadTree // To load eprompt tree
+//#define SaveTree // To save toy tree in roofile_toy.root, we don't use it
+//#define LoadTree // To load Eprompt tree, then get the effective entries in a smaller tree (roofile_etree.root)
 //#define ReactorShapeinToy //To produce the toy with the reactor shape included
 ///
 TString roostr;
@@ -606,7 +606,7 @@ void nHToyMC :: Toy()
         //etree->Branch("EdepE_Pg2",     &EdepE_Pg2,     "EdepE_Pg2/D");
         //etree->Branch("EdepEA_Pg2",    &EdepEA_Pg2,    "EdepEA_Pg2/D");
         //etree->Branch("EtotE_Pg2",     &EtotE_Pg2,     "EtotE_Pg2/D");
-        
+    
         for(long ientry=0; ientry<entries_wtree; ientry++)
         {
             wtree->GetEntry(ientry);
@@ -1167,7 +1167,8 @@ void nHToyMC :: Toy()
         Double_t EendScint_P=0, EendScint_Pg1=0, EendScint_Pg2=0, EendScint_Ng=0;
 //        Double_t AdSimple_P=0, AdSimple_Ng=0;
         Double_t usr_opt_attenuation_P=0, usr_pmt_coverage_P=0, usr_opt_attenuation_Ng=0, usr_pmt_coverage_Ng=0;
-        Double_t energy_sigma=0, R2_AA=0, R2_BB=0, R_average=0;
+        Double_t energy_sigma=0,R_average=0;
+        //Double_t R2_AA=0, R2_BB=0,
         
         //Efficiency maps:
         TFile *roofile_h2d_ep_ratio2center = new TFile("./Inputs/HInputs/Data/cell_eff/h2d_ep_ratio2center.root", "read");
@@ -1245,58 +1246,67 @@ void nHToyMC :: Toy()
     Double_t Sigma_Electron = 2*TMath::Sqrt(2);
     Double_t Sigma_Gamma = 4*TMath::Sqrt(2);
     
+    Int_t VolumeXbin, VolumeYbin;
+    Double_t RandomEdepScint_P,RandomEdepScint_Pg1,RandomEdepScint_Pg2;
+    
+    //Logic to detect to translate cell bins to volume bins (check if the cell is inside the GdLs or the Ls volume)
+    VolumeYbin = 1;
+    
     //Process tree
-    for(long ientry=0; ientry<entries_etree_read; ientry++)
+    for(Int_t Systematic = 0; Systematic<NSystematic;Systematic++)
     {
-        etree_read->GetEntry(ientry);
+        RelativeEnergyScaleMatrix = 0;
+        IAVMatrix = 0;
+        NLMatrix = 0;
+        ResolutionMatrix = 0;
+        //                EfficiencyMatrix = 0;
+        AllMatrix = 0;
         
-        //Use the loaded tree data in each AD in an independent way: And for each systematic as well, so we don't need to run this slow process once per systematic!
-        for(Int_t AD = 0; AD<NADs;AD++)
+        switch (Systematic)
         {
-            for(Int_t Systematic = 0; Systematic<NSystematic;Systematic++)
+            case 0:
+                //std::cout << " Nominal Matrix " << std::endl;
+                break;
+            case 1:
+                IAVMatrix = 1;
+                //std::cout << " IAV Matrix " << std::endl;
+                break;
+            case 2:
+                NLMatrix = 1;
+                //std::cout << " NL Matrix " << std::endl;
+                break;
+            case 3:
+                ResolutionMatrix = 1;
+                //std::cout << " Reso Matrix " << std::endl;
+                break;
+            case 4:
+                RelativeEnergyScaleMatrix = 1;
+                //std::cout << " RelativeEnergyScale Matrix " << std::endl;
+                break;
+            case 5:
+                AllMatrix = 1;
+                //std::cout << " All Detector Systematics Matrix " << std::endl;
+                break;
+                //                    case 6:
+                //                        EfficiencyMatrix = 1;
+                //                        //std::cout << " Efficiency Matrix " << std::endl;
+                //                        break;
+            default:
+                std::cout << " DEFAULT SHOULDN'T HAPPEN" << std::endl;
+                exit(EXIT_FAILURE);
+                break;
+        }
+        
+        
+        
+        for(long ientry=0; ientry<entries_etree_read; ientry++)
+        {
+            etree_read->GetEntry(ientry);
+            
+            //Use the loaded tree data in each AD in an independent way: And for each systematic as well, so we don't need to run this slow process once per systematic!
+            
+            for(Int_t AD = 0; AD<NADs;AD++)
             {
-                RelativeEnergyScaleMatrix = 0;
-                IAVMatrix = 0;
-                NLMatrix = 0;
-                ResolutionMatrix = 0;
-//                EfficiencyMatrix = 0;
-                AllMatrix = 0;
-                
-                switch (Systematic)
-                {
-                    case 0:
-                        //std::cout << " Nominal Matrix " << std::endl;
-                        break;
-                    case 1:
-                        IAVMatrix = 1;
-                        //std::cout << " IAV Matrix " << std::endl;
-                        break;
-                    case 2:
-                        NLMatrix = 1;
-                        //std::cout << " NL Matrix " << std::endl;
-                        break;
-                    case 3:
-                        ResolutionMatrix = 1;
-                        //std::cout << " Reso Matrix " << std::endl;
-                        break;
-                    case 4:
-                        RelativeEnergyScaleMatrix = 1;
-                        //std::cout << " RelativeEnergyScale Matrix " << std::endl;
-                        break;
-                    case 5:
-                        AllMatrix = 1;
-                        //std::cout << " All Detector Systematics Matrix " << std::endl;
-                        break;
-//                    case 6:
-//                        EfficiencyMatrix = 1;
-//                        //std::cout << " Efficiency Matrix " << std::endl;
-//                        break;
-                    default:
-                        std::cout << " DEFAULT SHOULDN'T HAPPEN" << std::endl;
-                        exit(EXIT_FAILURE);
-                        break;
-                }
-                
                 seed_generator = 1;//this way all matrices will be random but have a common nominal spectrum
                 seed_generator_corr = 1431655765; //=(4294967295/3) for correlated systematics, chose maxseed/3 to make it different to 'seed_generator' as a precaution so I don't use the same seeds.
                 
@@ -1339,33 +1349,33 @@ void nHToyMC :: Toy()
                 }
                 GausReso=0;
                 GausResoCorr=0;
-//                GausEff= 0;
+                //                GausEff= 0;
                 
                 if(RelativeEnergyScaleMatrix)
                 {
                     GausRelative = RandomSysUncorr->Gaus(0,1);
                 }
-                if(IAVMatrix)
+                else if(IAVMatrix)
                 {
                     GausIAV = RandomSysUncorr->Gaus(0,1);
                 }
-                if(NLMatrix)
+                else if(NLMatrix)
                 {
                     for (Int_t ierr = 0; ierr < unified_nl_pars; ierr++)
                     {
                         GausNL[ierr] = RandomSysUncorr->Gaus(0,1);
                     }
                 }
-                if(ResolutionMatrix)
+                else if(ResolutionMatrix)
                 {
                     GausReso = RandomSysUncorr->Gaus(0,1);
                     GausResoCorr = RandomSysCorr->Gaus(0,1);
                 }
-//                if(EfficiencyMatrix)
-//                {
-//                    GausEff = RandomSysUncorr->Gaus(0,1);
-//                }
-                if(AllMatrix)
+                //                if(EfficiencyMatrix)
+                //                {
+                //                    GausEff = RandomSysUncorr->Gaus(0,1);
+                //                }
+                else if(AllMatrix)
                 {
                     GausRelative = RandomSysUncorr->Gaus(0,1);
                     
@@ -1380,12 +1390,12 @@ void nHToyMC :: Toy()
                     
                     GausResoCorr = RandomSysCorr->Gaus(0,1);
                     
-//                    GausEff = RandomSysUncorr->Gaus(0,1);
+                    //                    GausEff = RandomSysUncorr->Gaus(0,1);
                     
                 }
                 
                 //factor that is multiplied by the random error so it's added to the nominal by using:  Value = NominalValue + gRandom3->Gauss(0,1)*1sigmaError;
-                
+#ifdef DisplayInfo
                 if(ientry%1000000==0)//show only a few
                 {
                     std::cout << "IAV uncorrelated should be the different for different ads and same event: " << GausIAV << "ad: " << AD << " - event: " << ientry <<  std::endl;
@@ -1397,10 +1407,10 @@ void nHToyMC :: Toy()
                     
                     std::cout << "Relative Energy uncorrelated should be different for different ads and same event" << GausRelative << "ad: " << AD << " - event: " << ientry <<  std::endl;
                     
-//                    std::cout << "Efficiency Energy uncorrelated should be different for different ads and same event" << GausEff << "ad: " << AD << " - event: " << ientry <<  std::endl;
-//                    
+                    //                    std::cout << "Efficiency Energy uncorrelated should be different for different ads and same event" << GausEff << "ad: " << AD << " - event: " << ientry <<  std::endl;
+                    //
                 }
-                
+#endif
                 //to check the random numbers are properly generated:
                 //            std::cout << " AD: " << AD << " Gaus RELATIVE: " << GausRelative[AD] << " , Gaus IAV: " << GausIAV[AD] << " , Gaus NL: " << GausNL[AD] << " , Gaus RESO: " << GausReso[AD] << " , Gaus EFF: " << GausEff[AD] << std::endl;
                 
@@ -1459,9 +1469,6 @@ void nHToyMC :: Toy()
                  - (EtotE_Ng-EdepE_Ng) * graph_electron_LY->Eval( EtotE_Ng-EdepE_Ng, 0, "s" );
                  */
                 
-                
-                
-                Double_t RandomEdepScint_P,RandomEdepScint_Pg1,RandomEdepScint_Pg2;
                 //Iav uncertainty considered for prompt signal. 0.1% bin-to-bin uncorrelated.
                 RandomEdepScint_P = EdepScint_P*(1+GausIAV*IAVNominalError);
                 RandomEdepScint_Pg1 = EdepScint_Pg1*(1+GausIAV*IAVNominalError);
@@ -1727,10 +1734,10 @@ void nHToyMC :: Toy()
                 ///////////////////////////// Resolution
                 ///////////////////////////// Resolution
                 
-                Double_t energy_sigma = 0;
-                Double_t R2_AA        = 0;
-                Double_t R2_BB        = 0;
-                Double_t R_average    = 0;
+                //                energy_sigma = 0;
+                //                R2_AA        = 0;
+                //                R2_BB        = 0;
+                //                R_average    = 0;
                 
                 /// prompt
                 global_bin_num = hist_findbin->FindBin(usr_r2_P, usr_z_P);
@@ -1844,12 +1851,8 @@ void nHToyMC :: Toy()
                 {
                     Eff_d_content = h2d_Ed_ratio2center->GetBinContent(local_xbin, local_ybin);
                 }
-                Int_t VolumeXbin, VolumeYbin;
                 
 #ifdef UseVolumes
-                //Logic to detect to translate cell bins to volume bins (check if the cell is inside the GdLs or the Ls volume)
-                VolumeYbin = 1;
-                
                 if((local_ybin==1||local_ybin==(Z_binnum)||local_xbin>(R2_binnum-4)))//nH LS
                 {
                     VolumeXbin = 2;
@@ -1863,6 +1866,8 @@ void nHToyMC :: Toy()
                 VolumeYbin = local_ybin;
 #endif
                 
+#ifndef EREC_COMPARISON
+                
                 //Fill histograms: Apply efficiency of the cell to each event, and then add that event in the matrix of the corresponding volume after calculating if the cell is inside the Ls or Gd-Ls
                 TruePredictionH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Ev,Eff_p_content);
                 VisiblePredictionH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_P_Sum,Eff_p_content);
@@ -1872,7 +1877,18 @@ void nHToyMC :: Toy()
                 MatrixH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Ev,Res_E_P_Sum,Eff_p_content);//neutrino energy vs visible energy
                 TransMatrixH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_P_Sum,Ev,Eff_p_content);
                 HighResoTransMatrixH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Res_E_P_Sum,Ev,Eff_p_content);//Fine grid
-
+#else
+                //Fill with Erec for comparison:
+                TruePredictionH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Ev,Eff_p_content);
+                VisiblePredictionH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Erec_P,Eff_p_content);
+                
+                DelayedVisiblePredictionH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Erec_Ng,Eff_d_content);
+                HighResoMatrixH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Ev,Erec_P,Eff_p_content);//Fine grid
+                MatrixH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Ev,Erec_P,Eff_p_content);//neutrino energy vs visible energy
+                TransMatrixH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Erec_P,Ev,Eff_p_content);
+                HighResoTransMatrixH[Systematic][AD][VolumeXbin-1][VolumeYbin-1]->Fill(Erec_P,Ev,Eff_p_content);//Fine grid
+#endif
+                
                 //Save number of events in each cell to properly scale the cells afterwards:
                 
                 ADIntegralEvents[Systematic][AD] = 0;//initialize
@@ -1885,67 +1901,14 @@ void nHToyMC :: Toy()
                         ADIntegralEvents[Systematic][AD] = ADIntegralEvents[Systematic][AD] + IntegralEvents[Systematic][AD][idx][idy];
                     }
                 }
-            }//Systematics
-            
-            //            //Efficiency map:
-            //
-            //            double entries=0, Effcontent=0;
-            //
-            //            for(int idx=0; idx<MaxCellNum; idx++)
-            //            {
-            //                entries = 0;
-            //                entries = hEp_cc[idx]->GetEntries();
-            //                if( entries>10 )
-            //                {
-            //                    // hEp_cc[idx]->Write();
-            //                    hEp_cc_clone[idx]->Add(hEp_cc[idx]);
-            //                }
-            //
-            //                entries = hEd_cc[idx]->GetEntries();
-            //                if( entries>10 )
-            //                {
-            //                    // hEd_cc[idx]->Write();
-            //                    hEd_cc_clone[idx]->Add(hEd_cc[idx]);
-            //                }
-            //
-            //                //////
-            //                hist_findbin->GetBinXYZ(idx, local_xbin, local_ybin, local_zbin);
-            //                if( local_zbin==0 && local_xbin>=1 && local_xbin<=R2_binnum && local_ybin>=1 && local_ybin<=Z_binnum )
-            //                {
-            //                    Effcontent = 0;
-            //
-            //                    //if(local_ybin<=1 || local_ybin>=Z_binnum)  continue;  // exclude bottom and top rows from columns
-            //
-            //                    entries = hEp_cc_clone[idx]->Integral(1,hEp_bin);
-            //                    Effcontent = h2d_Ep_ratio2center->GetBinContent(local_xbin, local_ybin);
-            //                    hEp_cc_clone[idx]->Scale(Effcontent/entries);
-            //                    hEp_cl[local_xbin]->Add(hEp_cc_clone[idx]);//Efficiency corrected histogram
-            //
-            //                    entries = hEd_cc_clone[idx]->Integral(1,hEd_bin);
-            //                    Effcontent = h2d_Ed_ratio2center->GetBinContent(local_xbin, local_ybin);
-            //                    hEd_cc_clone[idx]->Scale(Effcontent/entries);
-            //                    hEd_cl[local_xbin]->Add(hEd_cc_clone[idx]);//Efficiency corrected histogram
-            //                }
-            //            }
-            //
-            //            //Reset histograms
-            //            for(int idx=0; idx<MaxCellNum; idx++)
-            //            {
-            //                hEp_cc[idx]->Reset();
-            //                hEd_cc[idx]->Reset();
-            //                hEd_cc_clone[idx]->Reset();
-            //                hEp_cc_clone[idx]->Reset();
-            //            }
-            //            for(int idx=0; idx<MaxColumnNum; idx++)
-            //            {
-            //                hEp_cl[idx]->Reset();
-            //                hEd_cl[idx]->Reset();
-            //            }
-        }//AD
+            }//AD
 #ifdef SaveTree
-        toy->Fill();
+            toy->Fill();
 #endif
-    }//Events
+        }//Events
+        
+    }//Systematics
+    
     
     delete h2d_Ep_ratio2center;
     delete h2d_Ed_ratio2center;
@@ -1992,21 +1955,25 @@ void nHToyMC :: Toy()
                 AllMatrix = 1;
                 std::cout << " All Detector Systematics Matrix " << std::endl;
                 break;
-//            case 6:
-//                SystematicS = "Efficiency";
-//                EfficiencyMatrix = 1;
-//                std::cout << " Efficiency Matrix " << std::endl;
-//                break;
+                //            case 6:
+                //                SystematicS = "Efficiency";
+                //                EfficiencyMatrix = 1;
+                //                std::cout << " Efficiency Matrix " << std::endl;
+                //                break;
             default:
                 std::cout << " DEFAULT SHOULDN'T HAPPEN" << std::endl;
                 exit(EXIT_FAILURE);
                 break;
         }
         
+#ifndef EREC_COMPARISON
         
         //Save txt file in case we want to use it externally:
         FILE *f = fopen(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str(), "w");
+#else
+        FILE *f = fopen(("./Inputs/HInputs/E_REC_"+SystematicS+"ToyMCEventRatio.txt").c_str(), "w");
         
+#endif
         if (f == NULL)
         {
             printf("Error opening file!\n");
@@ -2111,11 +2078,7 @@ void nHToyMC :: Toy()
         //            delete hEd_cl[idx];
         //        }
         
-        
-        delete gRandom3;
-        delete RandomSysUncorr;
-        delete RandomSysCorr;
-        
+
 #ifdef PrintEps
         TCanvas* NNFineMatrixC = new TCanvas("NNF","NNF");
         NNFineMatrixC->Divide(NADs/2,2);
@@ -2362,9 +2325,12 @@ void nHToyMC :: Toy()
 //            }
 //        }
         
+#ifndef EREC_COMPARISON
 
         TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/"+SystematicS+Form("ResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"recreate");
-        
+#else
+        TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/E_REC_"+SystematicS+Form("ResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"recreate");
+#endif
         //TFile* SaveMatrix = new TFile(Form("./ResponseMatrices/Hydrogen/RandomResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins),"recreate");
         
         for(int idx=0; idx<VolumeX; idx++)
@@ -2387,6 +2353,12 @@ void nHToyMC :: Toy()
         toy->Write();
         roofile_toy->Close();
 #endif
+    
+    
+    delete gRandom3;
+    delete RandomSysUncorr;
+    delete RandomSysCorr;
+    
 }
 
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- Function definition

@@ -14,6 +14,7 @@
 bool TestAllTheSame = 0;
 
 #define UseVolumes //To use 2 volumes, otherwise 100 cells.
+//#define EREC_COMPARISON // To calculate the response matrices using ERec, and check the fit result of theta 13 using ERec data and prediction.
 
 #ifdef UseVolumes
 //From Logan : These are relative to the number of protons in GdLS, so they do not sum to 1; we simply need to normalize them to 1.  Basically, LS efficiency is 0.539/0.146 times larger than GdLS.
@@ -121,6 +122,7 @@ private:
     Double_t ProtonsPerKtonGdLs; //protons per kton GdLS
     Double_t ProtonsPerKtonLs; //protons per kton LS volume
     Double_t DetectorMass[MaxDetectors*VolumeX];
+    Double_t nHCaptureFraction[VolumeX];
     
     Double_t m_detectorEfficiency_Dt;
     Double_t m_detectorEfficiency_Ep;
@@ -742,7 +744,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
         m_detectorEfficiency_Dt = 0.986;
         m_detectorEfficiency_Ep = 0.9988;
         m_detectorEfficiency_Ed_nominal = 0.909;
-        m_detectorEfficiency_flash = 0.9998;
+        m_detectorEfficiency_flash = 0.9999;//No 0.9998 because Mineral Oil is not part of the fidutial volume.
         m_detectorEfficiency_nGd = 0.838;
         m_detectorEfficiency_spill = 1.050;
         
@@ -926,7 +928,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
         m_detectorEfficiency_Dt = 0.986;
         m_detectorEfficiency_Ep = 0.9988;
         m_detectorEfficiency_Ed_nominal = 0.909;
-        m_detectorEfficiency_flash = 0.9998;
+        m_detectorEfficiency_flash = 0.9999;//No 0.9998 because Mineral Oil is not part of the fidutial volume.
         m_detectorEfficiency_nGd = 0.838;
         m_detectorEfficiency_spill = 1.050;
         
@@ -1106,6 +1108,8 @@ void NominalData :: CopyData(NominalData * data)
     m_detectorEfficiency_nGd = data->m_detectorEfficiency_nGd;
     m_detectorEfficiency_spill = data->m_detectorEfficiency_spill;
     std::copy(std::begin(data->m_detectorGlobalEfficiency), std::end(data->m_detectorGlobalEfficiency), std::begin(m_detectorGlobalEfficiency));
+    std::copy(std::begin(data->nHCaptureFraction), std::end(data->nHCaptureFraction), std::begin(nHCaptureFraction));
+
 
 
     
@@ -2036,9 +2040,9 @@ Double_t NominalData :: GetDetectorEfficiency(Int_t detector, Int_t week, Int_t 
             VolumeEfficiency = LS_volume_efficiency;
         }//Ls
 #endif
-        //VolumeEfficiency*?
+        //VolumeEfficiency should be equal to m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx];
         
-        return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx];
+        return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx];
         //Efficiency of Prompt energy, Delayed energy, time, distance included in global efficiency. Flasher? Efficiency nGd (nH)?, spill?
         
         //h2d_Ep_ratio2center[detector+NADs*week]->GetBinContent(idx+1,idy+1);//Return by cell!, the 2d map is a ratio of the cell events to center, use the nominal efficiencies in the nH study, this users the nGd cut ones.
@@ -2510,6 +2514,27 @@ void NominalData :: LoadHydrogenMainData(const Char_t* mainmatrixname)
                 }
             }
             //row 6 -->Hydrogen Capture Fraction
+            if(row==6)
+            {
+                for(Int_t AD=0;AD<MaxDetectors;AD++)
+                {
+                    AD6Index = AD;
+                    
+                    if(NADs != MaxDetectors)//6AD analysis
+                    {
+                        if(AD==3||AD==(MaxDetectors-1))
+                        {
+                            continue;//6AD analysis doesn't use AD4, AD8 info
+                        }
+                        if(AD>3)
+                        {
+                            AD6Index = AD-1;//Correct index
+                        }
+                    }
+                    
+                    nHCaptureFraction[VolumeIndex]=readvals[AD];
+                }
+            }
             //row 7 -->Detector Global Efficiency (Efficiency of Prompt energy, Delayed energy, time, distance
             if(row==7)
             {
@@ -3252,7 +3277,16 @@ void NominalData :: ReadToyEventsByCell()//Included in nHToyMC.h right now
         SystematicS = "Nominal";
     }
     
+#ifndef EREC_COMPARISON
+    
+    //Save txt file in case we want to use it externally:
     ifstream mainfile(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str());
+#else
+    
+    ifstream mainfile(("./Inputs/HInputs/E_REC_"+SystematicS+"ToyMCEventRatio.txt").c_str());
+    
+#endif
+    
     
     Int_t linenum=0;//<---caution: only increments for lines that do not begin with #
     

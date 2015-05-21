@@ -11,7 +11,7 @@
 #ToyEvents in each AD
 2 0.000000
 #Events in each cell for AD 2
-2 0 0 0.000000
+2 0 0 -0.000000
 2 1 0 0.000000
 #ToyEvents in each AD
 3 0.000000

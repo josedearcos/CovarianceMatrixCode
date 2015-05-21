@@ -1335,7 +1335,13 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 SystematicS = "NominalResponseMatrix";
 
             }
+            
+#ifndef EREC_COMPARISON
+            
             TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/"+SystematicS+Form("%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"read");
+#else
+            TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/E_REC_"+SystematicS+Form("%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"read");
+#endif
             
             for(Int_t idx=0; idx<XCellLimit; idx++)
             {

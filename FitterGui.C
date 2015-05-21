@@ -5269,6 +5269,10 @@ void FitterGui :: CalculateBinning()
         {
             visible_bins=37;
         }
+        else
+        {
+            visible_bins=37;//Using same binning for nH
+        }
     }
     
     true_bins = 39; //(so far the flux data is given in this binning);

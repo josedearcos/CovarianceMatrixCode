@@ -1751,7 +1751,15 @@ void Oscillation :: ApplyResponseMatrix()
 {
     if(!strcmp((ResponseDirectory).c_str(),""))
     {
+        
+        
+#ifndef EREC_COMPARISON
+        
         TFile* TransEnergyMatrixDataF = new TFile(("./ResponseMatrices/"+ AnalysisString+Form("/NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str());
+#else
+        TFile* TransEnergyMatrixDataF = new TFile(("./ResponseMatrices/"+ AnalysisString+Form("/E_REC_NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str());
+#endif
+        
         for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
         {
             for(Int_t idx=0; idx<XCellLimit; idx++)
