@@ -41,7 +41,7 @@ private:
     TH1D* NearBackgroundSpectrumH[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     TH1D* FarBackgroundSpectrumH[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     
-    //  Background rates:
+    //  Background rates (with AD effects included)
     Double_t ScaleAcc[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     Double_t ScaleLiHe[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     Double_t ScaleFN[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
@@ -116,7 +116,7 @@ FitBackgrounds2 :: FitBackgrounds2()
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    ScaleAcc[AD][week][idx][idy]=Nom->GetAccidentalEvents(AD,week,idx,idy);
+                    ScaleAcc[AD][week][idx][idy]=Nom->GetAccidentalEvents(AD,week,idx,idy);//AD efficiencies included
                     ScaleLiHe[AD][week][idx][idy]=Nom->GetLiHeEvents(AD,week,idx,idy);
                     ScaleFN[AD][week][idx][idy]=Nom->GetFNEvents(AD,week,idx,idy);
                     ScaleAmC[AD][week][idx][idy]=Nom->GetAmCEvents(AD,week,idx,idy);
@@ -175,7 +175,7 @@ FitBackgrounds2 :: FitBackgrounds2(NominalData* Data)
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    ScaleAcc[AD][week][idx][idy]=Data->GetAccidentalEvents(AD,week,idx,idy);
+                    ScaleAcc[AD][week][idx][idy]=Data->GetAccidentalEvents(AD,week,idx,idy);//AD efficiencies included
                     ScaleLiHe[AD][week][idx][idy]=Data->GetLiHeEvents(AD,week,idx,idy);
                     ScaleFN[AD][week][idx][idy]=Data->GetFNEvents(AD,week,idx,idy);
                     ScaleAmC[AD][week][idx][idy]=Data->GetAmCEvents(AD,week,idx,idy);
@@ -397,15 +397,16 @@ void FitBackgrounds2::SaveAndDelete()
                             
                             FinalAccidentalsH[AD][week][idx][idy]->Scale(ScaleAcc[AD][week][idx][idy]/FinalAccidentalsH[AD][week][idx][idy]->Integral());
                             FinalAccidentalsH[AD][week][idx][idy]->SetTitle(Form("Accidentals_AD%i_Volume%i",AD,idx));
-                            //                    std::cout <<ScaleAcc[AD][week][idx][idy]  << " " <<  FinalAccidentalsH[AD][week][idx][idy]->Integral() << std::endl;
+                          //  std::cout << " SCALE ACCIDENTALS: " << ScaleAcc[AD][week][idx][idy]  << " " <<  FinalAccidentalsH[AD][week][idx][idy]->Integral() << std::endl;
                         }
                         else if(BGND==NADs)//LiHe
                         {
+                            
                             FinalLiHeH[AD][week][idx][idy]=(TH1D*)BackgroundsH[BGND]->Clone(Form("LiHe_AD%i_Volume%i",AD,idx));
                             FinalLiHeH[AD][week][idx][idy]=(TH1D*)FinalLiHeH[AD][week][idx][idy]->Rebin(n_evis_bins,Form("LiHe_AD%i_Volume%i",AD,idx),evis_bins);
                             FinalLiHeH[AD][week][idx][idy]->Scale(ScaleLiHe[AD][week][idx][idy]/FinalLiHeH[AD][week][idx][idy]->Integral());
                             FinalLiHeH[AD][week][idx][idy]->SetTitle("LiHe");
-                            //                    std::cout <<ScaleLiHe[AD][week][idx][idy]  << " " <<  FinalLiHeH[AD][week][idx][idy]->Integral() << std::endl;
+                           // std::cout << " SCALE LI-HE: " << ScaleLiHe[AD][week][idx][idy]  << " " <<  FinalLiHeH[AD][week][idx][idy]->Integral() << std::endl;
                             
                         }
                         else if(BGND==NADs+1)//FN
@@ -415,7 +416,7 @@ void FitBackgrounds2::SaveAndDelete()
                             FinalFastNeutronsH[AD][week][idx][idy]->Scale(ScaleFN[AD][week][idx][idy]/FinalFastNeutronsH[AD][week][idx][idy]->Integral());
                             
                             FinalFastNeutronsH[AD][week][idx][idy]->SetTitle("FN");
-                            //                    std::cout <<ScaleFN[AD][week][idx][idy]  << " " <<  FinalFastNeutronsH[AD][week][idx][idy]->Integral() << std::endl;
+                           // std::cout << " SCALE FN : " << ScaleFN[AD][week][idx][idy]  << " " <<  FinalFastNeutronsH[AD][week][idx][idy]->Integral() << std::endl;
                             
                         }
                         else//AmC
@@ -424,7 +425,7 @@ void FitBackgrounds2::SaveAndDelete()
                             FinalAmCH[AD][week][idx][idy]=(TH1D*)FinalAmCH[AD][week][idx][idy]->Rebin(n_evis_bins,Form("AmC_AD%i_Volume%i",AD,idx),evis_bins);
                             FinalAmCH[AD][week][idx][idy]->Scale(ScaleAmC[AD][week][idx][idy]/FinalAmCH[AD][week][idx][idy]->Integral());
                             FinalAmCH[AD][week][idx][idy]->SetTitle("AmC");
-                            //                    std::cout <<ScaleAmC[AD][week][idx][idy]  << " " <<  FinalAmCH[AD][week][idx][idy]->Integral() << std::endl;
+                           // std::cout << " SCALE AMC : " << ScaleAmC[AD][week][idx][idy]  << " " <<  FinalAmCH[AD][week][idx][idy]->Integral() << std::endl;
                             
                         }
                     }

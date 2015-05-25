@@ -11,12 +11,16 @@
 #include "TH2.h"
 #include "TBenchmark.h"
 
-bool TestAllTheSame = 0;
+// Used to debug, if you don't want it to run, uncomment the following line: (#define NDEBUG)
+//#define NDEBUG
+
+#include <assert.h>
 
 #define UseVolumes //To use 2 volumes, otherwise 100 cells.
 //#define EREC_COMPARISON // To calculate the response matrices using ERec, and check the fit result of theta 13 using ERec data and prediction.
 
-#ifdef UseVolumes
+#ifdef UseVolumes//By default, this code could also work with cells, but they are statistically limited, and it is only useful for MC purposes.
+
 //From Logan : These are relative to the number of protons in GdLS, so they do not sum to 1; we simply need to normalize them to 1.  Basically, LS efficiency is 0.539/0.146 times larger than GdLS.
     const Double_t LS_volume_efficiency = 0.539/(0.539+0.146);
     const Double_t GdLS_volume_efficiency = 0.146/(0.539+0.146);
@@ -187,7 +191,8 @@ private:
     Double_t AmCEvents[MaxDetectors*MaxPeriods*VolumeX*VolumeY];
     
     Double_t ObservedEvents[MaxDetectors*MaxPeriods*VolumeX*VolumeY];
-    
+    Double_t IBDEvents[MaxDetectors*MaxPeriods*VolumeX*VolumeY];
+    Double_t StatisticalError[MaxDetectors*MaxPeriods*VolumeX*VolumeY];
     // Days and efficiencies:
     Double_t FullTime[MaxDetectors*MaxPeriods];//Full time is the same for both volumes
     Double_t MuonEff[MaxDetectors*MaxPeriods];
@@ -263,10 +268,12 @@ public:
     bool AbsoluteEnergyScaleMatrix;
     bool RelativeEnergyScaleMatrix;
     bool IAVMatrix;
+    bool OAVMatrix;
     bool NLMatrix;
     bool ResolutionMatrix;
     bool Sin22t12Matrix;
     bool EfficiencyMatrix;
+    bool AllDetectorSystematicsMatrix;
     
     bool VaryAccidentalBudget;
     bool VaryLiHeBudget;
@@ -282,6 +289,7 @@ public:
     bool AbsoluteEnergyScaleBudget;
     bool RelativeEnergyScaleBudget;
     bool IAVBudget;
+    bool OAVBudget;
     bool NLBudget;
     bool ResolutionBudget;
     bool Sin22t12Budget;
@@ -333,9 +341,7 @@ public:
     void SetAllRandomSystematics(bool);
     
     void LoadOriginalGDMainData(const Char_t*);//LBNL inputs
-    void LoadHydrogenMainData(const Char_t*);//To correct for efficiencies using Gd/H data info from a txt file.
-
-    void LoadnHEfficiencyMaps();//To load nH efficiency maps.
+    void LoadHydrogenMainData();//To correct for efficiencies using Gd/H data info from a txt file.
     
     void SetResponseDirectory(std::string);
     void SetToyMCSamplesDirectory(std::string);
@@ -364,11 +370,13 @@ public:
     void SetRelativeEnergyOffsetMatrix(bool);
     void SetAbsoluteEnergyScaleMatrix(bool);
     void SetAbsoluteEnergyOffsetMatrix(bool);
+    void SetOAVMatrix(bool);
     void SetIAVMatrix(bool);
     void SetNLMatrix(bool);
     void SetResolutionMatrix(bool);
     void SetSin22t12Matrix(bool);
     void SetEfficiencyMatrix(bool);
+    void SetAllDetectorSystematicsMatrix(bool);
     void SetVaryAccidentalBudget(bool);
     void SetVaryLiHeBudget(bool);
     void SetVaryFastNeutronsBudget(bool);
@@ -384,6 +392,7 @@ public:
     void SetAbsoluteEnergyScaleBudget(bool);
     void SetAbsoluteEnergyOffsetBudget(bool);
     void SetIAVBudget(bool);
+    void SetOAVBudget(bool);
     void SetNLBudget(bool);
     void SetResolutionBudget(bool);
     void SetSin22t12Budget(bool);
@@ -427,10 +436,12 @@ public:
     bool GetRelativeEnergyOffsetMatrix();
     bool GetAbsoluteEnergyScaleMatrix();
     bool GetIAVMatrix();
+    bool GetOAVMatrix();
     bool GetNLMatrix();
     bool GetResolutionMatrix();
     bool GetSin22t12Matrix();
     bool GetEfficiencyMatrix();
+    bool GetAllDetectorSystematicsMatrix();
     
     bool GetVaryAccidentalBudget();
     bool GetVaryLiHeBudget();
@@ -447,6 +458,7 @@ public:
     bool GetAbsoluteEnergyOffsetBudget();
     bool GetRelativeEnergyOffsetBudget();
     bool GetIAVBudget();
+    bool GetOAVBudget();
     bool GetNLBudget();
     bool GetResolutionBudget();
     bool GetSin22t12Budget();
@@ -547,6 +559,12 @@ public:
     Double_t GetAmCEvents(Int_t,Int_t,Int_t,Int_t);
     
     Int_t GetNReactorPeriods();
+    void GetnHInclusiveData(Double_t*, bool ErrorMode);
+    void GetnGdInclusiveData(Double_t*, bool ErrorMode);
+    void CorrectnHEvents();
+    void CorrectnGdEvents();
+    void GetInclusiveFullTime(Double_t*);
+    void GetInclusiveEfficiencies(Double_t*);
     void ReadToyEventsByCell();
     Double_t GetEventsByCell(Int_t,Int_t,Int_t);
 };
@@ -596,11 +614,14 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     ReactorPowerBudget=0;
     RelativeEnergyScaleBudget=0;
     IAVBudget=0;
+    OAVBudget=0;
     NLBudget=0;
     ResolutionBudget=0;
     Sin22t12Budget=0;
     EfficiencyBudget=0;
     
+    StatisticalFluctuation=0;
+
     ToyMC=0;//Data is default;
     Nweeks = 1;
     NReactorPeriods=20;
@@ -608,8 +629,22 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     ADsEH1 = 2;
     ADsEH2 = 1;
     ADsEH3 = 3;
+
+#ifdef TestAllTheSame
+    for(Int_t i = 0; i<NADs; i++)
+    {
+        for(Int_t j = 0; j<VolumeX; j++)
+        {
+            DetectorMass[i+MaxDetectors*j]=0.02;
+        }
+    }
+    
+    ProtonsPerKtonGdLs = 7e31;
+    ProtonsPerKtonLs = 7e31;
+#else
     ProtonsPerKtonGdLs = 7.1638e31; //protons per kton GdLs
     ProtonsPerKtonLs = 7.116e31; //protons per kton Ls
+
     //Gd-LS Volume:
     DetectorMass[0] = 0.0215735;// kton
     DetectorMass[1] = 0.0215196;
@@ -624,22 +659,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     DetectorMass[MaxDetectors+3] = 0.019913;
     DetectorMass[MaxDetectors+4] = 0.019991;
     DetectorMass[MaxDetectors+5] = 0.019892;
-    
-    //    if(isH)
-    //    {
-    //        LoadnHEfficiencyMaps();//Calculated in setads
-    //    }
-    //
-    if(TestAllTheSame)
-    {
-        for(Int_t i = 0; i<NADs; i++)
-        {
-            for(Int_t j = 0; j<VolumeX; j++)
-            {
-                DetectorMass[i+MaxDetectors*j]=0.02;
-            }
-        }
-    }
+#endif
     
     NSamples = 500;
     NSteps = 101;
@@ -659,42 +679,39 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     //Reactor power (It's an average of first 140 days of data) This should be coded to get the data from a txt file instead.)
     
     //test:
-    if(TestAllTheSame)
-    {
-        ReactorPower[0] = 2.178;// GW
-        ReactorPower[1] = 2.178;
-        ReactorPower[2] = 2.178;
-        ReactorPower[3] = 2.178;
-        ReactorPower[4] = 2.178;
-        ReactorPower[5] = 2.178;
-        
-        IsotopeFrac[0] = 0.25; // NmlU235Frac
-        IsotopeFrac[1] = 0.25; // NmlU238Frac
-        IsotopeFrac[2] = 0.25; // NmlPu239Frac
-        IsotopeFrac[3] = 0.25; // NmlPu241Frac
-    }
-    else
-    {
-        ReactorPower[0] = 2.178;// GW
-        ReactorPower[1] = 2.876;
-        ReactorPower[2] = 2.389;
-        ReactorPower[3] = 2.444;
-        ReactorPower[4] = 2.820;
-        ReactorPower[5] = 2.787;
-        
-        //Nominal isotope fractions
-        IsotopeFrac[0] = 0.64; // NmlU235Frac
-        IsotopeFrac[1] = 0.08; // NmlU238Frac
-        IsotopeFrac[2] = 0.25; // NmlPu239Frac
-        IsotopeFrac[3] = 0.03; // NmlPu241Frac
-    }
-    //Reactor power errors:
-    for(Int_t r=0;r<NReactors;r++)
-    {
-        ReactorPowerError[r]=0.005;
-    }
+#ifdef TestAllTheSame
     
-    StatisticalFluctuation=0;
+    ReactorPower[0] = 2.178;// GW
+    ReactorPower[1] = 2.178;
+    ReactorPower[2] = 2.178;
+    ReactorPower[3] = 2.178;
+    ReactorPower[4] = 2.178;
+    ReactorPower[5] = 2.178;
+    
+    IsotopeFrac[0] = 0.25; // NmlU235Frac
+    IsotopeFrac[1] = 0.25; // NmlU238Frac
+    IsotopeFrac[2] = 0.25; // NmlPu239Frac
+    IsotopeFrac[3] = 0.25; // NmlPu241Frac
+    
+    //Energy per fission
+    EnergyPerFission[0]=200;//MeV/fission
+    EnergyPerFission[1]=200;
+    EnergyPerFission[2]=200;
+    EnergyPerFission[3]=200;
+    
+#else
+    ReactorPower[0] = 2.178;// GW
+    ReactorPower[1] = 2.876;
+    ReactorPower[2] = 2.389;
+    ReactorPower[3] = 2.444;
+    ReactorPower[4] = 2.820;
+    ReactorPower[5] = 2.787;
+    
+    //Nominal isotope fractions
+    IsotopeFrac[0] = 0.64; // NmlU235Frac
+    IsotopeFrac[1] = 0.08; // NmlU238Frac
+    IsotopeFrac[2] = 0.25; // NmlPu239Frac
+    IsotopeFrac[3] = 0.03; // NmlPu241Frac
     
     //Energy per fission
     EnergyPerFission[0]=201.92;//MeV/fission
@@ -702,6 +719,14 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     EnergyPerFission[2]=209.99;
     EnergyPerFission[3]=213.60;
     
+#endif
+
+    //Reactor power errors:
+    for(Int_t r=0;r<NReactors;r++)
+    {
+        ReactorPowerError[r]=0.005;
+    }
+        
     //Energy per fission errors
     EnergyPerFissionError[0]=0.002278;
     EnergyPerFissionError[1]=0.004671;
@@ -740,18 +765,12 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
         //Attenuation length -> Relative Energy Scale
         m_rel_escale_error = 0.0065; // 0.65%
         
-        //Efficiency errors (right now same than nGd, need to update this and consider the oscillation reactor-volume efficiency)
-        m_detectorEfficiency_Dt = 0.986;
-        m_detectorEfficiency_Ep = 0.9988;
-        m_detectorEfficiency_Ed_nominal = 0.909;
-        m_detectorEfficiency_flash = 0.9999;//No 0.9998 because Mineral Oil is not part of the fidutial volume.
-        m_detectorEfficiency_nGd = 0.838;
-        m_detectorEfficiency_spill = 1.050;
-        
-        DetectorEfficiencyRelativeError = 0.0014;
-        
+        //Hard coded values, now we use the txt inputs so the following lines should be meaningless:
         if(DataSet==1)
         {
+            std::cout << "USING P14E values right now" << std::endl;
+            
+            exit(EXIT_FAILURE);
             //p12b values
             if(Nweeks==1)
             {
@@ -845,62 +864,23 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
             }
             else
             {
-                std::cout << "need to do some averaging sum like yasu's, for reference I add his lines of code here " << std::endl;
+                std::cout << "If weekly data is provided you need to weight the weekly efficiencies, see GetDataInclusive() " << std::endl;
                 exit(EXIT_FAILURE);
-                //                if (FirstMakeSuperPrediction){
-                //                    sprintf(dummyname,"CombCorrEvtsSpec_%i",idet);
-                //                    CombCorrEvtsSpec[idet] = (TH1F*)tdper[0].CorrEvtsSpec[idet]->Clone(dummyname);
-                //                    sprintf(dummyname,"CombCorrBgEvtsSpec_%i",idet);
-                //                    CombCorrBgEvtsSpec[idet] = (TH1F*)tdper[0].CorrBgEvtsSpec[idet]->Clone(dummyname);
-                //                    //note: do not set FirstMakeSuperPrediction to false as that is done below
-                //                }
-                //                CombCorrEvtsSpec[idet]->Reset();
-                //                CombCorrBgEvtsSpec[idet]->Reset();
-                //
-                //                for(int ii=0;ii<Nperiods;++ii){
-                //                    float factor=tdper[ii].MuonVetoEff[idet]
-                //                    *tdper[ii].DMCEff[idet]
-                //                    *tdper[ii].Livetime[idet]
-                //                    *tdper[ii].TargetMass[idet]/tdper[ii].TargetMass[0];
-                //
-                //                    weightedsum+=tdper[ii].CorrEvts[idet]*factor;
-                //                    livsum+=factor;
-                //                    weightederr+=pow(tdper[ii].ErrEvts[idet]*factor,2);
-                //                    weightedbg+=tdper[ii].CorrBgEvts[idet]*factor;
-                //
-                //                    CombCorrEvtsSpec[idet]->Add(tdper[ii].CorrEvtsSpec[idet],factor);
-                //                    CombCorrBgEvtsSpec[idet]->Add(tdper[ii].CorrBgEvtsSpec[idet],factor);
-                //
-                //                    // weightedsum+=tdper[ii].CorrEvts[idet]*tdper[ii].Livetime[idet];
-                //                    // livsum+=tdper[ii].Livetime[idet];
-                //                    // weightederr+=pow(tdper[ii].ErrEvts[idet]*tdper[ii].Livetime[idet],2);
-                //                    // weightedbg+=tdper[ii].CorrBgEvts[idet]*tdper[ii].Livetime[idet];
-                //
-                //                    // CombCorrEvtsSpec[idet]->Add(tdper[ii].CorrEvtsSpec[idet],tdper[ii].Livetime[idet]);
-                //
-                //                }
-                //                CombLivetime[idet]=livsum;
-                //                CombCorrEvts[idet]=weightedsum*1./livsum;
-                //                CombErrEvts[idet]=sqrt(weightederr)*1./livsum;
-                //                CombCorrBgEvts[idet]=weightedbg*1./livsum;
-                //                CombCorrEvtsSpec[idet]->Scale(1./livsum);
-                //                CombCorrBgEvtsSpec[idet]->Scale(1./livsum);
-                
             }
         }
         if(DataSet==2)//P12E
         {
-            //p12b values
-            if(Nweeks==1)
-            {
-                LoadHydrogenMainData(Form("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt"));
-                LoadHydrogenMainData(Form("./Inputs/HInputs/nH_LS_table_Inclusive.txt"));
-            }
-            else
-            {
-                LoadHydrogenMainData(Form("./Inputs/HInputs/nH_GdLS_table.txt"));// Need to do it Nweek dependent instead of just 101. DataSet chooses the (101)NWeeks so far.
-                LoadHydrogenMainData(Form("./Inputs/HInputs/nH_LS_table.txt"));// Need to do it Nweek dependent instead of just 101. DataSet chooses the (101)NWeeks so far.
-            }
+//            //p12b values
+//            if(Nweeks==1)
+//            {
+//                LoadHydrogenMainData(Form("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt"));
+//                LoadHydrogenMainData(Form("./Inputs/HInputs/nH_LS_table_Inclusive.txt"));
+//            }
+//            else
+//            {
+                LoadHydrogenMainData();// Need to do it NReactorPeriods dependent instead of just 101. DataSet chooses the (101)NReactorPeriods so far.
+                CorrectnHEvents();
+//            }
         }
     }
     //For Gd and 6 ADs: http://dayabay.ihep.ac.cn/DocDB/0085/008556/016/Main-version2.pdf page 5
@@ -924,7 +904,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
         m_rel_escale_nominal = m_rel_escale;
         m_rel_eoffset = 0.0;
         
-        
+        //Efficiency errors:
         m_detectorEfficiency_Dt = 0.986;
         m_detectorEfficiency_Ep = 0.9988;
         m_detectorEfficiency_Ed_nominal = 0.909;
@@ -932,6 +912,8 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
         m_detectorEfficiency_nGd = 0.838;
         m_detectorEfficiency_spill = 1.050;
         
+        m_detectorGlobalEfficiency[0] = m_detectorEfficiency_spill*m_detectorEfficiency_nGd*m_detectorEfficiency_Dt*m_detectorEfficiency_Ep*m_detectorEfficiency_Ed_nominal*m_detectorEfficiency_flash;
+      
         DetectorEfficiencyRelativeError = 0.0014;
         
         //Resolution errors
@@ -941,6 +923,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
         if(DataSet==2)
         {
             // P12E Values in Theta13-inputs_32week_inclusive.txt
+            // These are hard coded values taken from the txt file, use LoadnGdMainData to read from the txt file:
             if(Nweeks==1)
             {
                 ObservedEvents[0]=101362;
@@ -1001,8 +984,7 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
                 AmCRate[5] = 0.26;
                 
                 //test:
-                if(TestAllTheSame)
-                {
+#ifdef TestAllTheSame
                     for(Int_t i = 0; i<NADs; i++)
                     {
                         for(Int_t j = 0; j<MaxPeriods; j++)
@@ -1011,15 +993,13 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
                             MuonEff[i+j*NADs]=1;
                             MultiEff[i+j*NADs]=1;
                             FullTime[i+j*NADs]=100;
-                            AccidentalRate[i+j*NADs]=0;
-                            FastNeutronRate[i+j*NADs]=0;
-                            LiHeRate[i+j*NADs]=0;
-                            AmCRate[i+j*NADs]=0;
+                            AccidentalRate[i+j*NADs]=1;
+                            FastNeutronRate[i+j*NADs]=1;
+                            LiHeRate[i+j*NADs]=1;
+                            AmCRate[i+j*NADs]=1;
                         }
-                        
                     }
-                }
-                
+#endif
                 
                 AccidentalError[0]=0.074594;//Absolute uncertainty AD1
                 AccidentalError[1]=0.06356;//Absolute uncertainty AD2
@@ -1061,16 +1041,6 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
 
 NominalData:: ~NominalData()
 {
-//    if(delete_nH_maps_flag)
-//    {
-//        for(Int_t week = 0; week<NReactorPeriods; week++)
-//        {
-//            for(Int_t AD = 0; AD<NADs; AD++)
-//            {
-//                delete h2d_Ep_ratio2center[AD+NADs*week];
-//            }
-//        }
-//    }
 }
 
 void NominalData :: CopyData(NominalData * data)
@@ -1109,14 +1079,6 @@ void NominalData :: CopyData(NominalData * data)
     m_detectorEfficiency_spill = data->m_detectorEfficiency_spill;
     std::copy(std::begin(data->m_detectorGlobalEfficiency), std::end(data->m_detectorGlobalEfficiency), std::begin(m_detectorGlobalEfficiency));
     std::copy(std::begin(data->nHCaptureFraction), std::end(data->nHCaptureFraction), std::begin(nHCaptureFraction));
-
-
-
-    
-//    if(isH)
-//    {
-//        std::copy(std::begin(data->h2d_Ep_ratio2center), std::end(data->h2d_Ep_ratio2center), std::begin(h2d_Ep_ratio2center));
-//    }
     
     //Toy samples
     NSamples = data->NSamples;
@@ -1161,7 +1123,9 @@ void NominalData :: CopyData(NominalData * data)
     std::copy(std::begin(data->AmCEvents), std::end(data->AmCEvents), std::begin(AmCEvents));
     
     std::copy(std::begin(data->ObservedEvents), std::end(data->ObservedEvents), std::begin(ObservedEvents));
-    
+    std::copy(std::begin(data->IBDEvents), std::end(data->IBDEvents), std::begin(IBDEvents));
+    std::copy(std::begin(data->StatisticalError), std::end(data->StatisticalError), std::begin(StatisticalError));
+
     std::copy(std::begin(data->ADIntegral), std::end(data->ADIntegral), std::begin(ADIntegral));
     std::copy(std::begin(data->CellIntegral), std::end(data->CellIntegral), std::begin(CellIntegral));
     std::copy(std::begin(data->PercentualEvents), std::end(data->PercentualEvents), std::begin(PercentualEvents));
@@ -1238,10 +1202,12 @@ void NominalData :: CopyData(NominalData * data)
     AbsoluteEnergyScaleMatrix = data->AbsoluteEnergyScaleMatrix;
     RelativeEnergyScaleMatrix = data->RelativeEnergyScaleMatrix;
     IAVMatrix = data->IAVMatrix;
+    OAVMatrix = data->OAVMatrix;
     NLMatrix = data->NLMatrix;
     ResolutionMatrix = data->ResolutionMatrix;
     Sin22t12Matrix = data->Sin22t12Matrix;
     EfficiencyMatrix = data->EfficiencyMatrix;
+    AllDetectorSystematicsMatrix = data->AllDetectorSystematicsMatrix;
     
     VaryAccidentalBudget = data->VaryAccidentalBudget;
     VaryLiHeBudget = data->VaryLiHeBudget;
@@ -1257,6 +1223,8 @@ void NominalData :: CopyData(NominalData * data)
     AbsoluteEnergyScaleBudget = data->AbsoluteEnergyScaleBudget;
     RelativeEnergyScaleBudget = data->RelativeEnergyScaleBudget;
     IAVBudget = data->IAVBudget;
+    OAVBudget = data->OAVMatrix;
+    
     NLBudget = data->NLBudget;
     ResolutionBudget = data->ResolutionBudget;
     Sin22t12Budget = data->Sin22t12Budget;
@@ -1278,94 +1246,104 @@ void NominalData :: SetDataSet(Int_t dataset)
     DataSet=dataset;
 }
 
-void NominalData :: SetVaryAccidentalMatrix(bool VaryAccMatrix)
+void NominalData :: SetVaryAccidentalMatrix(bool varyAccMatrix)
 {
-    VaryAccidentalMatrix=VaryAccMatrix;
+    VaryAccidentalMatrix=varyAccMatrix;
 }
 
-void NominalData :: SetVaryLiHeMatrix(bool VaryLiMatrix)
+void NominalData :: SetVaryLiHeMatrix(bool varyLiMatrix)
 {
-    VaryLiHeMatrix=VaryLiMatrix;
+    VaryLiHeMatrix=varyLiMatrix;
 }
 
-void NominalData :: SetVaryFastNeutronsMatrix(bool VaryFNmatrix)
+void NominalData :: SetVaryFastNeutronsMatrix(bool varyFNmatrix)
 {
-    VaryFastNeutronsMatrix=VaryFNmatrix;
+    VaryFastNeutronsMatrix=varyFNmatrix;
 }
 
-void NominalData :: SetVaryAmCMatrix(bool VaryAmCmatrix)
+void NominalData :: SetVaryAmCMatrix(bool varyAmCmatrix)
 {
-    VaryAmCMatrix=VaryAmCmatrix;
+    VaryAmCMatrix=varyAmCmatrix;
 }
 
-void NominalData :: SetDistortLiHeMatrix(bool DistortLiMatrix)
+void NominalData :: SetDistortLiHeMatrix(bool distortLiMatrix)
 {
-    DistortLiHeMatrix=DistortLiMatrix;
+    DistortLiHeMatrix=distortLiMatrix;
 }
 
-void NominalData :: SetDistortFastNeutronsMatrix(bool DistortFNmatrix)
+void NominalData :: SetDistortFastNeutronsMatrix(bool distortFNmatrix)
 {
-    DistortFastNeutronsMatrix=DistortFNmatrix;
+    DistortFastNeutronsMatrix=distortFNmatrix;
 }
 
-void NominalData :: SetDistortAmCMatrix(bool DistortAmCmatrix)
+void NominalData :: SetDistortAmCMatrix(bool distortAmCmatrix)
 {
-    DistortAmCMatrix=DistortAmCmatrix;
+    DistortAmCMatrix=distortAmCmatrix;
 }
 
-void NominalData :: SetIsotopeMatrix(bool Isotopematrix)
+void NominalData :: SetIsotopeMatrix(bool isotopematrix)
 {
-    IsotopeMatrix=Isotopematrix;
+    IsotopeMatrix=isotopematrix;
 }
 
-void NominalData :: SetReactorPowerMatrix(bool ReactorPowermatrix)
+void NominalData :: SetReactorPowerMatrix(bool reactorPowermatrix)
 {
-    ReactorPowerMatrix=ReactorPowermatrix;
+    ReactorPowerMatrix=reactorPowermatrix;
 }
 
-void NominalData :: SetRelativeEnergyOffsetMatrix(bool RelativeEnergyOffsetmatrix)
+void NominalData :: SetRelativeEnergyOffsetMatrix(bool relativeEnergyOffsetmatrix)
 {
-    RelativeEnergyOffsetMatrix = RelativeEnergyOffsetmatrix;
+    RelativeEnergyOffsetMatrix = relativeEnergyOffsetmatrix;
 }
 
-void NominalData :: SetAbsoluteEnergyOffsetMatrix(bool AbsoluteEnergyOffsetmatrix)
+void NominalData :: SetAbsoluteEnergyOffsetMatrix(bool absoluteEnergyOffsetmatrix)
 {
-    AbsoluteEnergyOffsetMatrix = AbsoluteEnergyOffsetmatrix;
+    AbsoluteEnergyOffsetMatrix = absoluteEnergyOffsetmatrix;
 }
 
-void NominalData :: SetAbsoluteEnergyScaleMatrix(bool AbsoluteEnergyScalematrix)
+void NominalData :: SetAbsoluteEnergyScaleMatrix(bool absoluteEnergyScalematrix)
 {
-    AbsoluteEnergyScaleMatrix=AbsoluteEnergyScalematrix;
+    AbsoluteEnergyScaleMatrix=absoluteEnergyScalematrix;
 }
 
-void NominalData :: SetRelativeEnergyScaleMatrix(bool RelativeEnergyScalematrix)
+void NominalData :: SetRelativeEnergyScaleMatrix(bool relativeEnergyScalematrix)
 {
-    RelativeEnergyScaleMatrix=RelativeEnergyScalematrix;
+    RelativeEnergyScaleMatrix=relativeEnergyScalematrix;
 }
 
-void NominalData :: SetIAVMatrix(bool IAVmatrix)
+void NominalData :: SetIAVMatrix(bool iAVmatrix)
 {
-    IAVMatrix=IAVmatrix;
+    IAVMatrix=iAVmatrix;
 }
 
-void NominalData :: SetNLMatrix(bool NLmatrix)
+void NominalData :: SetOAVMatrix(bool oAVmatrix)
 {
-    NLMatrix=NLmatrix;
+    OAVMatrix=oAVmatrix;
 }
 
-void NominalData :: SetResolutionMatrix(bool Resolutionmatrix)
+void NominalData :: SetNLMatrix(bool nLmatrix)
 {
-    ResolutionMatrix=Resolutionmatrix;
+    NLMatrix=nLmatrix;
 }
 
-void NominalData :: SetSin22t12Matrix(bool Sin22t12matrix)
+void NominalData :: SetResolutionMatrix(bool resolutionmatrix)
 {
-    Sin22t12Matrix=Sin22t12matrix;
+    ResolutionMatrix=resolutionmatrix;
 }
 
-void NominalData :: SetEfficiencyMatrix(bool Efficiencymatrix)
+void NominalData :: SetSin22t12Matrix(bool sin22t12matrix)
 {
-    EfficiencyMatrix = Efficiencymatrix;
+    Sin22t12Matrix=sin22t12matrix;
+}
+
+void NominalData :: SetEfficiencyMatrix(bool efficiencymatrix)
+{
+    EfficiencyMatrix = efficiencymatrix;
+}
+
+void NominalData :: SetAllDetectorSystematicsMatrix(bool allDetectorSystematicsMatrix)
+{
+    AllDetectorSystematicsMatrix = allDetectorSystematicsMatrix;
 }
 
 void NominalData :: SetVaryAccidentalBudget(bool VaryAccBudget)
@@ -1436,6 +1414,11 @@ void NominalData :: SetRelativeEnergyScaleBudget(bool relativeEnergyScaleBudget)
 void NominalData :: SetIAVBudget(bool iAVBudget)
 {
     IAVBudget=iAVBudget;
+}
+
+void NominalData :: SetOAVBudget(bool oAVBudget)
+{
+    OAVBudget=oAVBudget;
 }
 
 void NominalData :: SetNLBudget(bool nLBudget)
@@ -1563,6 +1546,11 @@ bool NominalData :: GetIAVMatrix()
     return IAVMatrix;
 }
 
+bool NominalData :: GetOAVMatrix()
+{
+    return OAVMatrix;
+}
+
 bool NominalData :: GetNLMatrix()
 {
     return NLMatrix;
@@ -1581,6 +1569,11 @@ bool NominalData :: GetSin22t12Matrix()
 bool NominalData :: GetEfficiencyMatrix()
 {
     return EfficiencyMatrix;
+}
+
+bool NominalData :: GetAllDetectorSystematicsMatrix()
+{
+    return AllDetectorSystematicsMatrix;
 }
 
 bool NominalData :: GetVaryAccidentalBudget()
@@ -1651,6 +1644,11 @@ bool NominalData :: GetRelativeEnergyScaleBudget()
 bool NominalData :: GetIAVBudget()
 {
     return IAVBudget;
+}
+
+bool NominalData :: GetOAVBudget()
+{
+    return OAVBudget;
 }
 
 bool NominalData :: GetNLBudget()
@@ -1741,11 +1739,6 @@ void NominalData :: SetAnalysis(bool IsH)
 void NominalData :: SetADs(Int_t ads)
 {
     NADs = ads;
-    
-    if(isH)
-    {
-        LoadnHEfficiencyMaps();//By placing setADs() after setweeks() this can be done only here
-    }
 }
 
 void NominalData :: SetNSamples(Int_t nsamples)
@@ -2006,31 +1999,34 @@ Double_t NominalData :: GetResoUncorrelatedError()
     return ResolutionErrorUncorrelated;
 }
 
-Double_t NominalData :: GetDetectorProtons(Int_t detector,Int_t VolumeX)
+Double_t NominalData :: GetDetectorProtons(Int_t detector,Int_t idx)
 {
-    if(VolumeX == 0)//GdLs
+    if(idx == 0)//GdLs
     {
-        return ProtonsPerKtonGdLs*DetectorMass[detector+MaxDetectors*VolumeX];
+        return ProtonsPerKtonGdLs*DetectorMass[detector+MaxDetectors*idx];
     }
     else
     {
-        return ProtonsPerKtonLs*DetectorMass[detector+MaxDetectors*VolumeX];
+        return ProtonsPerKtonLs*DetectorMass[detector+MaxDetectors*idx];
     }
 }
 
 Double_t NominalData :: GetDetectorEfficiency(Int_t detector, Int_t week, Int_t idx, Int_t idy)
 {
-    //This is for nGd, will need to adapt for nH
-    if(!isH)
+    if(!isH)//Gd
     {
-        return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorEfficiency_spill*m_detectorEfficiency_nGd*m_detectorEfficiency_Dt*m_detectorEfficiency_Ep*m_detectorEfficiency_Ed_nominal*m_detectorEfficiency_flash;
+        return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx];
     }
-    else
+    else//nH
     {
 
         Double_t VolumeEfficiency = 1;
         
-#ifdef UseVolumes
+#ifdef UseVolumes//VolumeEfficiency should be equal to m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx];
+
+        //There might be a small difference due to spill-in (accounted in Logan's calculation) which might be included in the delayed efficiency, needs to be checked, in the meantime use Xiangpan's values where
+        
+        //Absolute detector efficiency: MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx]
         if(idx==0)
         {
             VolumeEfficiency = GdLS_volume_efficiency;
@@ -2040,13 +2036,11 @@ Double_t NominalData :: GetDetectorEfficiency(Int_t detector, Int_t week, Int_t 
             VolumeEfficiency = LS_volume_efficiency;
         }//Ls
 #endif
-        //VolumeEfficiency should be equal to m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx];
+        //return VolumeEfficiency * MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]; //using Logan's numbers.
         
         return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx];
-        //Efficiency of Prompt energy, Delayed energy, time, distance included in global efficiency. Flasher? Efficiency nGd (nH)?, spill?
-        
-        //h2d_Ep_ratio2center[detector+NADs*week]->GetBinContent(idx+1,idy+1);//Return by cell!, the 2d map is a ratio of the cell events to center, use the nominal efficiencies in the nH study, this users the nGd cut ones.
-    }
+        //Efficiency of Prompt energy, Delayed energy, time, distance included in global efficiency. Flasher is not (Very small) nH capture included in delayed energy cut in the new version, right now working with out it included, that's why we multiply by the nH capture fraction.
+        }
 }
 
 Double_t NominalData :: GetEnergyDelayedCutDetectorEfficiency()
@@ -2076,22 +2070,22 @@ Double_t NominalData :: GetIAVError()
 //Errors given as absolute error/(corrected rate) = relative error.
 Double_t NominalData ::  GetAccidentalError(Int_t ad,Int_t week,Int_t idx, Int_t idy)
 {
-    return (AccidentalError[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods])/(AccidentalRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]);
+    return (AccidentalError[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods])/(AccidentalEvents[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]);
 }
 
 Double_t NominalData :: GetLiHeError(Int_t ad,Int_t week,Int_t idx, Int_t idy)
 {
-    return (LiHeError[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods])/(LiHeRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]);
+    return (LiHeError[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods])/(LiHeEvents[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]);
 }
 
 Double_t NominalData :: GetFNError(Int_t ad,Int_t week,Int_t idx, Int_t idy)
 {
-    return (FastNeutronError[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods])/(FastNeutronRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]);
+    return (FastNeutronError[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods])/(FastNeutronEvents[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]);
 }
 
 Double_t NominalData :: GetAmCError(Int_t ad,Int_t week,Int_t idx, Int_t idy)
 {
-    return (AmCError[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods])/(AmCRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]);
+    return (AmCError[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods])/(AmCEvents[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]);
 }
 
 Double_t NominalData :: GetAccidentalRate(Int_t ad,Int_t week,Int_t idx, Int_t idy)
@@ -2114,29 +2108,40 @@ Double_t NominalData :: GetAmCRate(Int_t ad,Int_t week,Int_t idx, Int_t idy)
     return AmCRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods];
 }
 
-Double_t NominalData :: GetIBDEvents(Int_t ad,Int_t week,Int_t idx, Int_t idy)
+Double_t NominalData :: GetIBDEvents(Int_t ad,Int_t week,Int_t idx, Int_t idy)//IBD events corrected for efficiencies
 {
-    return ((ObservedEvents[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]/(FullTime[ad+week*MaxDetectors]*MuonEff[ad+week*MaxDetectors]*MultiEff[ad+week*MaxDetectors]))-(AccidentalRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]+LiHeRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]+FastNeutronRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]+AmCRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]))*FullTime[ad+week*MaxDetectors]*MuonEff[ad+week*MaxDetectors]*MultiEff[ad+week*MaxDetectors];//Apply background suppression for corrected events, then uncorrect it.
+    return IBDEvents[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods];
 }
 
 Double_t NominalData ::  GetAccidentalEvents(Int_t ad,Int_t week,Int_t idx, Int_t idy)
 {
-    return AccidentalRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]*FullTime[ad+week*MaxDetectors]*MuonEff[ad+week*MaxDetectors]*MultiEff[ad+week*MaxDetectors];
+     //Hydrogen data is given with the backgrounds rate with AD effects already included, Gd data has not efficiency corrections included anymore, but this was fixed in LoadOriginalGDMainData
+    
+    std::cout << " ACCIDENTAL EVENTS IN NOMINAL DATA : " << AccidentalEvents[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods] << std::endl;
+    
+    return AccidentalEvents[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods];
+    
 }
 
 Double_t NominalData :: GetLiHeEvents(Int_t ad,Int_t week,Int_t idx, Int_t idy)
 {
-    return LiHeRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]*FullTime[ad+week*MaxDetectors]*MuonEff[ad+week*MaxDetectors]*MultiEff[ad+week*MaxDetectors];
+    //Hydrogen data is given with the backgrounds rate with AD effects already included, Gd data has not efficiency corrections included anymore, but this was fixed in LoadOriginalGDMainData
+
+        return LiHeEvents[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods];
 }
 
 Double_t NominalData :: GetFNEvents(Int_t ad,Int_t week,Int_t idx, Int_t idy)
 {
-    return FastNeutronRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]*FullTime[ad+week*MaxDetectors]*MuonEff[ad+week*MaxDetectors]*MultiEff[ad+week*MaxDetectors];
+    //Hydrogen data is given with the backgrounds rate with AD effects already included, Gd data has not efficiency corrections included anymore, but this was fixed in LoadOriginalGDMainData
+
+        return FastNeutronEvents[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods];
 }
 
 Double_t NominalData :: GetAmCEvents(Int_t ad,Int_t week,Int_t idx, Int_t idy)
 {
-    return AmCRate[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]*FullTime[ad+week*MaxDetectors]*MuonEff[ad+week*MaxDetectors]*MultiEff[ad+week*MaxDetectors];
+    //Hydrogen data is given with the backgrounds rate with AD effects already included, Gd data has not efficiency corrections included anymore, but this was fixed in LoadOriginalGDMainData
+
+        return AmCEvents[ad+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods];
 }
 
 bool NominalData :: GetTurnOnBudget()
@@ -2178,7 +2183,7 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
         //Special numbers
         if(linenum == 0)
         {
-            Nweeks=atoi(line.c_str());
+            NReactorPeriods=atoi(line.c_str());
         }
         
         if(linenum == 1){}
@@ -2213,16 +2218,10 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
                 for(Int_t AD=0;AD<NADs;AD++)
                 {
                     ObservedEvents[AD+(week-1)*MaxDetectors]=readvals[AD];//GD VolumeX = 0, no need to add further indexes here
+                    //Calculate Statistical Errors
+                    StatisticalError[AD+(week-1)*MaxDetectors]=sqrt(ObservedEvents[AD+(week-1)*MaxDetectors]);
                 }
             }
-            //
-            //            //Calculate Statistical Errors
-            //
-            //            for(Int_t i=0; i<NADs; i+
-            //            {
-            //                ErrEvts[AD+(week-1)*MaxDetectors]=sqrt(ObsEvts[AD]);
-            //            }
-            
             //-->FullTimes
             if(row==2)
             {
@@ -2272,14 +2271,14 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
             {
                 for(Int_t AD=0;AD<NADs;AD++)
                 {
-                    AccidentalRate[AD+(week-1)*MaxDetectors]=readvals[AD];
+                    AccidentalEvents[AD+(week-1)*MaxDetectors]=readvals[AD]*FullTime[AD+(week-1)*MaxDetectors]*MuonEff[AD+(week-1)*MaxDetectors]*MultiEff[AD+(week-1)*MaxDetectors];//Backgrounds are not corrected anymore in Theta13-inputs txt file, add here AD efficiencies
                 }
             }
             if(row==12)
             {
                 for(Int_t AD=0;AD<NADs;AD++)
                 {
-                    AccidentalError[AD+(week-1)*MaxDetectors]=readvals[AD];
+                    AccidentalError[AD+(week-1)*MaxDetectors]=readvals[AD]*FullTime[AD+(week-1)*MaxDetectors]*MuonEff[AD+(week-1)*MaxDetectors]*MultiEff[AD+(week-1)*MaxDetectors];
                 }
             }
             
@@ -2288,29 +2287,27 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
             {
                 for(Int_t AD=0;AD<NADs;AD++)
                 {
-                    LiHeRate[AD+(week-1)*MaxDetectors]=readvals[AD];
-                }
+                    LiHeEvents[AD+(week-1)*MaxDetectors]=readvals[AD]*FullTime[AD+(week-1)*MaxDetectors]*MuonEff[AD+(week-1)*MaxDetectors]*MultiEff[AD+(week-1)*MaxDetectors];
             }
             if(row==14)
             {
                 for(Int_t AD=0;AD<NADs;AD++)
                 {
-                    LiHeError[AD+(week-1)*MaxDetectors]=readvals[AD];
-                }
+                    LiHeError[AD+(week-1)*MaxDetectors]=readvals[AD]*FullTime[AD+(week-1)*MaxDetectors]*MuonEff[AD+(week-1)*MaxDetectors]*MultiEff[AD+(week-1)*MaxDetectors];
             }
             //-->fast-n bg
             if(row==15)
             {
                 for(Int_t AD=0;AD<NADs;AD++)
                 {
-                    FastNeutronRate[AD+(week-1)*MaxDetectors]=readvals[AD];
+                    FastNeutronEvents[AD+(week-1)*MaxDetectors]=readvals[AD]*FullTime[AD+(week-1)*MaxDetectors]*MuonEff[AD+(week-1)*MaxDetectors]*MultiEff[AD+(week-1)*MaxDetectors];
                 }
             }
             if(row==16)
             {
                 for(Int_t AD=0;AD<NADs;AD++)
                 {
-                    FastNeutronError[AD+(week-1)*MaxDetectors]=readvals[AD];
+                    FastNeutronError[AD+(week-1)*MaxDetectors]=readvals[AD]*FullTime[AD+(week-1)*MaxDetectors]*MuonEff[AD+(week-1)*MaxDetectors]*MultiEff[AD+(week-1)*MaxDetectors];
                 }
             }
             //-->amc bg
@@ -2318,14 +2315,14 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
             {
                 for(Int_t AD=0;AD<NADs;AD++)
                 {
-                    AmCRate[AD+(week-1)*MaxDetectors]=readvals[AD];
+                    AmCEvents[AD+(week-1)*MaxDetectors]=readvals[AD]*FullTime[AD+(week-1)*MaxDetectors]*MuonEff[AD+(week-1)*MaxDetectors]*MultiEff[AD+(week-1)*MaxDetectors];
                 }
             }
             if(row==18)
             {
                 for(Int_t AD=0;AD<NADs;AD++)
                 {
-                    AmCError[AD+(week-1)*MaxDetectors]=readvals[AD];
+                    AmCError[AD+(week-1)*MaxDetectors]=readvals[AD]*FullTime[AD+(week-1)*MaxDetectors]*MuonEff[AD+(week-1)*MaxDetectors]*MultiEff[AD+(week-1)*MaxDetectors];
                 }
             }
             //-->aln bg
@@ -2335,342 +2332,616 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
             //                {
             //                    AlnEvts[AD+(week-1)*MaxDetectors]=readvals[AD];
             //                }
-            //            }
-            //            if(row==20)
-            //            {
-            //                for(Int_t AD=0;AD<NADs;AD++)
-            //                {
-            //                    AlnErr[AD+(week-1)*MaxDetectors]=readvals[AD];
-            //                }
-            //            }
+                //            }
+                //            if(row==20)
+                //            {
+                //                for(Int_t AD=0;AD<NADs;AD++)
+                //                {
+                //                    AlnErr[AD+(week-1)*MaxDetectors]=readvals[AD];
+                //                }
+                //            }
+            }
+                linenum++;//only lines >2
+            }
         }
-        linenum++;//only lines >2
+        
+        
+        if(NReactorPeriods>1&&Nweeks!=NReactorPeriods)//If the data file is not inclusive, or the fit is not weekly, generate inclusive data from weekly data.
+        {
+            Double_t CopyObservedEvents[NReactorPeriods*MaxDetectors],CopyIBDEvents[NReactorPeriods*MaxDetectors],CopyStatisticalError[NReactorPeriods*MaxDetectors],CopyAccidentalEvents[NReactorPeriods*MaxDetectors],CopyAccidentalError[NReactorPeriods*MaxDetectors],CopyLiHeEvents[NReactorPeriods*MaxDetectors],CopyLiHeError[NReactorPeriods*MaxDetectors],CopyFastNeutronEvents[NReactorPeriods*MaxDetectors],CopyFastNeutronError[NReactorPeriods*MaxDetectors],CopyAmCEvents[NReactorPeriods*MaxDetectors],CopyAmcError[NReactorPeriods*MaxDetectors],CopyFullTime[NReactorPeriods*MaxDetectors],CopyMuonEff[NReactorPeriods*MaxDetectors],CopyMultiEff[NReactorPeriods*MaxDetectors];
+            
+            //Copy values
+            for(Int_t AD=0;AD<NADs;AD++)
+            {
+                for(Int_t week = 0; week<NReactorPeriods; week++)
+                {
+                    Double_t correction_factor = (FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]*GetDetectorProtons(AD,0))/GetDetectorProtons(0, 0);
+                    
+                    if(correction_factor==0)
+                    {
+                        correction_factor = 1; //We will multiply by zero in the GetnGdInclusiveData method, so it should make a difference, but this way we avoid NaNs.
+                    }
+                    
+                    IBDEvents[AD+week*MaxDetectors] = (ObservedEvents[AD+week*MaxDetectors]-(AccidentalEvents[AD+week*MaxDetectors]+LiHeEvents[AD+week*MaxDetectors]+FastNeutronEvents[AD+week*MaxDetectors]+AmCEvents[AD+week*MaxDetectors]));//Apply background  suppression for events with AD effects, then correct AD effects and scale to days
+
+                    //Correct all events and rates:
+                    
+                    StatisticalError[AD+week*MaxDetectors] = StatisticalError[AD+week*MaxDetectors]/correction_factor;
+                    IBDEvents[AD+week*MaxDetectors] = IBDEvents[AD+week*MaxDetectors]/correction_factor;
+                    ObservedEvents[AD+week*MaxDetectors] = ObservedEvents[AD+week*MaxDetectors]/correction_factor;
+                    
+                    AccidentalEvents[AD+week*MaxDetectors] = AccidentalEvents[AD+week*MaxDetectors]/correction_factor;
+                    AccidentalError[AD+week*MaxDetectors] = AccidentalError[AD+week*MaxDetectors]/correction_factor;
+                    LiHeEvents[AD+week*MaxDetectors] = LiHeEvents[AD+week*MaxDetectors]/correction_factor;
+                    LiHeError[AD+week*MaxDetectors] = LiHeError[AD+week*MaxDetectors]/correction_factor;
+                    FastNeutronEvents[AD+week*MaxDetectors] = FastNeutronEvents[AD+week*MaxDetectors]/correction_factor;
+                    FastNeutronError[AD+week*MaxDetectors] = FastNeutronError[AD+week*MaxDetectors]/correction_factor;
+                    AmCEvents[AD+week*MaxDetectors] = AmCEvents[AD+week*MaxDetectors]/correction_factor;
+                    AmCError[AD+week*MaxDetectors] = AmCError[AD+week*MaxDetectors]/correction_factor;
+                }
+            }
+            
+            GetnGdInclusiveData(IBDEvents,0);
+            GetnGdInclusiveData(StatisticalError,1);
+            GetnGdInclusiveData(ObservedEvents,0);
+            GetnGdInclusiveData(AccidentalEvents,0);
+            GetnGdInclusiveData(AccidentalError,1);
+            GetnGdInclusiveData(LiHeEvents,0);
+            GetnGdInclusiveData(LiHeError,1);
+            GetnGdInclusiveData(FastNeutronEvents,0);
+            GetnGdInclusiveData(FastNeutronError,1);
+            GetnGdInclusiveData(AmCEvents,0);
+            GetnGdInclusiveData(AmCError,1);
+            
+            GetInclusiveEfficiencies(MultiEff);
+            GetInclusiveEfficiencies(MuonEff);
+            GetInclusiveFullTime(FullTime);
+
+            for(Int_t AD=0;AD<NADs;AD++)
+            {
+                //To make sure the inclusive data has changed
+                
+                std::cout << "Inclusive observed events AD: " << AD << " is : " << ObservedEvents[AD+week*MaxDetectors] << std::endl;
+                
+                for(Int_t week = 0; week<NReactorPeriods; week++)
+                {
+                    std::cout << " Weekly observed events AD: " << AD << " is : " << ObservedEvents[AD+week*MaxDetectors] << " for week : " << week << std::endl;
+                }
+                
+            }
+
+        }
     }
 }
 
-void NominalData :: LoadHydrogenMainData(const Char_t* mainmatrixname)
+void NominalData :: LoadHydrogenMainData()
 {
-    Int_t VolumeIndex;
-    std::string line;
-    Int_t linenum=0;//<---caution: only increments for lines that do not begin with #
-    Int_t week=0;
-    ifstream mainfile(mainmatrixname);
-    Int_t AD6Index = 0;
-    while(!mainfile.eof())
+    Char_t* mainmatrixname;
+    
+    for(Int_t Volumes = 0; Volumes<VolumeX*VolumeY; Volumes++)
     {
-        getline(mainfile,line);
-        std::string firstchar = line.substr(0,1);
-        
-        if(firstchar=="#") continue;//<-- ignore lines with comments
-        
-        //Special numbers
-        if(linenum == 0)
+#ifdef UseVolumes
+        if(Volumes==0)
         {
-            Nweeks=atoi(line.c_str());
+            mainmatrixname = Form("./Inputs/HInputs/nH_GdLS_table.txt");
         }
-        
-        if(linenum == 1)
+        else
         {
-            if(atoi(firstchar.c_str())==0) VolumeIndex=0;
-            if(atoi(firstchar.c_str())==1) VolumeIndex=1;
-            std::cout << "Volume (Gd = 0, Ls = 1): " << VolumeIndex << std::endl;
+            mainmatrixname = Form("./Inputs/HInputs/nH_LS_table.txt");
         }
-        
-        if(linenum > 2)
+#else
+        std::cout << " NEED INPUT FILES GIVEN PER CELL " << std::endl;
+        exit(EXIT_FAILURE);
+#endif
+      
+        Int_t VolumeIndex;
+        std::string line;
+        Int_t linenum=0;//<---caution: only increments for lines that do not begin with #
+        Int_t week=0;
+        ifstream mainfile(mainmatrixname);
+        Int_t AD6Index = 0;
+        while(!mainfile.eof())
         {
-            std::cout << "reading " << line << std::endl;
-            std::istringstream iss(line);
-            Int_t row=0;
-            Int_t column=0;
-            Double_t readvals[8]={0};
-            while(iss)
-            {
-                std::string sub; iss >> sub;
-                if(column==0) week=atoi(sub.c_str());
-                
-                if(column==1) row=atoi(sub.c_str());
-                
-                if(column>1 && sub!="") readvals[column-2]=atof(sub.c_str());
-                column+=1;
-            }//looping over columns
+            getline(mainfile,line);
+            std::string firstchar = line.substr(0,1);
             
-            //-->dates
-            //-->obs events
-            if(row==1)
-            {
-                for(Int_t AD=0;AD<MaxDetectors;AD++)
-                {
-                    AD6Index = AD;
-
-                    if(NADs != MaxDetectors)//6AD analysis
-                    {
-                        if(AD==3||AD==(MaxDetectors-1))
-                        {
-                            continue;//6AD analysis doesn't use AD4, AD8 info
-                        }
-                        if(AD>3)
-                        {
-                            AD6Index = AD-1;//Correct index
-                        }
-                    }
-                    
-                    ObservedEvents[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD];
-                }
-            }
-            //
-            //            //Calculate Statistical Errors
-            //
-            //            for(Int_t i=0; i<NADs; i+
-            //            {
-            //                ErrEvts[AD+(week-1)*MaxDetectors]=sqrt(ObsEvts[AD]);
-            //            }
+            if(firstchar=="#") continue;//<-- ignore lines with comments
             
-            //-->FullTimes
-            if(row==2)
+            //Special numbers
+            if(linenum == 0)
             {
-                for(Int_t AD=0;AD<MaxDetectors;AD++)
+                NReactorPeriods=atoi(line.c_str());
+            }
+            
+            if(linenum == 1)
+            {
+                if(atoi(firstchar.c_str())==0) VolumeIndex=0;
+                if(atoi(firstchar.c_str())==1) VolumeIndex=1;
+                std::cout << "Volume (Gd = 0, Ls = 1): " << VolumeIndex << std::endl;
+            }
+            
+            if(linenum > 2)
+            {
+                std::cout << "reading " << line << std::endl;
+                std::istringstream iss(line);
+                Int_t row=0;
+                Int_t column=0;
+                Double_t readvals[8]={0};
+                while(iss)
                 {
-                    AD6Index = AD;
-
-                    if(NADs != MaxDetectors)//6AD analysis
+                    std::string sub; iss >> sub;
+                    if(column==0) week=atoi(sub.c_str());
+                    
+                    if(column==1) row=atoi(sub.c_str());
+                    
+                    if(column>1 && sub!="") readvals[column-2]=atof(sub.c_str());
+                    column+=1;
+                }//looping over columns
+                
+                //-->dates
+                //-->obs events
+                if(row==1)
+                {
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
                     {
-                        if(AD==3||AD==(MaxDetectors-1))
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
                         {
-                            continue;//6AD analysis doesn't use AD4, AD8 info
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
                         }
-                        if(AD>3)
-                        {
-                            AD6Index = AD-1;//Correct index
-                        }
+                        
+                        ObservedEvents[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD];
+                        StatisticalError[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=sqrt(ObservedEvents[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]);
                     }
-                    
-                    FullTime[AD6Index+(week-1)*MaxDetectors]=readvals[AD];
                 }
-            }
-            //-->muon efficiencies
-            if(row==3)
-            {
-                for(Int_t AD=0;AD<MaxDetectors;AD++)
+                //
+                //            //Calculate Statistical Errors
+                //
+                //            for(Int_t i=0; i<NADs; i+
+                //            {
+                //                ErrEvts[AD+(week-1)*MaxDetectors]=sqrt(ObsEvts[AD]);
+                //            }
+                
+                //-->FullTimes
+                if(row==2)
                 {
-                    AD6Index = AD;
-                    
-                    if(NADs != MaxDetectors)//6AD analysis
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
                     {
-                        if(AD==3||AD==(MaxDetectors-1))
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
                         {
-                            continue;//6AD analysis doesn't use AD4, AD8 info
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
                         }
-                        if(AD>3)
-                        {
-                            AD6Index = AD-1;//Correct index
-                        }
+                        
+                        FullTime[AD6Index+(week-1)*MaxDetectors]=readvals[AD];
                     }
-                    
-                    MuonEff[AD6Index+(week-1)*MaxDetectors]=readvals[AD];
                 }
-            }
-            //-->dmc efficiencies
-            if(row==4)
-            {
-                for(Int_t AD=0;AD<MaxDetectors;AD++)
+                //-->muon efficiencies
+                if(row==3)
                 {
-                    AD6Index = AD;
-                    
-                    if(NADs != MaxDetectors)//6AD analysis
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
                     {
-                        if(AD==3||AD==(MaxDetectors-1))
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
                         {
-                            continue;//6AD analysis doesn't use AD4, AD8 info
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
                         }
-                        if(AD>3)
-                        {
-                            AD6Index = AD-1;//Correct index
-                        }
+                        
+                        MuonEff[AD6Index+(week-1)*MaxDetectors]=readvals[AD];
                     }
-                    
-                    MultiEff[AD6Index+(week-1)*MaxDetectors]=readvals[AD];
                 }
-            }
-            //-->target masses
-            if(row==5)
-            {
-                for(Int_t AD=0;AD<MaxDetectors;AD++)
+                //-->dmc efficiencies
+                if(row==4)
                 {
-                    AD6Index = AD;
-                    
-                    if(NADs != MaxDetectors)//6AD analysis
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
                     {
-                        if(AD==3||AD==(MaxDetectors-1))
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
                         {
-                            continue;//6AD analysis doesn't use AD4, AD8 info
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
                         }
-                        if(AD>3)
-                        {
-                            AD6Index = AD-1;//Correct index
-                        }
+                        
+                        MultiEff[AD6Index+(week-1)*MaxDetectors]=readvals[AD];
                     }
-                    
-                    DetectorMass[AD6Index+MaxDetectors*VolumeIndex]=readvals[AD]/1000000;
                 }
-            }
-            //row 6 -->Hydrogen Capture Fraction
-            if(row==6)
-            {
-                for(Int_t AD=0;AD<MaxDetectors;AD++)
+                //-->target masses
+                if(row==5)
                 {
-                    AD6Index = AD;
-                    
-                    if(NADs != MaxDetectors)//6AD analysis
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
                     {
-                        if(AD==3||AD==(MaxDetectors-1))
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
                         {
-                            continue;//6AD analysis doesn't use AD4, AD8 info
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
                         }
-                        if(AD>3)
-                        {
-                            AD6Index = AD-1;//Correct index
-                        }
+                        
+                        DetectorMass[AD6Index+MaxDetectors*VolumeIndex]=readvals[AD]/1000000;
                     }
-                    
-                    nHCaptureFraction[VolumeIndex]=readvals[AD];
                 }
-            }
-            //row 7 -->Detector Global Efficiency (Efficiency of Prompt energy, Delayed energy, time, distance
-            if(row==7)
-            {
-                for(Int_t AD=0;AD<MaxDetectors;AD++)
+                //row 6 -->Hydrogen Capture Fraction
+                if(row==6)
                 {
-                    AD6Index = AD;
-                    
-                    if(NADs != MaxDetectors)//6AD analysis
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
                     {
-                        if(AD==3||AD==(MaxDetectors-1))
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
                         {
-                            continue;//6AD analysis doesn't use AD4, AD8 info
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
                         }
-                        if(AD>3)
-                        {
-                            AD6Index = AD-1;//Correct index
-                        }
+                        
+                        nHCaptureFraction[VolumeIndex]=readvals[AD];
                     }
-                    
-                    m_detectorGlobalEfficiency[VolumeIndex]=readvals[AD];
                 }
-            }
-            //row 8 -->Detector Global Efficiency error
-            if(row==8)
-            {
-                for(Int_t AD=0;AD<MaxDetectors;AD++)
+                //row 7 -->Detector Global Efficiency (Efficiency of Prompt energy, Delayed energy, time, distance
+                if(row==7)
                 {
-                    AD6Index = AD;
-                    
-                    if(NADs != MaxDetectors)//6AD analysis
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
                     {
-                        if(AD==3||AD==(MaxDetectors-1))
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
                         {
-                            continue;//6AD analysis doesn't use AD4, AD8 info
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
                         }
-                        if(AD>3)
-                        {
-                            AD6Index = AD-1;//Correct index
-                        }
+                        
+                        m_detectorGlobalEfficiency[VolumeIndex]=readvals[AD];
                     }
-                    
-                    DetectorEfficiencyRelativeError=readvals[AD]/100;//given in %
                 }
-            }
-            //-->bg events
-            if(row==9)
-            {
-                //                for(Int_t AD=0;AD<NADs;AD++)
-                //                {
-                //                    BgEvts[AD+(week-1)*MaxDetectors]=readvals[AD];
-                //                    BgEvts[AD+(week-1)*MaxDetectors]*=MultiEff[AD+(week-1)*MaxDetectors]*MuonEff[AD+(week-1)*MaxDetectors];
-                //                }
-            }
-            //-->acc bg
-            if(row==10)
-            {
-                for(Int_t AD=0;AD<NADs;AD++)
+                //row 8 -->Detector Global Efficiency error
+                if(row==8)
                 {
-                    AccidentalRate[AD+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD];
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
+                    {
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
+                        {
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
+                        }
+                        
+                        DetectorEfficiencyRelativeError=readvals[AD]/100;//given in %
+                    }
                 }
-            }
-            if(row==11)
-            {
-                for(Int_t AD=0;AD<NADs;AD++)
+                //-->bg events
+                if(row==9)
                 {
-                    AccidentalError[AD+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD];
+                    //                for(Int_t AD=0;AD<NADs;AD++)
+                    //                {
+                    //                    BgEvts[AD+(week-1)*MaxDetectors]=readvals[AD];
+                    //                    BgEvts[AD+(week-1)*MaxDetectors]*=MultiEff[AD+(week-1)*MaxDetectors]*MuonEff[AD+(week-1)*MaxDetectors];
+                    //                }
                 }
-            }
-            //-->fast-n bg
-            if(row==12)
-            {
-                for(Int_t AD=0;AD<NADs;AD++)
+                //-->acc bg
+                if(row==10)
                 {
-                    FastNeutronRate[AD+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD];
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
+                    {
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
+                        {
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
+                        }
+                        
+                        AccidentalEvents[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD]*FullTime[AD6Index+(week-1)*MaxDetectors];
+                    }
                 }
-            }
-            if(row==13)
-            {
-                for(Int_t AD=0;AD<NADs;AD++)
+                if(row==11)
                 {
-                    FastNeutronError[AD+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD];
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
+                    {
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
+                        {
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
+                        }
+                        
+                        AccidentalError[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD]*FullTime[AD6Index+(week-1)*MaxDetectors];
+                    }
                 }
-            }
-            //-->li9 bg
-            if(row==14)
-            {
-                for(Int_t AD=0;AD<NADs;AD++)
+                //-->fast-n bg
+                if(row==12)
                 {
-                    LiHeRate[AD+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD];
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
+                    {
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
+                        {
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
+                        }
+                        
+                        FastNeutronEvents[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD]*FullTime[AD6Index+(week-1)*MaxDetectors];
+                    }
                 }
-            }
-            if(row==15)
-            {
-                for(Int_t AD=0;AD<NADs;AD++)
+                if(row==13)
                 {
-                    LiHeError[AD+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD];
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
+                    {
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
+                        {
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
+                        }
+                        
+                        FastNeutronError[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD]*FullTime[AD6Index+(week-1)*MaxDetectors];
+                    }
                 }
-            }
-            //-->amc bg
-            if(row==16)
-            {
-                for(Int_t AD=0;AD<NADs;AD++)
+                //-->li9 bg
+                if(row==14)
                 {
-                    AmCRate[AD+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD];
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
+                    {
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
+                        {
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
+                        }
+                        
+                        LiHeEvents[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD]*FullTime[AD6Index+(week-1)*MaxDetectors];
+                    }
                 }
-            }
-            if(row==17)
-            {
-                for(Int_t AD=0;AD<NADs;AD++)
+                if(row==15)
                 {
-                    AmCError[AD+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD];
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
+                    {
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
+                        {
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
+                        }
+                        
+                        LiHeError[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD]*FullTime[AD6Index+(week-1)*MaxDetectors];
+                    }
+                }
+                //-->amc bg
+                if(row==16)
+                {
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
+                    {
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
+                        {
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
+                        }
+                        
+                        AmCEvents[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD]*FullTime[AD6Index+(week-1)*MaxDetectors];
+                    }
+                }
+                if(row==17)
+                {
+                    for(Int_t AD=0;AD<MaxDetectors;AD++)
+                    {
+                        AD6Index = AD;
+                        
+                        if(NADs != MaxDetectors)//6AD analysis
+                        {
+                            if(AD==3||AD==(MaxDetectors-1))
+                            {
+                                continue;//6AD analysis doesn't use AD4, AD8 info
+                            }
+                            if(AD>3)
+                            {
+                                AD6Index = AD-1;//Correct index
+                            }
+                        }
+                        
+                        AmCError[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]=readvals[AD]*FullTime[AD6Index+(week-1)*MaxDetectors];
+                    }
                 }
             }
+            linenum++;//only lines >2
         }
-        linenum++;//only lines >2
     }
     
-    //Uncorrect Backgrounds:
-    
-    for(Int_t AD=0;AD<MaxDetectors;AD++)
+    CorrectnHEvents();
+}
+
+void NominalData :: CorrectnHEvents()
+{
+    if(NReactorPeriods>1&&Nweeks!=NReactorPeriods)//If the data file is not inclusive, or the fit is not weekly, generate inclusive data from weekly data.
     {
-        AccidentalRate[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods] = AccidentalRate[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]/(FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]);
-       
-        AccidentalError[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods] = AccidentalError[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]/(FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]);
+
+        for(Int_t AD=0;AD<NADs;AD++)
+        {
+            for(Int_t week = 0; week<NReactorPeriods; week++)
+            {
+                for(Int_t idx=0; idx<VolumeX; idx++)
+                {
+                    for(Int_t idy=0; idy<VolumeY; idy++)
+                    {
+                        Int_t IndexVariant = AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods;
+                        Int_t IndexConstant = AD+week*MaxDetectors;
+                        Double_t correction_factor = (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0,idx);
+                       
+                        if(correction_factor==0)
+                        {
+                            correction_factor = 1; //We will multiply by zero in the GetnHInclusiveData method, so it should make a difference, but this way we avoid NaNs.
+                        }
+                        
+                        IBDEvents[IndexVariant] = (ObservedEvents[IndexVariant]-(AccidentalEvents[IndexVariant]+LiHeEvents[IndexVariant]+FastNeutronEvents[IndexVariant]+AmCEvents[IndexVariant]));//Apply background  suppression for events with AD effects, then correct AD effects and scale to days
+                        
+                        IBDEvents[IndexVariant] = IBDEvents[IndexVariant]/correction_factor;
+                        
+                        ObservedEvents[IndexVariant] = ObservedEvents[IndexVariant]/correction_factor;
+                        
+                        StatisticalError[IndexVariant] = StatisticalError[IndexVariant]/correction_factor;
+                        
+                        AccidentalEvents[IndexVariant] = AccidentalEvents[IndexVariant]/correction_factor;
+                        AccidentalError[IndexVariant] = AccidentalError[IndexVariant]/correction_factor;
+                        LiHeEvents[IndexVariant] = LiHeEvents[IndexVariant]/correction_factor;
+                        LiHeError[IndexVariant] = LiHeError[IndexVariant]/correction_factor;
+                        FastNeutronEvents[IndexVariant] = FastNeutronEvents[IndexVariant]/correction_factor;
+                        FastNeutronError[IndexVariant] = FastNeutronError[IndexVariant]/correction_factor;
+                        AmCEvents[IndexVariant] = AmCEvents[IndexVariant]/correction_factor;
+                        AmCError[IndexVariant] = AmCError[IndexVariant]/correction_factor;
+                        
+//                        std::cout << "? " << ObservedEvents[IndexVariant] << " = " << ObservedEvents[IndexVariant]/correction_factor << std::endl;
+                        
+                    }
+                }
+            }
+        }
         
-        FastNeutronRate[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods] = FastNeutronRate[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]/(FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]);
-
-        FastNeutronError[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods] = FastNeutronError[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]/(FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]);
-
-        LiHeRate[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods] = LiHeRate[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]/(FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]);
-
-        LiHeError[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods] = LiHeError[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]/(FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]);
-
-        AmCRate[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods] = AmCRate[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]/(FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]);
+        GetnHInclusiveData(StatisticalError,1);
+        GetnHInclusiveData(IBDEvents,0);
+        GetnHInclusiveData(ObservedEvents,0);
+        GetnHInclusiveData(AccidentalEvents,0);
+        GetnHInclusiveData(AccidentalError,1);
+        GetnHInclusiveData(LiHeEvents,0);
+        GetnHInclusiveData(LiHeError,1);
+        GetnHInclusiveData(FastNeutronEvents,0);
+        GetnHInclusiveData(FastNeutronError,1);
+        GetnHInclusiveData(AmCEvents,0);
+        GetnHInclusiveData(AmCError,1);
         
-        AmCError[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods] = AmCError[AD+week*MaxDetectors+VolumeIndex*MaxDetectors*NReactorPeriods]/(FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]);
+        for(Int_t AD=0;AD<NADs;AD++)
+        {
+            for(Int_t idx=0; idx<VolumeX; idx++)
+            {
+                for(Int_t idy=0; idy<VolumeY; idy++)
+                {
+                    Int_t IndexInclusive = AD+idx*MaxDetectors*NReactorPeriods;
+                    //To make sure the inclusive data has changed
+                    
+                    std::cout << "Inclusive observed events AD: " << AD << " is : " << ObservedEvents[IndexInclusive] << " in " << idx << std::endl;
+                    
+                    std::cout << "Inclusive IBD events AD: " << AD << " is : " << IBDEvents[IndexInclusive] << " in " << idx << std::endl;
+
+                    std::cout << "Inclusive BKGD events AD: " << AD << " is : " << AccidentalEvents[IndexInclusive] << AccidentalEvents[IndexInclusive] << " + " << LiHeEvents[IndexInclusive] << " + " << FastNeutronEvents[IndexInclusive] << " + " << AmCEvents[IndexInclusive] << " = " << (AccidentalEvents[IndexInclusive]+LiHeEvents[IndexInclusive]+FastNeutronEvents[IndexInclusive]+AmCEvents[IndexInclusive]) << " in " << idx << std::endl;
+
+                    std::cout <<  ObservedEvents[IndexInclusive] <<  " = " << IBDEvents[IndexInclusive]  + (AccidentalEvents[IndexInclusive]+LiHeEvents[IndexInclusive]+FastNeutronEvents[IndexInclusive]+AmCEvents[IndexInclusive]) << std::endl;
+                    
+                    for(Int_t week = 0; week<NReactorPeriods; week++)
+                    {
+                        Int_t IndexWeekly = AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods;
+                        Int_t IndexConstant = AD+week*MaxDetectors;
+
+                        std::cout << " Weekly observed events AD: " << AD << " is : " << ObservedEvents[IndexWeekly] << " for week : " << week << " scaled " << (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0, idx) << std::endl;
+                    }
+                }
+            }
+        }
+        
+        GetInclusiveEfficiencies(MultiEff);
+        GetInclusiveEfficiencies(MuonEff);
+        GetInclusiveFullTime(FullTime);
     }
 }
 
@@ -2975,10 +3246,12 @@ void NominalData :: SetAllRandomSystematics(bool set)
         AbsoluteEnergyScaleMatrix= 1;
         RelativeEnergyScaleMatrix= 1;
         IAVMatrix= 1;
+        OAVMatrix= 1;
         NLMatrix= 1;
         ResolutionMatrix= 1;
         Sin22t12Matrix= 1;
         EfficiencyMatrix= 1;
+        AllDetectorSystematicsMatrix= 1;
     }
     else
     {
@@ -2998,10 +3271,12 @@ void NominalData :: SetAllRandomSystematics(bool set)
         AbsoluteEnergyScaleMatrix= 0;
         RelativeEnergyScaleMatrix= 0;
         IAVMatrix= 0;
+        OAVMatrix = 0;
         NLMatrix= 0;
         ResolutionMatrix= 0;
         Sin22t12Matrix= 0;
         EfficiencyMatrix= 0;
+        AllDetectorSystematicsMatrix= 0;
     }
 }
 
@@ -3226,25 +3501,6 @@ Int_t NominalData :: GetVisibleBins()
     return n_evis_bins;
 }
 
-void NominalData :: LoadnHEfficiencyMaps()
-{
-    std::cout << " Loading nH Efficiency Maps for the following periods: " <<  NReactorPeriods << std::endl;
-    
-    //This file should have efficiencies taken from data for each week/ad/cell
-//    TFile *roofile_h2d_ep_ratio2center = new TFile("./Inputs/HInputs/Data/cell_eff/h2d_ep_ratio2center.root", "read");
-//    
-//    for(Int_t week = 0; week<NReactorPeriods; week++)
-//    {
-//        for(Int_t AD = 0; AD<NADs; AD++)
-//        {
-//            h2d_Ep_ratio2center[AD+NADs*week] = (TH2D*)roofile_h2d_ep_ratio2center->Get("h2d_ep_ratio2center");
-//        }
-//    }
-//    delete roofile_h2d_ep_ratio2center;
-    
-//delete_nH_maps_flag = 1;
-}
-
 void NominalData :: ReadToyEventsByCell()//Included in nHToyMC.h right now
 {
     std::string line;
@@ -3255,6 +3511,10 @@ void NominalData :: ReadToyEventsByCell()//Included in nHToyMC.h right now
     if(IAVMatrix)
     {
         SystematicS = "IAV";
+    }
+    else if(OAVMatrix)
+    {
+        SystematicS = "OAV";
     }
     else if(NLMatrix)
     {
@@ -3271,6 +3531,10 @@ void NominalData :: ReadToyEventsByCell()//Included in nHToyMC.h right now
     else if(EfficiencyMatrix)
     {
         SystematicS = "Efficiency";
+    }
+    else if(AllDetectorSystematicsMatrix)
+    {
+        SystematicS = "AllDetectorSystematics";
     }
     else
     {
@@ -3400,4 +3664,264 @@ void NominalData :: ReadToyEventsByCell()//Included in nHToyMC.h right now
 Double_t NominalData :: GetEventsByCell(Int_t AD,Int_t idx, Int_t idy)
 {
     return PercentualEvents[AD+NADs*idx+NADs*VolumeX*idy];
+}
+
+//                if (FirstMakeSuperPrediction){
+//                    sprintf(dummyname,"CombCorrEvtsSpec_%i",idet);
+//                    CombCorrEvtsSpec[idet] = (TH1F*)tdper[0].CorrEvtsSpec[idet]->Clone(dummyname);
+//                    sprintf(dummyname,"CombCorrBgEvtsSpec_%i",idet);
+//                    CombCorrBgEvtsSpec[idet] = (TH1F*)tdper[0].CorrBgEvtsSpec[idet]->Clone(dummyname);
+//                    //note: do not set FirstMakeSuperPrediction to false as that is done below
+//                }
+//                CombCorrEvtsSpec[idet]->Reset();
+//                CombCorrBgEvtsSpec[idet]->Reset();
+//
+//                for(int ii=0;ii<Nperiods;++ii){
+//                    float factor=tdper[ii].MuonVetoEff[idet]
+//                    *tdper[ii].DMCEff[idet]
+//                    *tdper[ii].Livetime[idet]
+//                    *tdper[ii].TargetMass[idet]/tdper[ii].TargetMass[0];
+//
+//                    weightedsum+=tdper[ii].CorrEvts[idet]*factor;
+//                    livsum+=factor;
+//                    weightederr+=pow(tdper[ii].ErrEvts[idet]*factor,2);
+//                    weightedbg+=tdper[ii].CorrBgEvts[idet]*factor;
+//
+//                    CombCorrEvtsSpec[idet]->Add(tdper[ii].CorrEvtsSpec[idet],factor);
+//                    CombCorrBgEvtsSpec[idet]->Add(tdper[ii].CorrBgEvtsSpec[idet],factor);
+//
+//                    // weightedsum+=tdper[ii].CorrEvts[idet]*tdper[ii].Livetime[idet];
+//                    // livsum+=tdper[ii].Livetime[idet];
+//                    // weightederr+=pow(tdper[ii].ErrEvts[idet]*tdper[ii].Livetime[idet],2);
+//                    // weightedbg+=tdper[ii].CorrBgEvts[idet]*tdper[ii].Livetime[idet];
+//
+//                    // CombCorrEvtsSpec[idet]->Add(tdper[ii].CorrEvtsSpec[idet],tdper[ii].Livetime[idet]);
+//
+//                }
+//                CombLivetime[idet]=livsum;
+//                CombCorrEvts[idet]=weightedsum*1./livsum;
+//                CombErrEvts[idet]=sqrt(weightederr)*1./livsum;
+//                CombCorrBgEvts[idet]=weightedbg*1./livsum;
+//                CombCorrEvtsSpec[idet]->Scale(1./livsum);
+//                CombCorrBgEvtsSpec[idet]->Scale(1./livsum);
+
+void NominalData :: GetnHInclusiveData(Double_t* InclusiveData, bool ErrorMode)
+{
+    //Weight weekly rates to get a inclusive rate to use in the fitter
+    Double_t WeeklyData[NReactorPeriods*MaxDetectors*VolumeX*VolumeY];
+    
+    for(Int_t AD=0;AD<NADs;AD++)
+    {
+        for(Int_t week=0;week<NReactorPeriods;week++)
+        {
+            for(Int_t idx=0; idx<VolumeX; idx++)
+            {
+                for(Int_t idy=0; idy<VolumeY; idy++)
+                {
+                    WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods] = InclusiveData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods];
+                    
+                    InclusiveData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods] = 0;
+                }
+            }
+        }
+    }
+
+    for(Int_t AD=0;AD<NADs;AD++)
+    {
+        for(Int_t idx=0; idx<VolumeX; idx++)
+        {
+            for(Int_t idy=0; idy<VolumeY; idy++)
+            {
+                Double_t scalesum=0;
+
+                for(Int_t week=0;week<NReactorPeriods;week++)
+                {
+                    Double_t scale = FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]*GetDetectorProtons(AD,idx)/GetDetectorProtons(0,idx);
+                 
+//                    if(week==0)
+//                    {
+//                        std:: cout << FullTime[AD+week*MaxDetectors] << " " << MuonEff[AD+week*MaxDetectors] << " " << MultiEff[AD+week*MaxDetectors]  << " Volume " << idx << " This should be different for volumes 0,1 : " << GetDetectorProtons(AD,idx) << " " << GetDetectorProtons(0,idx) << std::endl;
+//                        std::cout<< " WEEK " << week << " SCALE: " << scale << " IDX, AD " << idx << AD << std::endl;
+//                    }
+                    
+                    WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]*=scale;//At this point The background and observed data rates/errors already have been corected for the muon and multiplicity efficiencies, also for livetime and protons.
+                    
+                    if(NReactorPeriods==Nweeks)//The data and the fit periods are the same, this can be use to fit inclusive data or fit the data weekly (studies of theta13/deltam fit depending on the weekly variations)
+                    {
+                        InclusiveData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods] = WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods];
+                    }
+                    else
+                    {
+                        scalesum+=scale;
+                        
+                        if(ErrorMode)
+                        {
+                            InclusiveData[AD+idx*MaxDetectors*NReactorPeriods]+=pow(WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods],2);
+                        }
+                        else
+                        {
+                            InclusiveData[AD+idx*MaxDetectors*NReactorPeriods]+=WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods];
+                        }
+                    }
+                    
+                    if(scale!=0)
+                    {
+                    WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods]*=1./scale;//Return the vector to its original state
+                    }
+                }
+                
+                if(scalesum==0)
+                {
+                    InclusiveData[AD+idx*MaxDetectors*NReactorPeriods]*=0;
+                    std::cout << " WEEKLY DATA IS EMPTY, FILE NOT READ? " << std::endl;
+                    
+                    exit(EXIT_FAILURE);
+                }
+                else
+                {
+                    if(ErrorMode)
+                    {
+                        InclusiveData[AD+idx*MaxDetectors*NReactorPeriods]=sqrt(InclusiveData[AD+idx*MaxDetectors*NReactorPeriods])*1./scalesum;
+                    }
+                    else
+                    {
+                        InclusiveData[AD+idx*MaxDetectors*NReactorPeriods]*=1./scalesum;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void NominalData :: GetnGdInclusiveData(Double_t* InclusiveData, bool ErrorMode)
+{
+    //Weight weekly rates to get a inclusive rate to use in the fitter
+    Double_t WeeklyData[NReactorPeriods*MaxDetectors*VolumeX*VolumeY];
+    
+    for(Int_t AD=0;AD<NADs;AD++)
+    {
+        for(Int_t week=0;week<NReactorPeriods;week++)
+        {
+            for(Int_t idx=0; idx<VolumeX; idx++)
+            {
+                for(Int_t idy=0; idy<VolumeY; idy++)
+                {
+                    WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods] = InclusiveData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods];
+                    
+                    InclusiveData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods] = 0;
+                }
+            }
+        }
+    }
+
+    //Weight weekly rates to get a inclusive rate to use in the fitter
+    
+    for(Int_t AD=0;AD<NADs;AD++)
+    {
+        Double_t scalesum=0;
+        
+        for(Int_t week=0;week<NReactorPeriods;week++)
+        {
+            Double_t scale = FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]*GetDetectorProtons(AD,0)/GetDetectorProtons(0,0);
+
+            if(NReactorPeriods==Nweeks)//The data and the fit periods are the same, this can be use to fit inclusive data or fit the data weekly (studies of theta13/deltam fit depending on the weekly variations)
+            {
+                InclusiveData[AD+week*MaxDetectors] = WeeklyData[AD+week*MaxDetectors]*scale;
+            }
+            else
+            {
+                scalesum+=scale;
+                
+                WeeklyData[AD+week*MaxDetectors]*=FullTime[AD+week*MaxDetectors]*GetDetectorProtons(AD,0)/GetDetectorProtons(0,0);//The background and observed data rates already include the muon and multiplicity efficiencies, here include livetime and protons.
+                
+                if(ErrorMode)
+                {
+                    InclusiveData[AD]+=pow(WeeklyData[AD+week*MaxDetectors],2);
+                }
+                else
+                {
+                    InclusiveData[AD]+=WeeklyData[AD+week*MaxDetectors];
+                }
+            }
+        }
+        
+        if(scalesum==0)
+        {
+            InclusiveData[AD]*=0;
+            std::cout << " WEEKLY DATA IS EMPTY, FILE NOT READ? " << std::endl;
+            
+            exit(EXIT_FAILURE);
+        }
+        else
+        {
+            if(ErrorMode)
+            {
+                InclusiveData[AD]=sqrt(InclusiveData[AD])*1./scalesum;
+            }
+            else
+            {
+                InclusiveData[AD]*=1./scalesum;
+            }
+        }
+    }
+}
+
+void NominalData:: GetInclusiveEfficiencies(Double_t* InclusiveData)
+{
+    
+    Double_t WeeklyData[MaxDetectors*NReactorPeriods];
+    
+    for(Int_t AD=0;AD<NADs;AD++)
+    {
+        for(Int_t week=0;week<NReactorPeriods;week++)
+        {
+            WeeklyData[AD+week*MaxDetectors] = InclusiveData[AD+week*MaxDetectors];
+        }
+    }
+    
+    for(Int_t AD=0;AD<NADs;AD++)
+    {
+        Double_t ScaleSum = 0;
+
+        InclusiveData[AD] = 0;
+
+        for(Int_t week=0;week<NReactorPeriods;week++)
+        {
+            ScaleSum += FullTime[AD+week*MaxDetectors];
+
+            if(WeeklyData[AD+week*MaxDetectors]!=0)
+            {
+                InclusiveData[AD] += WeeklyData[AD+week*MaxDetectors]*FullTime[AD+week*MaxDetectors];
+            }
+        }
+        
+        InclusiveData[AD]*=1./ScaleSum;
+        
+        std::cout << " TOTAL EFFICIENCY AD " << AD << " IS : " << InclusiveData[AD] << std::endl;
+    }
+}
+
+void NominalData:: GetInclusiveFullTime(Double_t* InclusiveData)
+{
+    Double_t WeeklyData[MaxDetectors*NReactorPeriods];
+    
+    for(Int_t AD=0;AD<NADs;AD++)
+    {
+        for(Int_t week=0;week<NReactorPeriods;week++)
+        {
+            WeeklyData[AD+week*MaxDetectors] = InclusiveData[AD+week*MaxDetectors];
+        }
+    }
+    
+    for(Int_t AD=0;AD<NADs;AD++)
+    {
+        InclusiveData[AD] = 0;
+        
+        for(Int_t week=0;week<NReactorPeriods;week++)
+        {
+            InclusiveData[AD] += WeeklyData[AD+week*MaxDetectors];//Total fulltimes are additive
+        }
+        
+        std::cout << " TOTAL FULL TIME AD " << AD << " IS : " << InclusiveData[AD] << std::endl;
+    }
 }

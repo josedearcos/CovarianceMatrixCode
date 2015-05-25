@@ -182,6 +182,7 @@ private:
     Int_t NSamples;
     Int_t CombineMode;
     Int_t NFits;
+    Int_t NCovarianceMatrices;
     bool Analysis;
     bool flagCombine;
     bool flagNear;

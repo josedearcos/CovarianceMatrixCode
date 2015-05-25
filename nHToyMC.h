@@ -33,11 +33,11 @@ const double ZreflectorTop = 2104.5;  // position of top reflector ESR [mm]
 const double ZreflectorBottom = -2027.45;  // position of bottom reflector ESR [mm]
 
 //Uncomment to turn on OAV uncertainty:
-//const double deltaRoav = 8.0;  // +-8.0 mm variation in diameter within ADs 1 & 2
-//const double deltaZoav = 3.0;  // +-3.0 mm discrepancy between specification and measurement of ADs 1 & 2
+const double UncertaintyDeltaRoav = 8.0;  // +-8.0 mm variation in diameter within ADs 1 & 2
+const double UncertaintyDeltaZoav = 3.0;  // +-3.0 mm discrepancy between specification and measurement of ADs 1 & 2
 
-const double deltaRoav = 0;  // +-8.0 mm variation in diameter within ADs 1 & 2
-const double deltaZoav = 0;  // +-3.0 mm discrepancy between specification and measurement of ADs 1 & 2
+//const double deltaRoav = 0;  // +-8.0 mm variation in diameter within ADs 1 & 2
+//const double deltaZoav = 0;  // +-3.0 mm discrepancy between specification and measurement of ADs 1 & 2
 
 //#ifdef SpecialCuts  /// Time cuts are not currently applied.
 //    const double EpromptCutLow=0.0, EpromptCutHigh=12.0, EdelayCutLow=0.0, EdelayCutHigh=3.3;// 1.5, 12.0, 1.5, 3.3
@@ -88,7 +88,9 @@ TString roostr;
 
 //const Int_t unified_nl_pars = 4;//Number of curves used in the NL error calculation
 const Int_t unified_nl_pars = 1;//After the last nl-update, not using marginal curves, instead 1 sigma band
-const Int_t NSystematic = 6;//IAV, Reso, Relative Energy Scale, NL, Efficiency(If only global eff this is not applied here actually) + Nominal + AllSystematics
+const Int_t InitialSystematic = 2;// Normally 0 to run all the systematics, otherwise select initial and final by changing NSystematic
+const Int_t NSystematic = 3;//Nominal,IAV, OAV, NL, Reso, Relative Energy Scale, AllSystematics
+//Efficiency(If only global eff this is not applied here actually), if a difference between Data-ToyMC efficiency map is substantial we could apply a gaussian efficiency variation per cell.
 
 class nHToyMC
 {
@@ -104,11 +106,14 @@ private:
 //    TH1D *hEp_cl[MaxColumnNum];
 //    TH1D *hEd_cl[MaxColumnNum];
     
-    Double_t GausRelative,GausIAV,GausReso,GausResoCorr;
+    Double_t GausRelative,GausIAV,GausReso,GausResoCorr,GausOAV;
 //    Double_t GausEff;
     Double_t GausNL[unified_nl_pars];
     Double_t ResolutionError,ResolutionErrorUncorrelated;
     
+    Double_t deltaRoav;  // +-8.0 mm variation in diameter within ADs 1 & 2
+    Double_t deltaZoav;  // +-3.0 mm discrepancy between specification and measurement of ADs 1 & 2
+
     //Binning parameters:
     Double_t InitialEnergy;
     Double_t FinalEnergy;
@@ -125,6 +130,7 @@ private:
     //Systematic parameters;
     bool RelativeEnergyScaleMatrix;
     bool IAVMatrix;
+    bool OAVMatrix;
     bool NLMatrix;
     bool ResolutionMatrix;
 //    bool EfficiencyMatrix;
@@ -225,13 +231,14 @@ nHToyMC :: nHToyMC(NominalData* Data)
     }
     
     //Systematic matrix selection:
-    RelativeEnergyScaleMatrix = Data->GetRelativeEnergyScaleMatrix();
-    //    RelativeEnergyOffsetMatrix = Data->GetRelativeEnergyOffsetMatrix();
-    //    AbsoluteEnergyScaleMatrix = Data->GetAbsoluteEnergyScaleMatrix();
-    //    AbsoluteEnergyOffsetMatrix = Data->GetAbsoluteEnergyOffsetMatrix();
-    IAVMatrix = Data->GetIAVMatrix();
-    NLMatrix = Data->GetNLMatrix();
-    ResolutionMatrix = Data->GetResolutionMatrix();
+//    RelativeEnergyScaleMatrix = Data->GetRelativeEnergyScaleMatrix();
+//    //    RelativeEnergyOffsetMatrix = Data->GetRelativeEnergyOffsetMatrix();
+//    //    AbsoluteEnergyScaleMatrix = Data->GetAbsoluteEnergyScaleMatrix();
+//    //    AbsoluteEnergyOffsetMatrix = Data->GetAbsoluteEnergyOffsetMatrix();
+//    IAVMatrix = Data->GetIAVMatrix();
+//    OAVMatrix = Data->GetOAVMatrix();
+//    NLMatrix = Data->GetNLMatrix();
+//    ResolutionMatrix = Data->GetResolutionMatrix();
 //    EfficiencyMatrix = Data->GetEfficiencyMatrix();
     
     //Errors in parameters:
@@ -242,7 +249,7 @@ nHToyMC :: nHToyMC(NominalData* Data)
     
     for(Int_t AD = 0; AD < NADs; AD++)
     {
-        for(Int_t Systematic = 0; Systematic<NSystematic;Systematic++)
+        for(Int_t Systematic = InitialSystematic; Systematic<NSystematic;Systematic++)
         {
             for(int idx=0; idx<VolumeX; idx++)
             {
@@ -269,7 +276,7 @@ nHToyMC :: nHToyMC(NominalData* Data)
 
 nHToyMC :: ~nHToyMC()
 {
-    for(Int_t Systematic = 0; Systematic<NSystematic;Systematic++)
+    for(Int_t Systematic = InitialSystematic; Systematic<NSystematic;Systematic++)
     {
         for(Int_t AD = 0; AD < NADs; AD++)
         {
@@ -1253,10 +1260,11 @@ void nHToyMC :: Toy()
     VolumeYbin = 1;
     
     //Process tree
-    for(Int_t Systematic = 0; Systematic<NSystematic;Systematic++)
+    for(Int_t Systematic = InitialSystematic; Systematic<NSystematic;Systematic++)
     {
         RelativeEnergyScaleMatrix = 0;
         IAVMatrix = 0;
+        OAVMatrix = 0;
         NLMatrix = 0;
         ResolutionMatrix = 0;
         //                EfficiencyMatrix = 0;
@@ -1272,18 +1280,22 @@ void nHToyMC :: Toy()
                 //std::cout << " IAV Matrix " << std::endl;
                 break;
             case 2:
+                OAVMatrix = 1;
+                //std::cout << " IAV Matrix " << std::endl;
+                break;
+            case 3:
                 NLMatrix = 1;
                 //std::cout << " NL Matrix " << std::endl;
                 break;
-            case 3:
+            case 4:
                 ResolutionMatrix = 1;
                 //std::cout << " Reso Matrix " << std::endl;
                 break;
-            case 4:
+            case 5:
                 RelativeEnergyScaleMatrix = 1;
                 //std::cout << " RelativeEnergyScale Matrix " << std::endl;
                 break;
-            case 5:
+            case 6:
                 AllMatrix = 1;
                 //std::cout << " All Detector Systematics Matrix " << std::endl;
                 break;
@@ -1342,6 +1354,7 @@ void nHToyMC :: Toy()
                 
                 GausRelative = 0;
                 GausIAV= 0;
+                GausOAV = 0;
                 
                 for (Int_t ierr = 0; ierr < unified_nl_pars; ierr++)
                 {
@@ -1358,6 +1371,10 @@ void nHToyMC :: Toy()
                 else if(IAVMatrix)
                 {
                     GausIAV = RandomSysUncorr->Gaus(0,1);
+                }
+                else if(OAVMatrix)
+                {
+                    GausOAV = RandomSysUncorr->Gaus(0,1);;
                 }
                 else if(NLMatrix)
                 {
@@ -1381,6 +1398,8 @@ void nHToyMC :: Toy()
                     
                     GausIAV = RandomSysUncorr->Gaus(0,1);
                     
+                    GausOAV =  RandomSysUncorr->Gaus(0,1);
+                    
                     for (Int_t ierr = 0; ierr < unified_nl_pars; ierr++)
                     {
                         GausNL[ierr] = RandomSysUncorr->Gaus(0,1);
@@ -1400,6 +1419,8 @@ void nHToyMC :: Toy()
                 {
                     std::cout << "IAV uncorrelated should be the different for different ads and same event: " << GausIAV << "ad: " << AD << " - event: " << ientry <<  std::endl;
                     
+                    std::cout << "OAV uncorrelated should be the different for different ads and same event: " << GausOAV << "ad: " << AD << " - event: " << ientry <<  std::endl;
+
                     std::cout << "gaus reso correlated should be the same for different ads and same event: " << GausResoCorr << "ad: " << AD << " - event: " << ientry <<  std::endl;
                     std::cout << "gaus reso uncorrelated should be different for different ads and same event" << GausReso << "ad: " << AD << " - event: " << ientry <<  std::endl;
                     
@@ -1817,6 +1838,9 @@ void nHToyMC :: Toy()
                     if( distPD>distCut ) continue;
                 }
                 
+                deltaRoav = (0 + GausOAV*UncertaintyDeltaRoav);
+                deltaZoav = (0 + GausOAV*UncertaintyDeltaZoav);
+
                 // cut events due to variation in OAV dimensions
                 if( deltaRoav<0 && sqrt(X_P*X_P+Y_P*Y_P)<-deltaRoav ) continue;
                 if( deltaRoav>0 && sqrt(X_P*X_P+Y_P*Y_P)>Rshield-deltaRoav ) continue;
@@ -1903,457 +1927,466 @@ void nHToyMC :: Toy()
                 }
             }//AD
 #ifdef SaveTree
-            toy->Fill();
+            if(Systematic==0)
+            {
+                toy->Fill();//Save only nominal tree
+            }
 #endif
         }//Events
         
-    }//Systematics
-    
-    
-    delete h2d_Ep_ratio2center;
-    delete h2d_Ed_ratio2center;
-    
-    //Save event ratios:
-    
-    for(Int_t Systematic = 0; Systematic<NSystematic;Systematic++)
-    {
-        RelativeEnergyScaleMatrix = 0;
-        IAVMatrix = 0;
-        NLMatrix = 0;
-        ResolutionMatrix = 0;
-        //EfficiencyMatrix = 0;
-        AllMatrix = 0;
         
-        switch (Systematic)
-        {
-            case 0:
-                SystematicS = "Nominal";
-                std::cout << " Nominal Matrix " << std::endl;
-                break;
-            case 1:
-                IAVMatrix = 1;
-                SystematicS = "IAV";
-                std::cout << " IAV Matrix " << std::endl;
-                break;
-            case 2:
-                SystematicS = "NL";
-                NLMatrix = 1;
-                std::cout << " NL Matrix " << std::endl;
-                break;
-            case 3:
-                ResolutionMatrix = 1;
-                SystematicS = "Resolution";
-                std::cout << " Reso Matrix " << std::endl;
-                break;
-            case 4:
-                RelativeEnergyScaleMatrix = 1;
-                SystematicS = "RelativeEnergyScale";
-                std::cout << " RelativeEnergyScale Matrix " << std::endl;
-                break;
-            case 5:
-                SystematicS = "AllSystematics";
-                AllMatrix = 1;
-                std::cout << " All Detector Systematics Matrix " << std::endl;
-                break;
-                //            case 6:
-                //                SystematicS = "Efficiency";
-                //                EfficiencyMatrix = 1;
-                //                std::cout << " Efficiency Matrix " << std::endl;
-                //                break;
-            default:
-                std::cout << " DEFAULT SHOULDN'T HAPPEN" << std::endl;
-                exit(EXIT_FAILURE);
-                break;
-        }
-        
+        //Save event ratios:
+
+            RelativeEnergyScaleMatrix = 0;
+            IAVMatrix = 0;
+            OAVMatrix = 0;
+            NLMatrix = 0;
+            ResolutionMatrix = 0;
+            //EfficiencyMatrix = 0;
+            AllMatrix = 0;
+            
+            switch (Systematic)
+            {
+                case 0:
+                    SystematicS = "Nominal";
+                    std::cout << " Nominal Matrix " << std::endl;
+                    break;
+                case 1:
+                    IAVMatrix = 1;
+                    SystematicS = "IAV";
+                    std::cout << " IAV Matrix " << std::endl;
+                    break;
+                case 2:
+                    OAVMatrix = 1;
+                    SystematicS = "OAV";
+                    std::cout << " OAV Matrix " << std::endl;
+                    break;
+                case 3:
+                    SystematicS = "NL";
+                    NLMatrix = 1;
+                    std::cout << " NL Matrix " << std::endl;
+                    break;
+                case 4:
+                    ResolutionMatrix = 1;
+                    SystematicS = "Resolution";
+                    std::cout << " Reso Matrix " << std::endl;
+                    break;
+                case 5:
+                    RelativeEnergyScaleMatrix = 1;
+                    SystematicS = "RelativeEnergyScale";
+                    std::cout << " RelativeEnergyScale Matrix " << std::endl;
+                    break;
+                case 6:
+                    SystematicS = "AllSystematics";
+                    AllMatrix = 1;
+                    std::cout << " All Detector Systematics Matrix " << std::endl;
+                    break;
+                    //            case 6:
+                    //                SystematicS = "Efficiency";
+                    //                EfficiencyMatrix = 1;
+                    //                std::cout << " Efficiency Matrix " << std::endl;
+                    //                break;
+                default:
+                    std::cout << " DEFAULT SHOULDN'T HAPPEN" << std::endl;
+                    exit(EXIT_FAILURE);
+                    break;
+            }
+            
 #ifndef EREC_COMPARISON
-        
-        //Save txt file in case we want to use it externally:
-        FILE *f = fopen(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str(), "w");
+            
+            //Save txt file in case we want to use it externally:
+            FILE *f = fopen(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str(), "w");
 #else
-        FILE *f = fopen(("./Inputs/HInputs/E_REC_"+SystematicS+"ToyMCEventRatio.txt").c_str(), "w");
-        
+            FILE *f = fopen(("./Inputs/HInputs/E_REC_"+SystematicS+"ToyMCEventRatio.txt").c_str(), "w");
+            
 #endif
-        if (f == NULL)
-        {
-            printf("Error opening file!\n");
-            exit(1);
-        }
-        
-        
-        for(Int_t AD = 0; AD<NADs; AD++)
-        {
-            fprintf(f, "#ToyEvents in each AD\n");
+            if (f == NULL)
+            {
+                printf("Error opening file!\n");
+                exit(1);
+            }
             
-            fprintf(f, "%d %f\n", AD, ADIntegralEvents[Systematic][AD]);
             
-            fprintf(f, "#Events in each cell for AD %d\n", AD);
+            for(Int_t AD = 0; AD<NADs; AD++)
+            {
+                fprintf(f, "#ToyEvents in each AD\n");
+                
+                fprintf(f, "%d %f\n", AD, ADIntegralEvents[Systematic][AD]);
+                
+                fprintf(f, "#Events in each cell for AD %d\n", AD);
+                
+                for(int idx=0; idx<VolumeX; idx++)
+                {
+                    for(int idy=0; idy<VolumeY; idy++)
+                    {
+                        fprintf(f, "%d %d %d %f\n", AD, idx, idy, IntegralEvents[Systematic][AD][idx][idy] );
+                    }
+                }
+            }
+            
+            fclose(f);
+            
+            //Draw it:
+#ifndef UseVolume
+            TH2D* MapEvents_ratio2center = new TH2D("MapEventsRatio2center","MapEventsRatio2center",VolumeX,VolumeX_lower,VolumeX_upper,VolumeY,VolumeY_lower,VolumeY_upper);
+            
+            for(Int_t AD = 0; AD<NADs; AD++)
+            {
+                for(Int_t idx = 0; idx<VolumeX; idx++)
+                {
+                    for(Int_t idy = 0; idy<VolumeY; idy++)
+                    {
+                        MapEvents_ratio2center->SetBinContent(idx+1,idy+1,IntegralEvents[Systematic][AD][idx][idy]/IntegralEvents[Systematic][AD][0][Int_t(VolumeY/2)]);
+                    }
+                }
+            }
+            
+            TCanvas* MapEventC = new TCanvas("MapEventRatio2Center","MapEventRatio2Center");
+            
+            MapEventC->cd(1);
+            
+            MapEvents_ratio2center->Draw("colz");
+            
+            MapEventC->Print(("./Images/Hydrogen/Detector/"+SystematicS+"MapEventRatio2Center.eps").c_str());
+            
+            delete MapEvents_ratio2center;
+            delete MapEventC;
+#endif
+            
+            TH2D* MapEvents_ratio2total = new TH2D("MapEventsRatio2total","MapEventsRatio2total",VolumeX,VolumeX_lower,VolumeX_upper,VolumeY,VolumeY_lower,VolumeY_upper);
+            
+            for(Int_t AD = 0; AD<NADs; AD++)
+            {
+                for(Int_t idx = 0; idx<VolumeX; idx++)
+                {
+                    for(Int_t idy = 0; idy<VolumeY; idy++)
+                    {
+                        PercentualEvents[Systematic][AD][idx][idy] = IntegralEvents[Systematic][AD][idx][idy]/ADIntegralEvents[Systematic][AD];
+                        
+                        MapEvents_ratio2total->SetBinContent(idx+1,idy+1,PercentualEvents[Systematic][AD][idx][idy]);
+                    }
+                }
+            }
+            
+            TCanvas* MapEventTotalC = new TCanvas("MapEventRatio2Total","MapEventRatio2Total");
+            
+            MapEventTotalC->cd(1);
+            
+            MapEvents_ratio2total->Draw("colz");
+            
+            MapEventTotalC->Print(("./Images/Hydrogen/Detector/"+SystematicS+"MapEventRatio2Total.eps").c_str());
+            
+            delete MapEventTotalC;
+            
+            TFile* SaveFile = new TFile("./Inputs/HInputs/MapEventRatio2Total.root","recreate");
+            {
+                MapEvents_ratio2total->Write();
+            }
+            
+            delete SaveFile;
+            
+            delete MapEvents_ratio2total;
+            
+            //        for(int idx=0; idx<MaxCellNum; idx++)
+            //        {
+            //            delete hEp_cc[idx];
+            //
+            //            delete hEd_cc[idx];
+            //
+            //            delete hEp_cc_clone[idx];
+            //
+            //            delete hEd_cc_clone[idx];
+            //        }
+            //        for(int idx=0; idx<MaxColumnNum; idx++)
+            //        {
+            //            delete hEp_cl[idx];
+            //
+            //            delete hEd_cl[idx];
+            //        }
+            
+            
+#ifdef PrintEps
+            TCanvas* NNFineMatrixC = new TCanvas("NNF","NNF");
+            NNFineMatrixC->Divide(NADs/2,2);
+            
+            TCanvas* NNMatrixC = new TCanvas("NNM","NNM");
+            NNMatrixC->Divide(NADs/2,2);
+            
+            TCanvas* NNTransC = new TCanvas("NNT","NNT");
+            NNTransC->Divide(NADs/2,2);
+            
+            TCanvas* NNFineTransC = new TCanvas("NNFT","NNFT");
+            NNFineTransC->Divide(NADs/2,2);
+            
+            for(Int_t i = 0; i<NADs;i++)
+            {
+                NNMatrixC->cd(i+1);
+                MatrixH[Systematic][i][0][0]->Draw("colz");
+                
+                NNFineMatrixC->cd(i+1);
+                HighResoMatrixH[Systematic][i][0][0]->Draw("colz");
+                
+                NNTransC->cd(i+1);
+                TransMatrixH[Systematic][i][0][0]->Draw("colz");
+                
+                NNFineTransC->cd(i+1);
+                HighResoTransMatrixH[Systematic][i][0][0]->Draw("colz");
+            }
+            
+            NNFineMatrixC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"NoNormFineHydrogenResponseMatrix.eps").c_str());
+            NNMatrixC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"NoNormHydrogenResponseMatrix.eps").c_str());
+            NNTransC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"NoNormTransposeHydrogenMatrix.eps").c_str());
+            NNFineTransC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"NoNormFineTransposeHydrogenMatrix.eps").c_str());
+            
+            delete NNMatrixC;
+            delete NNFineMatrixC;
+            delete NNTransC;
+            delete NNFineTransC;
+#endif
+            
+            Double_t Norma[n_etrue_bins];//true->vis
+            Double_t HighResoNorma[MatrixBins];//true->vis
+            Double_t NormaTrans[n_evis_bins];//vis->true
+            Double_t HighResoNormaTrans[MatrixBins];//vis->true
+            //Normalize the Matrix
+            for(int idx=0; idx<VolumeX; idx++)
+            {
+                for(int idy=0; idy<VolumeY; idy++)
+                {
+                    for(Int_t AD = 0; AD<NADs;AD++)
+                    {
+                        for(Int_t i=0;i<n_etrue_bins;i++)
+                        {
+                            Norma[i]=0;
+                            for(Int_t j=0;j<n_evis_bins;j++)
+                            {
+                                Norma[i] = Norma[i]+MatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1);// true->vis
+                            }
+                        }
+                        
+                        for(Int_t i=0;i<n_evis_bins;i++)
+                        {
+                            NormaTrans[i]=0;
+                            
+                            for(Int_t j=0;j<n_etrue_bins;j++)
+                            {
+                                NormaTrans[i] = NormaTrans[i]+TransMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1);// vis->true
+                            }
+                        }
+                        
+                        for (Int_t i = 0; i < n_etrue_bins; i++)
+                        {
+                            for (Int_t j = 0; j < n_evis_bins; j++)
+                            {
+                                if(Norma[i]!=0)
+                                {
+                                    MatrixH[Systematic][AD][idx][idy]->SetBinContent(i+1,j+1,MatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1)/Norma[i]);//true->vis
+                                }
+                            }
+                        }
+                        
+                        for (Int_t i = 0; i < n_evis_bins; i++)
+                        {
+                            for (Int_t j = 0; j < n_etrue_bins; j++)
+                            {
+                                if(NormaTrans[i]!=0)
+                                {
+                                    TransMatrixH[Systematic][AD][idx][idy]->SetBinContent(i+1,j+1,TransMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1)/NormaTrans[i]);
+                                }
+                                
+                            }
+                        }
+                        
+                        for(Int_t i=0;i<MatrixBins;i++)
+                        {
+                            HighResoNorma[i]=0;
+                            HighResoNormaTrans[i]=0;
+                            
+                            for(Int_t j=0;j<MatrixBins;j++)
+                            {
+                                HighResoNorma[i] = HighResoNorma[i]+HighResoMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1);// true->vis
+                                HighResoNormaTrans[i] = HighResoNormaTrans[i]+HighResoTransMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1);// vis->true
+                                
+                            }
+                        }
+                        
+                        for(Int_t i=0;i<MatrixBins;i++)
+                        {
+                            for(Int_t j=0;j<MatrixBins;j++)
+                            {
+                                if(HighResoNorma[i]!=0)
+                                {
+                                    HighResoMatrixH[Systematic][AD][idx][idy]->SetBinContent(i+1,j+1,HighResoMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1)/HighResoNorma[i]);//true->vis
+                                }
+                                
+                                if(HighResoNormaTrans[i]!=0)
+                                {
+                                    HighResoTransMatrixH[Systematic][AD][idx][idy]->SetBinContent(i+1,j+1,HighResoTransMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1)/HighResoNormaTrans[i]);
+                                }
+                            }
+                        }
+                    }
+#ifdef PrintEps
+                    if(idx==0&&idy==0)
+                    {
+                        TCanvas* FineMatrixC = new TCanvas("F","F");
+                        FineMatrixC->Divide(NADs/2,2);
+                        
+                        TCanvas* MatrixC = new TCanvas("","");
+                        MatrixC->Divide(NADs/2,2);
+                        
+                        TCanvas* PredictionC = new TCanvas("P","P");
+                        PredictionC->Divide(NADs/2,2);
+                        
+                        TCanvas* VisPredictionC = new TCanvas("VP","VP");
+                        VisPredictionC->Divide(NADs/2,2);
+                        
+                        TCanvas* DelayedVisPredictionC = new TCanvas("DVP","DVP");
+                        DelayedVisPredictionC->Divide(NADs/2,2);
+                        
+                        TCanvas* TransC = new TCanvas("T","T");
+                        TransC->Divide(NADs/2,2);
+                        
+                        TCanvas* FineTransC = new TCanvas("FT","FT");
+                        FineTransC->Divide(NADs/2,2);
+                        
+                        for(Int_t i = 0; i<NADs;i++)
+                        {
+                            PredictionC->cd(i+1);
+                            TruePredictionH[Systematic][i][idx][idy]->Draw();
+                            
+                            VisPredictionC->cd(i+1);
+                            VisiblePredictionH[Systematic][i][idx][idy]->Draw();
+                            
+                            DelayedVisPredictionC->cd(i+1);
+                            DelayedVisiblePredictionH[Systematic][i][idx][idy]->Draw();
+                            
+                            MatrixC->cd(i+1);
+                            MatrixH[Systematic][i][idx][idy]->Draw("colz");
+                            
+                            FineMatrixC->cd(i+1);
+                            HighResoMatrixH[Systematic][i][idx][idy]->Draw("colz");
+                            
+                            TransC->cd(i+1);
+                            TransMatrixH[Systematic][i][idx][idy]->Draw("colz");
+                            
+                            FineTransC->cd(i+1);
+                            HighResoTransMatrixH[Systematic][i][idx][idy]->Draw("colz");
+                        }
+                        
+                        PredictionC->Print(("./Images/Hydrogen/ToyMCOutputs/"+SystematicS+"ToyMCTrueHydrogenPrediction.eps").c_str());
+                        VisPredictionC->Print(("./Images/Hydrogen/ToyMCOutputs/"+SystematicS+"ToyMCVisibleHydrogenPrediction.eps").c_str());
+                        DelayedVisPredictionC->Print(("./Images/Hydrogen/ToyMCOutputs/"+SystematicS+"ToyMCDelayedVisibleHydrogenPrediction.eps").c_str());
+                        FineMatrixC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"FineHydrogenResponseMatrix.eps").c_str());
+                        MatrixC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"HydrogenResponseMatrix.eps").c_str());
+                        TransC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"TransposeHydrogenMatrix.eps").c_str());
+                        FineTransC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"FineTransposeHydrogenMatrix.eps").c_str());
+                        
+                        delete PredictionC;
+                        delete VisPredictionC;
+                        delete DelayedVisPredictionC;
+                        delete MatrixC;
+                        delete FineMatrixC;
+                        delete TransC;
+                        delete FineTransC;
+                    }
+#endif
+                }
+            }
+            
+            
+            //
+            //        //Load event ratios:
+            //
+            //        std::string line;
+            //
+            //        ifstream mainfile(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str());
+            //
+            //        Int_t linenum=0;//<---caution: only increments for lines that do not begin with #
+            //
+            
+            //
+            //        while(!mainfile.eof())
+            //        {
+            //            std::getline(mainfile,line);
+            //            std::string firstchar = line.substr(0,1);
+            //
+            //            if(firstchar=="#") continue;//<-- ignore lines with comments
+            //
+            //            std::istringstream iss(line);
+            //
+            //            if(linenum == 0)
+            //            {
+            //                Int_t AD = 0;
+            //
+            //                iss >> AD >> ADIntegral[Systematic][AD];
+            //
+            //                std::cout << "line " << linenum << " the integral in AD " << AD << " is " << ADIntegral[Systematic][AD] << std::endl;
+            //
+            //                linenum++;
+            //            }
+            //            else if(linenum <=VolumeX*VolumeY)
+            //            {
+            //                Int_t AD = 0;
+            //                Int_t idx = 0;
+            //                Int_t idy = 0;
+            //
+            //                iss >> AD >> idx >> idy >> CellIntegral[Systematic][AD][idx][idy];
+            //                //                if(column==0) AD=atoi(firstchar.c_str());
+            //                //
+            //                //                if(column==1) idx=atoi(sub.c_str());
+            //                //
+            //                //                if(column==2) idy=atoi(sub.c_str());
+            //                //
+            //                //                if(column==3)
+            //                
+            //                std::cout << "line " << linenum << " the integral in AD " << AD << " cell " << idx << " , " << idy << " is " << CellIntegral[Systematic][AD][idx][idy] << std::endl;
+            //                
+            //                linenum++;
+            //                
+            //                if(linenum>VolumeX*VolumeY)
+            //                {
+            //                    linenum = 0;//reset counter
+            //                }
+            //            }
+            //        }
+            
+#ifndef EREC_COMPARISON
+            
+            TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/"+SystematicS+Form("ResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"recreate");
+#else
+            TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/E_REC_"+SystematicS+Form("ResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"recreate");
+#endif
+            //TFile* SaveMatrix = new TFile(Form("./ResponseMatrices/Hydrogen/RandomResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins),"recreate");
             
             for(int idx=0; idx<VolumeX; idx++)
             {
                 for(int idy=0; idy<VolumeY; idy++)
                 {
-                    fprintf(f, "%d %d %d %f\n", AD, idx, idy, IntegralEvents[Systematic][AD][idx][idy] );
+                    for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
+                    {
+                        HighResoMatrixH[Systematic][AD][idx][idy]->Write(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                        MatrixH[Systematic][AD][idx][idy]->Write(Form("EvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
+                        TransMatrixH[Systematic][AD][idx][idy]->Write(Form("EnuEvis%i,Cell%i,%i",AD+1,idx,idy));
+                    }
+                    
                 }
             }
-        }
+            delete nHMatrixF;
         
-        fclose(f);
-        
-        //Draw it:
-#ifndef UseVolume
-        TH2D* MapEvents_ratio2center = new TH2D("MapEventsRatio2center","MapEventsRatio2center",VolumeX,VolumeX_lower,VolumeX_upper,VolumeY,VolumeY_lower,VolumeY_upper);
-        
-        for(Int_t AD = 0; AD<NADs; AD++)
-        {
-            for(Int_t idx = 0; idx<VolumeX; idx++)
-            {
-                for(Int_t idy = 0; idy<VolumeY; idy++)
-                {
-                    MapEvents_ratio2center->SetBinContent(idx+1,idy+1,IntegralEvents[Systematic][AD][idx][idy]/IntegralEvents[Systematic][AD][0][Int_t(VolumeY/2)]);
-                }
-            }
-        }
-        
-        TCanvas* MapEventC = new TCanvas("MapEventRatio2Center","MapEventRatio2Center");
-        
-        MapEventC->cd(1);
-        
-        MapEvents_ratio2center->Draw("colz");
-        
-        MapEventC->Print(("./Images/Hydrogen/Detector/"+SystematicS+"MapEventRatio2Center.eps").c_str());
-        
-        delete MapEvents_ratio2center;
-        delete MapEventC;
-#endif
-        
-        TH2D* MapEvents_ratio2total = new TH2D("MapEventsRatio2total","MapEventsRatio2total",VolumeX,VolumeX_lower,VolumeX_upper,VolumeY,VolumeY_lower,VolumeY_upper);
-        
-        for(Int_t AD = 0; AD<NADs; AD++)
-        {
-            for(Int_t idx = 0; idx<VolumeX; idx++)
-            {
-                for(Int_t idy = 0; idy<VolumeY; idy++)
-                {
-                    PercentualEvents[Systematic][AD][idx][idy] = IntegralEvents[Systematic][AD][idx][idy]/ADIntegralEvents[Systematic][AD];
-                    
-                    MapEvents_ratio2total->SetBinContent(idx+1,idy+1,PercentualEvents[Systematic][AD][idx][idy]);
-                }
-            }
-        }
-        
-        TCanvas* MapEventTotalC = new TCanvas("MapEventRatio2Total","MapEventRatio2Total");
-        
-        MapEventTotalC->cd(1);
-        
-        MapEvents_ratio2total->Draw("colz");
-        
-        MapEventTotalC->Print(("./Images/Hydrogen/Detector/"+SystematicS+"MapEventRatio2Total.eps").c_str());
-        
-        delete MapEventTotalC;
-        
-        TFile* SaveFile = new TFile("./Inputs/HInputs/MapEventRatio2Total.root","recreate");
-        {
-            MapEvents_ratio2total->Write();
-        }
-        
-        delete SaveFile;
-        
-        delete MapEvents_ratio2total;
-        
-        //        for(int idx=0; idx<MaxCellNum; idx++)
-        //        {
-        //            delete hEp_cc[idx];
-        //
-        //            delete hEd_cc[idx];
-        //
-        //            delete hEp_cc_clone[idx];
-        //
-        //            delete hEd_cc_clone[idx];
-        //        }
-        //        for(int idx=0; idx<MaxColumnNum; idx++)
-        //        {
-        //            delete hEp_cl[idx];
-        //
-        //            delete hEd_cl[idx];
-        //        }
-        
-
-#ifdef PrintEps
-        TCanvas* NNFineMatrixC = new TCanvas("NNF","NNF");
-        NNFineMatrixC->Divide(NADs/2,2);
-        
-        TCanvas* NNMatrixC = new TCanvas("NNM","NNM");
-        NNMatrixC->Divide(NADs/2,2);
-        
-        TCanvas* NNTransC = new TCanvas("NNT","NNT");
-        NNTransC->Divide(NADs/2,2);
-        
-        TCanvas* NNFineTransC = new TCanvas("NNFT","NNFT");
-        NNFineTransC->Divide(NADs/2,2);
-        
-        for(Int_t i = 0; i<NADs;i++)
-        {
-            NNMatrixC->cd(i+1);
-            MatrixH[Systematic][i][0][0]->Draw("colz");
-            
-            NNFineMatrixC->cd(i+1);
-            HighResoMatrixH[Systematic][i][0][0]->Draw("colz");
-            
-            NNTransC->cd(i+1);
-            TransMatrixH[Systematic][i][0][0]->Draw("colz");
-            
-            NNFineTransC->cd(i+1);
-            HighResoTransMatrixH[Systematic][i][0][0]->Draw("colz");
-        }
-        
-        NNFineMatrixC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"NoNormFineHydrogenResponseMatrix.eps").c_str());
-        NNMatrixC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"NoNormHydrogenResponseMatrix.eps").c_str());
-        NNTransC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"NoNormTransposeHydrogenMatrix.eps").c_str());
-        NNFineTransC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"NoNormFineTransposeHydrogenMatrix.eps").c_str());
-        
-        delete NNMatrixC;
-        delete NNFineMatrixC;
-        delete NNTransC;
-        delete NNFineTransC;
-#endif
-        
-        Double_t Norma[n_etrue_bins];//true->vis
-        Double_t HighResoNorma[MatrixBins];//true->vis
-        Double_t NormaTrans[n_evis_bins];//vis->true
-        Double_t HighResoNormaTrans[MatrixBins];//vis->true
-        //Normalize the Matrix
-        for(int idx=0; idx<VolumeX; idx++)
-        {
-            for(int idy=0; idy<VolumeY; idy++)
-            {
-                for(Int_t AD = 0; AD<NADs;AD++)
-                {
-                    for(Int_t i=0;i<n_etrue_bins;i++)
-                    {
-                        Norma[i]=0;
-                        for(Int_t j=0;j<n_evis_bins;j++)
-                        {
-                            Norma[i] = Norma[i]+MatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1);// true->vis
-                        }
-                    }
-                    
-                    for(Int_t i=0;i<n_evis_bins;i++)
-                    {
-                        NormaTrans[i]=0;
-                        
-                        for(Int_t j=0;j<n_etrue_bins;j++)
-                        {
-                            NormaTrans[i] = NormaTrans[i]+TransMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1);// vis->true
-                        }
-                    }
-                    
-                    for (Int_t i = 0; i < n_etrue_bins; i++)
-                    {
-                        for (Int_t j = 0; j < n_evis_bins; j++)
-                        {
-                            if(Norma[i]!=0)
-                            {
-                                MatrixH[Systematic][AD][idx][idy]->SetBinContent(i+1,j+1,MatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1)/Norma[i]);//true->vis
-                            }
-                        }
-                    }
-                    
-                    for (Int_t i = 0; i < n_evis_bins; i++)
-                    {
-                        for (Int_t j = 0; j < n_etrue_bins; j++)
-                        {
-                            if(NormaTrans[i]!=0)
-                            {
-                                TransMatrixH[Systematic][AD][idx][idy]->SetBinContent(i+1,j+1,TransMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1)/NormaTrans[i]);
-                            }
-                            
-                        }
-                    }
-                    
-                    for(Int_t i=0;i<MatrixBins;i++)
-                    {
-                        HighResoNorma[i]=0;
-                        HighResoNormaTrans[i]=0;
-                        
-                        for(Int_t j=0;j<MatrixBins;j++)
-                        {
-                            HighResoNorma[i] = HighResoNorma[i]+HighResoMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1);// true->vis
-                            HighResoNormaTrans[i] = HighResoNormaTrans[i]+HighResoTransMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1);// vis->true
-                            
-                        }
-                    }
-                    
-                    for(Int_t i=0;i<MatrixBins;i++)
-                    {
-                        for(Int_t j=0;j<MatrixBins;j++)
-                        {
-                            if(HighResoNorma[i]!=0)
-                            {
-                                HighResoMatrixH[Systematic][AD][idx][idy]->SetBinContent(i+1,j+1,HighResoMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1)/HighResoNorma[i]);//true->vis
-                            }
-                            
-                            if(HighResoNormaTrans[i]!=0)
-                            {
-                                HighResoTransMatrixH[Systematic][AD][idx][idy]->SetBinContent(i+1,j+1,HighResoTransMatrixH[Systematic][AD][idx][idy]->GetBinContent(i+1,j+1)/HighResoNormaTrans[i]);
-                            }
-                        }
-                    }
-                }
-#ifdef PrintEps
-                if(idx==0&&idy==0)
-                {
-                    TCanvas* FineMatrixC = new TCanvas("F","F");
-                    FineMatrixC->Divide(NADs/2,2);
-                    
-                    TCanvas* MatrixC = new TCanvas("","");
-                    MatrixC->Divide(NADs/2,2);
-                    
-                    TCanvas* PredictionC = new TCanvas("P","P");
-                    PredictionC->Divide(NADs/2,2);
-                    
-                    TCanvas* VisPredictionC = new TCanvas("VP","VP");
-                    VisPredictionC->Divide(NADs/2,2);
-                    
-                    TCanvas* DelayedVisPredictionC = new TCanvas("DVP","DVP");
-                    DelayedVisPredictionC->Divide(NADs/2,2);
-                    
-                    TCanvas* TransC = new TCanvas("T","T");
-                    TransC->Divide(NADs/2,2);
-                    
-                    TCanvas* FineTransC = new TCanvas("FT","FT");
-                    FineTransC->Divide(NADs/2,2);
-                    
-                    for(Int_t i = 0; i<NADs;i++)
-                    {
-                        PredictionC->cd(i+1);
-                        TruePredictionH[Systematic][i][idx][idy]->Draw();
-                        
-                        VisPredictionC->cd(i+1);
-                        VisiblePredictionH[Systematic][i][idx][idy]->Draw();
-                        
-                        DelayedVisPredictionC->cd(i+1);
-                        DelayedVisiblePredictionH[Systematic][i][idx][idy]->Draw();
-                        
-                        MatrixC->cd(i+1);
-                        MatrixH[Systematic][i][idx][idy]->Draw("colz");
-                        
-                        FineMatrixC->cd(i+1);
-                        HighResoMatrixH[Systematic][i][idx][idy]->Draw("colz");
-                        
-                        TransC->cd(i+1);
-                        TransMatrixH[Systematic][i][idx][idy]->Draw("colz");
-                        
-                        FineTransC->cd(i+1);
-                        HighResoTransMatrixH[Systematic][i][idx][idy]->Draw("colz");
-                    }
-                    
-                    PredictionC->Print(("./Images/Hydrogen/ToyMCOutputs/"+SystematicS+"ToyMCTrueHydrogenPrediction.eps").c_str());
-                    VisPredictionC->Print(("./Images/Hydrogen/ToyMCOutputs/"+SystematicS+"ToyMCVisibleHydrogenPrediction.eps").c_str());
-                    DelayedVisPredictionC->Print(("./Images/Hydrogen/ToyMCOutputs/"+SystematicS+"ToyMCDelayedVisibleHydrogenPrediction.eps").c_str());
-                    FineMatrixC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"FineHydrogenResponseMatrix.eps").c_str());
-                    MatrixC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"HydrogenResponseMatrix.eps").c_str());
-                    TransC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"TransposeHydrogenMatrix.eps").c_str());
-                    FineTransC->Print(("./Images/Hydrogen/ResponseMatrices/"+SystematicS+"FineTransposeHydrogenMatrix.eps").c_str());
-                    
-                    delete PredictionC;
-                    delete VisPredictionC;
-                    delete DelayedVisPredictionC;
-                    delete MatrixC;
-                    delete FineMatrixC;
-                    delete TransC;
-                    delete FineTransC;
-                }
-#endif
-            }
-        }
-        
- 
-//        
-//        //Load event ratios:
-//        
-//        std::string line;
-//        
-//        ifstream mainfile(("./Inputs/HInputs/"+SystematicS+"ToyMCEventRatio.txt").c_str());
-//        
-//        Int_t linenum=0;//<---caution: only increments for lines that do not begin with #
-//        
-
-//        
-//        while(!mainfile.eof())
-//        {
-//            std::getline(mainfile,line);
-//            std::string firstchar = line.substr(0,1);
-//            
-//            if(firstchar=="#") continue;//<-- ignore lines with comments
-//            
-//            std::istringstream iss(line);
-//            
-//            if(linenum == 0)
-//            {
-//                Int_t AD = 0;
-//                
-//                iss >> AD >> ADIntegral[Systematic][AD];
-//                
-//                std::cout << "line " << linenum << " the integral in AD " << AD << " is " << ADIntegral[Systematic][AD] << std::endl;
-//                
-//                linenum++;
-//            }
-//            else if(linenum <=VolumeX*VolumeY)
-//            {
-//                Int_t AD = 0;
-//                Int_t idx = 0;
-//                Int_t idy = 0;
-//                
-//                iss >> AD >> idx >> idy >> CellIntegral[Systematic][AD][idx][idy];
-//                //                if(column==0) AD=atoi(firstchar.c_str());
-//                //
-//                //                if(column==1) idx=atoi(sub.c_str());
-//                //
-//                //                if(column==2) idy=atoi(sub.c_str());
-//                //
-//                //                if(column==3)
-//                
-//                std::cout << "line " << linenum << " the integral in AD " << AD << " cell " << idx << " , " << idy << " is " << CellIntegral[Systematic][AD][idx][idy] << std::endl;
-//                
-//                linenum++;
-//                
-//                if(linenum>VolumeX*VolumeY)
-//                {
-//                    linenum = 0;//reset counter
-//                }
-//            }
-//        }
-        
-#ifndef EREC_COMPARISON
-
-        TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/"+SystematicS+Form("ResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"recreate");
-#else
-        TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/E_REC_"+SystematicS+Form("ResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"recreate");
-#endif
-        //TFile* SaveMatrix = new TFile(Form("./ResponseMatrices/Hydrogen/RandomResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins),"recreate");
-        
-        for(int idx=0; idx<VolumeX; idx++)
-        {
-            for(int idy=0; idy<VolumeY; idy++)
-            {
-                for(Int_t AD = 0; AD<NADs; AD++)//Save different AD matrices to produce the covariance matrices.
-                {
-                    HighResoMatrixH[Systematic][AD][idx][idy]->Write(Form("FineEvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
-                    MatrixH[Systematic][AD][idx][idy]->Write(Form("EvisEnu%i,Cell%i,%i",AD+1,idx,idy));//Save the matrices.
-                    TransMatrixH[Systematic][AD][idx][idy]->Write(Form("EnuEvis%i,Cell%i,%i",AD+1,idx,idy));
-                }
-                
-            }
-        }
-        delete nHMatrixF;
-    }//Systematic
-    
 #ifdef SaveTree
-        toy->Write();
-        roofile_toy->Close();
+        if(Systematic==0)
+        {
+            toy->Write();//Save only Nominal Tree
+            roofile_toy->Close();
+        }
 #endif
+        
+    }//Systematics
+
     
+    delete h2d_Ep_ratio2center;
+    delete h2d_Ed_ratio2center;
     
     delete gRandom3;
     delete RandomSysUncorr;

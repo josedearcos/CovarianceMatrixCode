@@ -157,8 +157,9 @@ private:
     TH1D* FluxHisto[NReactors][MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     
     //Histograms
-    TH1D* PredictionVisH[MaxFarDetectors][MaxNearDetectors];//  Prediction with no alterations, nominal backgrounds may be added. Vis Binning (after detector response is applied)
-    TH1D* ReactorPredictionVisH[MaxDetectors];
+    TH1D* PredictionVisH[MaxFarDetectors][MaxNearDetectors];//  Prediction with no alterations and no backgrounds.
+    TH1D* ReactorPredictionVisH[MaxDetectors];//  Prediction with no alterations but nominal backgrounds have been added. Vis Binning (after detector response is applied)
+
 
     TH1D* CombinedReactorPredictionVisH[MaxFarDetectors];
     TH1D* CombinedPredictionVisH[MaxFarDetectors][MaxNearDetectors];
@@ -661,7 +662,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     TFile CheckF1(("./RootOutputs/"+AnalysisString+"/NominalOutputs/AntineutrinoSpectrum.root").c_str());
     
 #ifndef Produce_Antineutrino_Spectrum_For_FirstTime
-    if((((IsotopeMatrix||ReactorPowerMatrix)&&mode==1)||((CheckF.IsZombie()||CheckF1.IsZombie())&&(mode==0))))// No need to recalculate the spectrum if it's not varied     //This has to be run once if the nominal files have not been produced beforehand
+    if((((IsotopeMatrix||ReactorPowerMatrix)&&mode)||((CheckF.IsZombie()||CheckF1.IsZombie())&&(!mode))))// No need to recalculate the spectrum if it's not varied     //This has to be run once if the nominal files have not been produced beforehand
     {
 #endif
         ReactorSpectrumMultiple* Reactor = new ReactorSpectrumMultiple(Data);
@@ -773,7 +774,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
         }
     }
     //Statistical fluctuation has to be done in the far AD directly
-    if (StatisticalFluctuation&&mode==1)
+    if (StatisticalFluctuation&&mode)
     {
         ApplyStatisticalFluctuation(CombinedReactorPredictionVisH[0]);
     }
@@ -817,7 +818,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
 
         //Statistical fluctuation has to be done in the near AD taken to the far
 
-//        if (StatisticalFluctuation&&Mode==1)
+//        if (StatisticalFluctuation&&Mode)
 //        {
 //            std::cout << "STATISTICAL FLUCTUATION IN PREDICTION" << std::endl;
 //            
@@ -2607,7 +2608,7 @@ void Prediction :: LoadBackgrounds(Int_t week,bool mode)
 {
     Char_t backgroundC[100];
     
-    if (mode==1)
+    if (mode)
     {
         RandomString = "Random";
     }

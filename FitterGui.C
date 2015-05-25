@@ -24,10 +24,14 @@
 #include "TPaletteAxis.h"
 #include "TLegend.h"
 #include "TKey.h"
-#include <assert.h> // Used to debug, if you don't want it to run, uncomment the following line: (#define NDEBUG)
+// Used to debug, if you don't want it to run, uncomment the following line: (#define NDEBUG)
 //#define NDEBUG
 
+#include <assert.h>
+
 //#define NoOscillation //this sets sin22t13 and sin22t13 = 0, also uses the reactor antineutrino model to reset the flux
+//#define TestAllTheSame;//Combined with #NoOscillation can be a nice test to see that everything agrees
+
 //#define TestExternalInputs
 #define PrintOnConsole
 //To interpolate the chi2 curves
@@ -710,8 +714,7 @@ void FitterGui::RunFitter()
     
     if(Analysis)
     {
-        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/nH_GdLS_table.txt").c_str());
-        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/nH_LS_table.txt").c_str());
+        FluxData->LoadHydrogenMainData();
        
 //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
 //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
@@ -731,17 +734,16 @@ void FitterGui::RunFitter()
     {
         if(DataSet==2) // P12E production data given by Xiang Pan
         {
-            if(1==Data->GetWeeks())
-            {
-                std::cout << "\t Loading nH P12E Data" << std::endl;
-                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
-                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
-            }
-            else
-            {
-                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table.txt");
-                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table.txt");
-            }
+//            if(1==Data->GetWeeks())
+//            {
+//                std::cout << "\t Loading nH P12E Data" << std::endl;
+//                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
+//                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
+//            }
+//            else
+//            {
+                Data->LoadHydrogenMainData();//Produce inclusive data inside NominalData.h
+//            }
         }
         else // Simple reactor model used as input data
         {
@@ -763,7 +765,7 @@ void FitterGui::RunFitter()
             else
             {
                 std::cout << "\t Loading 32 week LBNL Gd P12E Data" << std::endl;
-                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
+                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
             }
         }
         else if(DataSet==1)
@@ -776,7 +778,7 @@ void FitterGui::RunFitter()
             else
             {
                 std::cout << "\t Loading 20 weeks Gd Data" << std::endl;
-                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
+                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
             }
         }
         else//  Simple reactor model used as input data
@@ -1546,9 +1548,15 @@ void FitterGui::RunToyMC()
 #ifndef PrintOnConsole
         coutstream = cout.rdbuf(0);//change stream of cout
 #endif
-    
-    const Int_t CovarianceMatrices=15;
-    
+
+    if(Analysis)
+    {
+        NCovarianceMatrices=17;//OAV+AllSystematics
+    }
+    else
+    {
+        NCovarianceMatrices=16;//AllSystematics
+    }
     //To draw using a better palette:
     const Int_t NRGBs = 5;
     const Int_t NCont = 999;
@@ -1600,17 +1608,16 @@ void FitterGui::RunToyMC()
     {
         if(DataSet==2) // P12E production data given by Xiang Pan
         {
-            if(1==Data->GetWeeks())
-            {
-                std::cout << "\t Loading nH P12E Data" << std::endl;
-                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
-                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
-            }
-            else
-            {
-                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table.txt");
-                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table.txt");
-            }
+            //            if(1==Data->GetWeeks())
+            //            {
+            //                std::cout << "\t Loading nH P12E Data" << std::endl;
+            //                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
+            //                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
+            //            }
+            //            else
+            //            {
+            Data->LoadHydrogenMainData();//Produce inclusive data inside NominalData.h
+            //            }
         }
         else // Simple reactor model used as input data
         {
@@ -1632,7 +1639,7 @@ void FitterGui::RunToyMC()
             else
             {
                 std::cout << "\t Loading 32 week LBNL Gd P12E Data" << std::endl;
-                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
+                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
             }
         }
         else if(DataSet==1)
@@ -1645,7 +1652,7 @@ void FitterGui::RunToyMC()
             else
             {
                 std::cout << "\t Loading 20 weeks Gd Data" << std::endl;
-                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
+                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
             }
         }
         else//  Simple reactor model used as input data
@@ -1743,7 +1750,7 @@ void FitterGui::RunToyMC()
         Data->SetUnifiedModel(NL[2]);
         //Order is important (Inititialize NL model before randomize it)
         
-        for (Int_t i = 0; i<(CovarianceMatrices); i++)
+        for (Int_t i = 0; i<(NCovarianceMatrices); i++)
         {
             Data->SetVaryAccidentalMatrix(0==i);
             Data->SetVaryLiHeMatrix(1==i);
@@ -1763,7 +1770,9 @@ void FitterGui::RunToyMC()
             Data->SetResolutionMatrix(12==i);
             Data->SetSin22t12Matrix(13==i);
             Data->SetEfficiencyMatrix(14==i);
-            
+            Data->SetOAVMatrix(15==i);
+            Data->SetAllDetectorSystematicsMatrix(16==i);
+
             Cov = new CovarianceMatrix3(Data);
             Cov->CovarianceMatrixMain(this);
             delete Cov;
@@ -1869,18 +1878,16 @@ void FitterGui::RunFlux()
                 break;
             case 2:// P12E
 
-                if(1==Data->GetWeeks())
-                {
-                    std::cout << "\t Loading nH P12E Data" << std::endl;
-                    Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
-                    Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
-                }
-                else
-                {
-                    Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table.txt");
-                    Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table.txt");
-                }
-                
+                //            if(1==Data->GetWeeks())
+                //            {
+                //                std::cout << "\t Loading nH P12E Data" << std::endl;
+                //                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
+                //                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
+                //            }
+                //            else
+                //            {
+                Data->LoadHydrogenMainData();//Produce inclusive data inside NominalData.h
+                //            }
                 break;
             default:
                 break;
@@ -1948,8 +1955,7 @@ void FitterGui::RunFlux()
     
     if(Analysis)
     {
-        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/nH_GdLS_table.txt").c_str());
-        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+"/nH_LS_table.txt").c_str());
+        FluxData->LoadHydrogenMainData();
         
         //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
         //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
@@ -4368,17 +4374,16 @@ void FitterGui::RunResponseMatrix()
     {
         if(DataSet==2) // P12E production data given by Xiang Pan
         {
-            if(1==Data->GetWeeks())
-            {
-                std::cout << "\t Loading nH P12E Data" << std::endl;
-                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
-                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
-            }
-            else
-            {
-                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table.txt");
-                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table.txt");
-            }
+            //            if(1==Data->GetWeeks())
+            //            {
+            //                std::cout << "\t Loading nH P12E Data" << std::endl;
+            //                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
+            //                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
+            //            }
+            //            else
+            //            {
+            Data->LoadHydrogenMainData();//Produce inclusive data inside NominalData.h
+            //            }
         }
         else // Simple reactor model used as input data
         {
@@ -4400,7 +4405,7 @@ void FitterGui::RunResponseMatrix()
             else
             {
                 std::cout << "\t Loading 32 week LBNL Gd P12E Data" << std::endl;
-                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
+                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
             }
         }
         else if(DataSet==1)
@@ -4413,7 +4418,7 @@ void FitterGui::RunResponseMatrix()
             else
             {
                 std::cout << "\t Loading 20 weeks Gd Data" << std::endl;
-                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek_inclusive.txt",NReactorPeriods));
+                Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
             }
         }
         else//  Simple reactor model used as input data

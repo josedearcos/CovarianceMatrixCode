@@ -237,7 +237,7 @@ void AntineutrinoSpectrum :: AntineutrinoSpectrumMain(bool mode)
     std::cout <<  "\t ***********************************************************************************************" << std::endl;
     std::cout << "\t Calculating Antineutrino Spectrum" << std::endl;
     
-    if((IsotopeMatrix||ReactorPowerMatrix)&&Mode==1)
+    if((IsotopeMatrix||ReactorPowerMatrix)&&Mode)
     {
         sprintf(filenameReactorFile,"./RootOutputs/Reactor/RandomOutputs/ReactorSpectrum_Isotope_%d_Power_%d.root",IsotopeMatrix,ReactorPowerMatrix);
     }
@@ -261,7 +261,7 @@ void AntineutrinoSpectrum :: AntineutrinoSpectrumMain(bool mode)
     
     LoadCrossSectionFile();
     
-    if((IsotopeMatrix||ReactorPowerMatrix)&&Mode==1)
+    if((IsotopeMatrix||ReactorPowerMatrix)&&Mode)
     {
         sprintf(filenameAntineutrino,("./RootOutputs/"+AnalysisString+"/RandomOutputs/AntineutrinoSpectrum_Isotope_%d_Power_%d.root").c_str(),IsotopeMatrix,ReactorPowerMatrix);
     }

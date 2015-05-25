@@ -78,12 +78,14 @@ private:
     bool AbsoluteEnergyScaleMatrix;
     bool RelativeEnergyScaleMatrix;
     bool IAVMatrixb;
+    bool OAVMatrixb;
+    bool AllDetectorSystematicsMatrix;
     bool NLMatrix;
     bool ResolutionMatrix;
     bool Sin22t12Matrix;
     bool EfficiencyMatrix;
     
-    enum Systematic{IsotopeE,PowerE, RelativeEnergyScaleE, AbsoluteEnergyScaleE, RelativeEnergyOffsetE, AbsoluteEnergyOffsetE,IAVE, NLE, ResolutionE,Sin22t12E,EfficiencyE};
+    enum Systematic{IsotopeE,PowerE, RelativeEnergyScaleE, AbsoluteEnergyScaleE, RelativeEnergyOffsetE, AbsoluteEnergyOffsetE,IAVE, NLE, ResolutionE,Sin22t12E,EfficiencyE,OAVE,AllDetectorSystematicsE};
     Systematic SystematicE;
     typedef Systematic SystematicType;
     enum Background{VaryAccidentalE, VaryLiHeE, VaryFastNeutronsE, VaryAmCE, DistortLiHeE, DistortFastNeutronsE, DistortAmCE};
@@ -105,7 +107,7 @@ private:
     Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
     
     //Histograms
-    TH1D* PredictionVisH[MaxNearDetectors][MaxFarDetectors];//  Prediction from near data with no alterations, nominal backgrounds may be added. Vis Binning (after detector response is applied)
+    TH1D* PredictionVisH[MaxNearDetectors][MaxFarDetectors];//  Prediction from near data with no alterations; Vis Binning (after detector response is applied)
     TH1D* AlteredPredictionVisH[MaxNearDetectors][MaxFarDetectors];
     
     TH1D* ReactorPredictionVisH[MaxFarDetectors];//Prediction from reactor with no alterations, nominal backgrounds may be added. Vis Binning (after detector response is applied)
@@ -181,10 +183,12 @@ CovarianceMatrix3 :: CovarianceMatrix3()
     AbsoluteEnergyScaleMatrix = Nom->GetAbsoluteEnergyScaleMatrix();
     AbsoluteEnergyOffsetMatrix = Nom->GetAbsoluteEnergyOffsetMatrix();
     IAVMatrixb = Nom->GetIAVMatrix();
+    OAVMatrixb = Nom->GetOAVMatrix();
     NLMatrix = Nom->GetNLMatrix();
     ResolutionMatrix = Nom->GetResolutionMatrix();
     Sin22t12Matrix = Nom->GetSin22t12Matrix();
     EfficiencyMatrix = Nom->GetEfficiencyMatrix();
+    AllDetectorSystematicsMatrix = Nom->GetAllDetectorSystematicsMatrix();
     
     if(Analysis&&!(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix||DistortLiHeMatrix||DistortFastNeutronsMatrix||DistortAmCMatrix||IsotopeMatrix||ReactorPowerMatrix||Sin22t12Matrix))
     {
@@ -262,10 +266,12 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
     AbsoluteEnergyScaleMatrix = Data->GetAbsoluteEnergyScaleMatrix();
     AbsoluteEnergyOffsetMatrix = Data->GetAbsoluteEnergyOffsetMatrix();
     IAVMatrixb = Data->GetIAVMatrix();
+    OAVMatrixb = Data->GetOAVMatrix();
     NLMatrix = Data->GetNLMatrix();
     ResolutionMatrix = Data->GetResolutionMatrix();
     Sin22t12Matrix = Data->GetSin22t12Matrix();
     EfficiencyMatrix = Data->GetEfficiencyMatrix();
+    AllDetectorSystematicsMatrix = Data->GetAllDetectorSystematicsMatrix();
     
     if(Analysis&&!(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix||DistortLiHeMatrix||DistortFastNeutronsMatrix||DistortAmCMatrix||IsotopeMatrix||ReactorPowerMatrix||Sin22t12Matrix))
     {
@@ -403,6 +409,14 @@ void CovarianceMatrix3 :: CovarianceMatrixMain(FitterGui* FitterGui)
     if(EfficiencyMatrix)
     {
         SystematicE = EfficiencyE;
+    }
+    if(OAVMatrixb)
+    {
+        SystematicE = OAVE;
+    }
+    if(AllDetectorSystematicsMatrix)
+    {
+        SystematicE = AllDetectorSystematicsE;
     }
     
     std::cout << "\t Randomize Background #" << BackgroundE << std::endl;
@@ -894,6 +908,14 @@ void CovarianceMatrix3 :: SaveCovarianceMatrix(Int_t week)
             CovString = "Efficiency";
             TitleString = "Efficiency Covariance Matrix";
             break;
+        case 11:
+            CovString = "OAV";
+            TitleString = "OAV Covariance Matrix";
+            break;
+        case 12:
+            CovString = "All Detector Systematics";
+            TitleString = "All Detector Systematics Covariance Matrix";
+            break;
     }
     
     sprintf(filenameCov,("."+TestString+"/CovarianceMatrices/"+AnalysisString+ "/Combine%d/CovarianceMatricesRoot/"+CovString+".root").c_str(),Combine);
@@ -1114,6 +1136,12 @@ void CovarianceMatrix3 :: SaveSpectrum(Int_t sample, Int_t week)
             break;
         case 10:
             sprintf(filenameSpec,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/Spectrum/Efficiency.root").c_str(),Combine);
+            break;
+        case 11:
+            sprintf(filenameSpec,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/Spectrum/OAV.root").c_str(),Combine);
+            break;
+        case 12:
+            sprintf(filenameSpec,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/Spectrum/AllDetectorSystematics.root").c_str(),Combine);
             break;
         default:
             sprintf(filenameSpec,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/Spectrum/Nominal.root").c_str(),Combine);

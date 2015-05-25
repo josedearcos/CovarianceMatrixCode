@@ -242,7 +242,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
     std::cout <<  "\t ***********************************************************************************************" << std::endl;
     std::cout << " \t Calculating reactor spectrum " << std::endl;
     
-    if((IsotopeMatrix||ReactorPowerMatrix)&&Mode==1)
+    if((IsotopeMatrix||ReactorPowerMatrix)&&Mode)
     {
         sprintf(FileName,"./RootOutputs/Reactor/RandomOutputs/ReactorSpectrum_Isotope_%d_Power_%d.root",IsotopeMatrix,ReactorPowerMatrix);
     }
@@ -271,7 +271,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
         //        CovMatrixLM = new TH2D("COVL","COVL",m_nSamples*NReactors,0,72,m_nSamples*NReactors,0,72);
         
         //  Apply variations to the nominal spectrum:
-        if (IsotopeMatrix&&Mode==1)
+        if (IsotopeMatrix&&Mode)
         {
             Double_t ranvec[NReactors*MatrixBins];
             
@@ -313,7 +313,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
         
         TotalReactorSpectrumH.resize(NReactors);
         
-        if(ReactorPowerMatrix&&Mode==1)
+        if(ReactorPowerMatrix&&Mode)
         {
             RandomPower();
         }

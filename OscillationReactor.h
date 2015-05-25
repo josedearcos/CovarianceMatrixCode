@@ -10,6 +10,10 @@
 #include "TMath.h"
 #include "TRandom3.h"
 #include "nHToyMC.h"
+// Used to debug, if you don't want it to run, uncomment the following line: (#define NDEBUG)
+//#define NDEBUG
+
+#include <assert.h>
 
 //#define TestDiagonalMatrix
 //
@@ -81,9 +85,11 @@ private:
     
     bool RelativeEnergyScaleMatrix;
     bool IAVMatrixb;
+    bool OAVMatrixb;
     bool NLMatrix;
     bool ResolutionMatrix;
     bool EfficiencyMatrix;
+    bool AllDetectorSystematicsMatrix;
     
     //AD configuration parameters:
     Int_t NADs;
@@ -418,9 +424,11 @@ OscillationReactor :: OscillationReactor()
     Sin22t12Matrix = Nom->GetSin22t12Matrix();
     RelativeEnergyScaleMatrix = Nom->GetRelativeEnergyScaleMatrix();
     IAVMatrixb = Nom->GetIAVMatrix();
+    OAVMatrixb = Nom->GetOAVMatrix();
     NLMatrix = Nom->GetNLMatrix();
     ResolutionMatrix = Nom->GetResolutionMatrix();
     EfficiencyMatrix = Nom->GetEfficiencyMatrix();
+    AllDetectorSystematicsMatrix = Nom->GetAllDetectorSystematicsMatrix();
     
     //  IAV Error from Bryce
     IAVNominalError=Nom->GetIAVError();
@@ -614,9 +622,11 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
     Sin22t12Matrix = Data->GetSin22t12Matrix();
     RelativeEnergyScaleMatrix = Data->GetRelativeEnergyScaleMatrix();
     IAVMatrixb = Data->GetIAVMatrix();
+    OAVMatrixb = Data->GetOAVMatrix();
     NLMatrix = Data->GetNLMatrix();
     ResolutionMatrix = Data->GetResolutionMatrix();
     EfficiencyMatrix = Data->GetEfficiencyMatrix();
+    AllDetectorSystematicsMatrix = Data->GetAllDetectorSystematicsMatrix();
     
     //  IAV Error from Bryce
     IAVNominalError=Data->GetIAVError();
@@ -746,7 +756,7 @@ void OscillationReactor :: OscillationFromReactorData(Int_t Week,bool mode,bool 
    
     CovMatrix = covMatrix;
  
-    if((Sin22t12Matrix||IsotopeMatrix||ReactorPowerMatrix)&&Mode==1)
+    if((Sin22t12Matrix||IsotopeMatrix||ReactorPowerMatrix)&&Mode)
     {
         sprintf(OutputFileName,("./RootOutputs/"+ AnalysisString+ "/RandomOutputs/RandomOscillation_Isotope_%d_Power_%d_Sin22t12_%d_.root").c_str(),IsotopeMatrix,ReactorPowerMatrix,Sin22t12Matrix);
     }
@@ -961,27 +971,27 @@ void OscillationReactor :: ReadDistances(Char_t* distanceFileName)
     for(Int_t i=0;i<NADs;i++)
     {
         infile >> ADdistances[i][0] >> ADdistances[i][1] >> ADdistances[i][2] >> ADdistances[i][3] >> ADdistances[i][4] >> ADdistances[i][5];
+        std::cout << " Distances in OscillationReactor.h : " << std::endl;
         
-        //        printf("Baseline AD%d to D1 is: %f \n", i+1, ADdistances[i][0]);
-        //        printf("Baseline AD%d to D2 is: %f \n", i+1, ADdistances[i][1]);
-        //        printf("Baseline AD%d to L1 is: %f \n", i+1, ADdistances[i][2]);
-        //        printf("Baseline AD%d to L2 is: %f \n", i+1, ADdistances[i][3]);
-        //        printf("Baseline AD%d to L3 is: %f \n", i+1, ADdistances[i][4]);
-        //        printf("Baseline AD%d to L4 is: %f \n", i+1, ADdistances[i][5]);
+                printf("Baseline AD%d to D1 is: %f \n", i+1, ADdistances[i][0]);
+                printf("Baseline AD%d to D2 is: %f \n", i+1, ADdistances[i][1]);
+                printf("Baseline AD%d to L1 is: %f \n", i+1, ADdistances[i][2]);
+                printf("Baseline AD%d to L2 is: %f \n", i+1, ADdistances[i][3]);
+                printf("Baseline AD%d to L3 is: %f \n", i+1, ADdistances[i][4]);
+                printf("Baseline AD%d to L4 is: %f \n", i+1, ADdistances[i][5]);
     }
     infile.close();
     
     //Test:
-    if(TestAllTheSame)
+#ifdef TestAllTheSame
+    for(Int_t i=0;i<NADs;i++)
     {
-        for(Int_t i=0;i<NADs;i++)
+        for(Int_t j=0;j<NReactors;j++)
         {
-            for(Int_t j=0;j<NReactors;j++)
-            {
-                ADdistances[i][j]=1000;
-            }
+            ADdistances[i][j]=1000;
         }
     }
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1329,6 +1339,14 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 {
                     SystematicS = "NLResponseMatrix";
                 }
+                if(OAVMatrixb)
+                {
+                    SystematicS = "OAVResponseMatrix";
+                }
+                if(AllDetectorSystematicsMatrix)
+                {
+                    SystematicS = "AllDetectorSystematicsMatrix";
+                }
             }
             else
             {
@@ -1430,6 +1448,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
     
     //TEST FOR NO OSCILLATION ACTUALLY PRODUCES THE SAME NEUTRINO EVENTS IN ALL DETECTORS BEFORE SCALING:
 #ifdef NoOscillation
+#ifdef TestAllTheSame
 //    for (Int_t AD = 0; AD <NADs; AD++)
 //    {
 //        for(Int_t idx=0; idx<XCellLimit; idx++)
@@ -1440,6 +1459,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
 //            }
 //        }
 //    }
+#endif
 #endif
     
     for (Int_t AD = 0; AD <NADs; AD++)
@@ -1463,6 +1483,14 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 
                 //Add nominal backgrounds here, this way the predictions in the far hall will carry the background variations when they are substracted there
                 VisibleHisto[AD][idx][idy]->Add(BackgroundSpectrumH[AD][idx][idy],1.);
+                
+                if(!Mode)//If there are not background variations the observed events should be equal to IBD events + background events
+                {
+                    std::cout << "ASSERTING: " << BackgroundSpectrumH[AD][idx][idy]->Integral() << " + " << IBDEvents[AD][week][idx][idy] << " = " << ObservedEvents[AD][week][idx][idy] << std::endl;
+                    
+                    assert((BackgroundSpectrumH[AD][idx][idy]->Integral()+IBDEvents[AD][week][idx][idy]) - ObservedEvents[AD][week][idx][idy]<=0.0000001);
+                }
+                
                 //if(!CovMatrix)//Covariance matrices depend on this scaling
                 {
                     VisibleHisto[AD][idx][idy]->Scale(ObservedEvents[AD][week][idx][idy]/VisibleHisto[AD][idx][idy]->Integral());
@@ -1501,7 +1529,7 @@ TH1D* OscillationReactor :: GetReactorOscillatedADSpectrum(Int_t AD,Int_t week,I
 
 void OscillationReactor :: LoadReactorHistograms()
 {
-    if((IsotopeMatrix||ReactorPowerMatrix)&&Mode==1)
+    if((IsotopeMatrix||ReactorPowerMatrix)&&Mode)
     {
         sprintf(ReactorData,("./RootOutputs/"+AnalysisString+"/RandomOutputs/AntineutrinoSpectrum_Isotope_%d_Power_%d.root").c_str(),IsotopeMatrix,ReactorPowerMatrix);
     }
@@ -2209,7 +2237,7 @@ void OscillationReactor :: SetNLParameters(bool mode)
     {
         case 0://BCW NL Model
             std::cout << "\t \t \t Using BCW NL Model"<< std::endl;
-            if(NLMatrix && Mode==1)
+            if(NLMatrix && Mode)
             {   //Randomize BCW nonlinear model parameters
                 std::cout << "\t \t \t Randomizing BCW NL parameters" << std::endl;
                 
@@ -2239,7 +2267,7 @@ void OscillationReactor :: SetNLParameters(bool mode)
             break;
         case 1://LBNL NL Model
             std::cout << "\t \t \t Using LBNL NL Model"<< std::endl;
-            if(NLMatrix && Mode==1)
+            if(NLMatrix && Mode)
             {   //Randomize LBNL nonlinear model parameters
                 std::cout << "\t \t \t Randomizing LBNL NL parameters" << std::endl;
                 for (Int_t i = 0; i < 3; i++)
@@ -2267,7 +2295,7 @@ void OscillationReactor :: SetNLParameters(bool mode)
             break;
         case 2://Unified NL Model
             std::cout << "\t \t \t Using Unified NL Model"<< std::endl;
-            if(NLMatrix  && Mode==1)
+            if(NLMatrix  && Mode)
             {   //Randomize Unified nonlinear model parameters
                 std::cout << "\t \t \t Randomizing Unified NL parameters" << std::endl;
                 
@@ -2638,6 +2666,18 @@ void OscillationReactor :: SetSystematic()
     if(EfficiencyMatrix&&FlagEfficiency)
     {
         this->RandomEfficiency();
+    }
+    if(AllDetectorSystematicsMatrix)
+    {
+            this->RandomRelativeEnergyScaleMatrix();
+    
+            this->RandomIAVMatrix();
+     
+            this->RandomResolutionMatrix();
+  
+            this->RandomEfficiency();
+        
+            NLMatrix = 1; //NL case is handled by SetNLParameters();
     }
     //NL case is handled by SetNLParameters();
 }

@@ -830,12 +830,15 @@ void Oscillation :: ReadDistances(Char_t* distanceFileName)
     for(Int_t i=0;i<NADs;i++)
     {
         infile >> ADdistances[i*NReactors+0] >> ADdistances[i*NReactors+1] >> ADdistances[i*NReactors+2] >> ADdistances[i*NReactors+3] >> ADdistances[i*NReactors+4] >> ADdistances[i*NReactors+5];
-        //                printf("Baseline AD%d to D1 is: %f \n", i+1, ADdistances[i*NReactors+0]);
-        //                printf("Baseline AD%d to D2 is: %f \n", i+1, ADdistances[i*NReactors+1]);
-        //                printf("Baseline AD%d to L1 is: %f \n", i+1, ADdistances[i*NReactors+2]);
-        //                printf("Baseline AD%d to L2 is: %f \n", i+1, ADdistances[i*NReactors+3]);
-        //                printf("Baseline AD%d to L3 is: %f \n", i+1, ADdistances[i*NReactors+4]);
-        //                printf("Baseline AD%d to L4 is: %f \n", i+1, ADdistances[i*NReactors+5]);
+       
+        std::cout << " Distances in Oscillation.h : " << std::endl;
+
+        printf("Baseline AD%d to D1 is: %f \n", i+1, ADdistances[i*NReactors+0]);
+        printf("Baseline AD%d to D2 is: %f \n", i+1, ADdistances[i*NReactors+1]);
+        printf("Baseline AD%d to L1 is: %f \n", i+1, ADdistances[i*NReactors+2]);
+        printf("Baseline AD%d to L2 is: %f \n", i+1, ADdistances[i*NReactors+3]);
+        printf("Baseline AD%d to L3 is: %f \n", i+1, ADdistances[i*NReactors+4]);
+        printf("Baseline AD%d to L4 is: %f \n", i+1, ADdistances[i*NReactors+5]);
         //        for(int j=0;j<NReactors;j++)
         //        {
         //            ADdistances[i*NReactors+j]=ADdistances[i*NReactors+j]*km; //Km instead of meters
@@ -843,8 +846,8 @@ void Oscillation :: ReadDistances(Char_t* distanceFileName)
     }
     
     //Test:
-    if(TestAllTheSame)
-    {
+#ifdef TestAllTheSame
+
         for(Int_t i=0;i<NADs;i++)
         {
             for(Int_t j=0;j<NReactors;j++)
@@ -853,7 +856,7 @@ void Oscillation :: ReadDistances(Char_t* distanceFileName)
             }
         }
     }
-    
+#endif
     infile.close();
 }
 
@@ -1024,19 +1027,19 @@ void Oscillation :: CalculateFluxFraction(Int_t idx, Int_t idy)
     
     //delete FactorF;
     
-    #ifdef PrintEps
-    if(idx==Int_t(XCellLimit/2)&&idy==Int_t(YCellLimit/2))
-    {
-        TCanvas* FluxFracC = new TCanvas("FluxFractions","FluxFractions",1000,300);
+#ifdef PrintEps
+           TCanvas* FluxFracC = new TCanvas("FluxFractions","FluxFractions",1000,300);
         
-        FluxFracC->Divide(3,1);
+        FluxFracC->Divide(ADsEH1+ADsEH2,VolumeX);
         TLegend *leg = new TLegend(0.1,0.1,0.4,0.5);
         leg->SetBorderSize(0);
         leg->SetFillColor(0);
-        
+    
+    for (Int_t idx = 0; idx<VolumeX; idx++)
+    {
         for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
         {
-            FluxFracC->cd(near+1);
+            FluxFracC->cd(near+idx*(ADsEH1+ADsEH2)+1);
             
             for (Int_t reactor = 0; reactor<NReactors; reactor++)
             {
@@ -1066,12 +1069,11 @@ void Oscillation :: CalculateFluxFraction(Int_t idx, Int_t idy)
                 
             }
         }
-        
-        FluxFracC->Print(("./Images/"+AnalysisString+"/FluxFractions.eps").c_str());
-        
-        delete FluxFracC;
     }
-    #endif
+    FluxFracC->Print(("./Images/"+AnalysisString+"/FluxFractions.eps").c_str());
+    
+    delete FluxFracC;
+#endif
     
     std::cout << " CalculateFluxFraction ended " << std::endl;
 }
@@ -1421,9 +1423,9 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
                     
                 }//reactor
                 
-                // Multiply by efficiencies and the corresponding # of protons in each AD
+                // Multiply by efficiencies and the corresponding # of protons in each AD, since the detector protons would make the spectrum huge, normalize with respect to AD1 protons.
                 
-                FarHallCellSpectrumH[far][near][j][idx][idy]->Scale(DetectorEfficiency[(far+(ADsEH1+ADsEH2))][week][idx][idy]*FullTime[(far+(ADsEH1+ADsEH2))][week]*DetectorProtons[far+(ADsEH1+ADsEH2)][idx][idy]);
+                FarHallCellSpectrumH[far][near][j][idx][idy]->Scale(DetectorEfficiency[(far+(ADsEH1+ADsEH2))][week][idx][idy]*FullTime[(far+(ADsEH1+ADsEH2))][week]*DetectorProtons[far+(ADsEH1+ADsEH2)][idx][idy]/DetectorProtons[0][idx][idy]);
                 
                 //Sum all cells:
                 
@@ -1493,7 +1495,7 @@ void Oscillation :: LoadToyHistograms(Int_t week)
     std::cout << "\t \t Loading toy reactor model" << std::endl;
     Char_t ADdata[200];
     
-    if((Sin22t12Matrix||IsotopeMatrix||ReactorPowerMatrix)&&Mode==1)
+    if((Sin22t12Matrix||IsotopeMatrix||ReactorPowerMatrix)&&Mode)
     {
         sprintf(ADdata,("./RootOutputs/"+ AnalysisString+ "/RandomOutputs/RandomOscillation_Isotope_%d_Power_%d_Sin22t12_%d_.root").c_str(),IsotopeMatrix,ReactorPowerMatrix,Sin22t12Matrix);
     }
@@ -1514,7 +1516,7 @@ void Oscillation :: LoadToyHistograms(Int_t week)
             {
                 ADSpectrumVisH[near][idx][idy] = (TH1D*)gDirectory->Get(Form("Oscillation Prediction AD%d, week%d, cell %d,%d", near+1,week,idx,idy));
                 
-                //  In oscillationreactor ADs have been corrected.
+                //  In oscillationreactor ADs have backgrounds included.
                 
                 ADSpectrumVisH[near][idx][idy]->Add(BackgroundSpectrumH[near][idx][idy],-1.);
             }
@@ -1707,13 +1709,15 @@ void Oscillation :: LoadNearData(Int_t week)
                 //Substract backgrounds:
                 ADSpectrumVisH[near][idx][idy]->Add(NearBackgroundSpectrumH[near][idx][idy],-1);//Substract (varied if necessary) backgrounds from data
                 
-                for(Int_t i = 0; i< ADSpectrumVisH[near][idx][idy]->GetXaxis()->GetNbins();i++)
-                {
-                    if(ADSpectrumVisH[near][idx][idy]->GetBinContent(i+1)<0)
-                    {
-                        ADSpectrumVisH[near][idx][idy]->SetBinContent(i+1,0);//After subtraction some bins can be negative, that doesn't make sense so I set them equal to zero. Maybe it would be better to interpolate.
-                    }
-                }
+                //If the bin is negative, this will affect the covariance matrix, so apply no correction:
+//
+                //for(Int_t i = 0; i< ADSpectrumVisH[near][idx][idy]->GetXaxis()->GetNbins();i++)
+//                {
+//                    if(ADSpectrumVisH[near][idx][idy]->GetBinContent(i+1)<0)
+//                    {
+//                        ADSpectrumVisH[near][idx][idy]->SetBinContent(i+1,0);
+//                    }
+//                }
             }
         }
     }
@@ -1721,18 +1725,18 @@ void Oscillation :: LoadNearData(Int_t week)
     #ifdef PrintEps
 
         TCanvas* c1 = new TCanvas("c1","Near Data", 1200,400);
-        c1->Divide(ADsEH1+ADsEH2,1);
+        c1->Divide(ADsEH1+ADsEH2,VolumeX*VolumeY);
         
         for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
         {
-            c1->cd(near+1);
-            if(Analysis)
+            for(Int_t idx = 0; idx < VolumeX; idx++)
             {
-                ADSpectrumVisH[near][Int_t(XCellLimit/2)][Int_t(YCellLimit/2)]->Draw();
-            }
-            else
-            {
-                ADSpectrumVisH[near][0][0]->Draw();
+                for(Int_t idy = 0; idy < VolumeY; idy++)
+                {
+                    c1->cd(near+idx*(ADsEH1+ADsEH2)+1);
+
+                        ADSpectrumVisH[near][idx][idy]->Draw();
+                }
             }
         }
         
@@ -1775,6 +1779,7 @@ void Oscillation :: ApplyResponseMatrix()
     else
     {
         TFile* TransEnergyMatrixDataF = new TFile((ResponseDirectory).c_str());
+        
         for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
         {
             for(Int_t idx=0; idx<XCellLimit; idx++)
@@ -1798,7 +1803,7 @@ void Oscillation :: ApplyResponseMatrix()
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
-                ADSpectrumVisH[near][idx][idy]->Scale(1./(DetectorEfficiency[near][week][idx][idy]*FullTime[near][week]*DetectorProtons[near][idx][idy]));// Remove AD performance included in oscillation reactor and data. This is later included in the far spectrum fraction calculation.
+                ADSpectrumVisH[near][idx][idy]->Scale(1./(DetectorEfficiency[near][week][idx][idy]*FullTime[near][week]*DetectorProtons[near][idx][idy]/DetectorProtons[0][idx][idy]));// Remove AD performance included in oscillation reactor and data. This is later included in the far spectrum fraction calculation.
                 
                 for(Int_t j = 0; j < n_evis_bins; j ++)
                 {
@@ -1860,12 +1865,10 @@ void Oscillation :: GenerateFluxHisto()
     if (NReactorPeriods == 1)//testing superhistogram vs inclusive histogram
     {
         //need to use superhistograms? efficiency corrected fluxes in each AD
-        if(TestAllTheSame)
-        {
+#ifdef TestAllTheSame
+
             sprintf(ReactorData,("./RootOutputs/"+ AnalysisString+"/NominalOutputs/AntineutrinoSpectrum.root").c_str()); //The reactor model spectrum, with no reactor on/off information, just assumes the nominal spectrum is on all the time.
-        }
-        else
-        {
+#else
 #ifdef BlindedAnalysis
             sprintf(ReactorData,Form("./ReactorInputs/WeeklyFlux_%dweek_blinded_inclusive.root",NReactorPeriods));
             std::cout << " NEEDED A BLINDED WEEKLY INCLUSIVE FLUX FILE" << std::endl;
@@ -1874,8 +1877,8 @@ void Oscillation :: GenerateFluxHisto()
             sprintf(ReactorData,Form("./ReactorInputs/WeeklyFlux_%dweek_unblinded_inclusive.root",NReactorPeriods));
             std::cout << " NEEDED AN UNBLINDED WEEKLY INCLUSIVE FLUX FILE" << std::endl;
             exit(EXIT_FAILURE);
-#endif
-        }
+#endif//BlindedAnalysis
+#endif//TestAllTheSame
     }
     else
     {
@@ -1902,24 +1905,24 @@ void Oscillation :: GenerateFluxHisto()
         {
             if(Nweeks==1)
             {
-                if(TestAllTheSame)
-                {
+#ifdef TestAllTheSame
+
                     sprintf(ReactorSpectrum,"AntineutrinoSpectrumFromReactor%i",reactor+1);
                     // In this case I don't scale it because the spectrum has not been altered usng the # of protons, technically is spectrum in the reactors not in the ad.
-                }
-                else
-                {
+#else
                     sprintf(ReactorSpectrum,"Week%i/%i",period,reactor);
-                }
+#endif
             }
             else
             {
                 sprintf(ReactorSpectrum,"Week%i/%i", period, reactor);//Default one
             }
+            
 #ifdef NoOscillation
             //To show a flat extrapolation factor and flux fraction
             sprintf(ReactorSpectrum,"AntineutrinoSpectrumFromReactor%i",reactor+1);
 #endif
+            
             TH1D* NonBinnedFluxH = (TH1D*)gDirectory->Get(ReactorSpectrum);
             
             //        NonBinnedFluxH = (TH1D*)NonBinnedFluxH->Rebin(n_etrue_bins,Form("Flux True Spectrum from reactor%d",reactor+1),enu_bins);
@@ -1970,7 +1973,6 @@ void Oscillation :: GenerateFluxHisto()
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    
                     InclusiveFluxH[reactor][AD][idx][idy] = new TH1D(Form("InclusiveFlux%i_%i,Cell%i_%i",reactor+1,AD+1,idx,idy),Form("InclusiveFlux%i_%i,Cell%i_%i",reactor+1,AD+1,idx,idy),n_etrue_bins,enu_bins);
                     
                     Double_t scalesum=0;
@@ -2006,6 +2008,8 @@ void Oscillation :: GenerateFluxHisto()
                     if(scalesum==0)
                     {
                         InclusiveFluxH[reactor][AD][idx][idy]->Scale(0);
+                        std::cout << " WEEKLY FLUX MUST BE EMPTY, NOT READING THE FILE? " << std::endl;
+                        exit(EXIT_FAILURE);
                     }
                     else
                     {
@@ -2034,6 +2038,7 @@ void Oscillation :: GenerateFluxHisto()
                     for(Int_t reactor=0;reactor<NReactors;reactor++)
                     {
                         WeeklyFluxC->cd(reactor+AD*NReactors+1+NReactors*NADs*idx);
+                        
                         FluxH[reactor][AD][week][idx][idy]->Draw();
                     }
                 }
@@ -2183,7 +2188,6 @@ void Oscillation :: SaveBackgrounds(){
         {
             for(Int_t near=0; near<(ADsEH1+ADsEH2); near++)
             {
-                
                 NearBackgroundSpectrumH[near][idx][idy]->Write((Form("Near AD%i_Volume%i ",near, idx)+RandomString+ Form(" Background Period%i",week)).c_str());
             }
             for(Int_t far=0; far<ADsEH3; far++)
