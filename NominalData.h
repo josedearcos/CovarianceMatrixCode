@@ -106,7 +106,8 @@ private:
     std::string ToyMCSamplesDirectory;
     std::string SysCovDirectory;
     std::string BkgCovDirectory;
-    
+    Char_t DistanceFileName[100];
+
     //Analysis type:
     bool isH;
     Int_t DataSet;
@@ -197,6 +198,9 @@ private:
     Double_t FullTime[MaxDetectors*MaxPeriods];//Full time is the same for both volumes
     Double_t MuonEff[MaxDetectors*MaxPeriods];
     Double_t MultiEff[MaxDetectors*MaxPeriods];
+    Double_t InclusiveFullTime[MaxDetectors*MaxPeriods];//Full time is the same for both volumes
+    Double_t InclusiveMuonEff[MaxDetectors*MaxPeriods];
+    Double_t InclusiveMultiEff[MaxDetectors*MaxPeriods];
     
     //IAV error:
     Double_t IAVError;
@@ -300,6 +304,8 @@ public:
     
     bool StatisticalFluctuation;
     bool UseToyMCTree;
+    
+    Double_t ADdistances[MaxDetectors*NReactors];
     
     NominalData(bool,Int_t);
     void CopyData(NominalData*);
@@ -526,6 +532,9 @@ public:
     Double_t GetEnergyDelayedCutDetectorEfficiency();
     Double_t GetDetectorEfficiencyRelativeError();
     Double_t GetDetectorEfficiency(Int_t, Int_t, Int_t, Int_t);
+    Double_t GetInclusiveDetectorEfficiency(Int_t, Int_t, Int_t, Int_t);
+    Double_t GetInclusiveFullTime(Int_t, Int_t);
+
     Double_t GetFullTime(Int_t,Int_t);
     Int_t GetCombineMode();
     Int_t GetWeeks();
@@ -563,14 +572,23 @@ public:
     void GetnGdInclusiveData(Double_t*, bool ErrorMode);
     void CorrectnHEvents();
     void CorrectnGdEvents();
-    void GetInclusiveFullTime(Double_t*);
-    void GetInclusiveEfficiencies(Double_t*);
+    void CalculateInclusiveFullTime(Double_t*,Double_t*);
+    void CalculateInclusiveEfficiencies(Double_t*,Double_t*);
     void ReadToyEventsByCell();
     Double_t GetEventsByCell(Int_t,Int_t,Int_t);
+    void ReadDistances(Char_t*);
+    Double_t GetDistances(Int_t,Int_t);
 };
 
 NominalData :: NominalData(bool ish,Int_t dataSet)
 {
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    //                              ANALYSIS, DATA SET AND NON-LINEARITY MODEL TO BE USED
+    
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
     DataSet = dataSet;
     isH = ish;
     
@@ -579,6 +597,12 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     BCW=0;
     LBNL=0;
     Unified=1;
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    //                                          BINNING VARIABLES AND FITTER PARAMETERS
+    
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
     TurnOnBudget = 0;
     TurnOffBudget = 0;
@@ -622,14 +646,78 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     
     StatisticalFluctuation=0;
 
+    NSamples = 500;
+    NSteps = 101;
+    
+    Emin = 1.8;
+    Emax = 9.6;
+    EVisMax = 12;
+    LinearBinning=0;
+    //CalculateBinning();//Calculated in setbinning
+    
+    //Oscillation parameters and errors:from PDG 2013
+    s22t13 = 0.09;//0.09 ± 0.009
+    s22t13Error = 0.01;
+    s22t12 =0.857;//0.857 ± 0.024
+    s22t12Error = 0.024;
+    dm2_32 = 2.41e-3;//eV2
+    dm2_21 = 7.50e-5;//eV2
+    
+    hierarchy=1;//-1 for inverted           // Set as external input to be set in the GUI   !!!!
+    
+    dm2_31=dm2_32+hierarchy*dm2_21;
+    dm2_ee = dm2_32+hierarchy*5.21e-5;
+    
+    sin_start = 0;
+    sin_end = 0.2;
+    
+    dmee_start = dm2_ee - 0.001;
+    dmee_end = dm2_ee + 0.001;
+    
     ToyMC=0;//Data is default;
     Nweeks = 1;
     NReactorPeriods=20;
+    
     NADs = 6;
     ADsEH1 = 2;
     ADsEH2 = 1;
     ADsEH3 = 3;
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    //                                          LOAD DISTANCES BETWEEN ADS AND CORES
+    
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifdef BlindedAnalysis
+    sprintf(DistanceFileName,"./Distances/blinded_baseline.txt");
+    std::cout << " NEED TO ADD A BLINDED DISTANCE FILE" << std::endl;
+    exit(EXIT_FAILURE);
+#else
+    sprintf(DistanceFileName,"./Distances/unblinded_baseline.txt");
+#endif
+    
+    if(NADs == 8) //ADs can only be 6 or 8
+    {
+        ADsEH2 = 2;
+        ADsEH3 = 4;
+#ifdef BlindedAnalysis
+        sprintf(DistanceFileName,"./Distances/blinded_baseline.txt");
+        std::cout << " NEED TO ADD A BLINDED 8AD DISTANCE FILE" << std::endl;
+        exit(EXIT_FAILURE);
+#else
+        sprintf(DistanceFileName,"./Distances/unblinded_baseline8ADs.txt");//change file to calculate distances to a file that has the information for the 8 ADs
+        std::cout << "NEED TO ADD A TXT FILE WITH THE 8AD DISTANCES" << std::endl;
+        exit(EXIT_FAILURE);
+#endif
+    }
+    
+    ReadDistances(DistanceFileName);
+    
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    //                                          LOAD DETECTOR MASS
+    
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #ifdef TestAllTheSame
     for(Int_t i = 0; i<NADs; i++)
     {
@@ -661,22 +749,18 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     DetectorMass[MaxDetectors+5] = 0.019892;
 #endif
     
-    NSamples = 500;
-    NSteps = 101;
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    Emin = 1.8;
-    Emax = 9.6;
-    EVisMax = 12;
-    LinearBinning=0;
-    //CalculateBinning();//Calculated in setbinning
+    //                                      REACTOR PARAMETERS
     
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    IHEPReactorModel=0;
+
     //Nominal isotope fraction errors:
     for(Int_t i=0;i<NIsotopes;i++)
     {
         IsotopeFracError[i]=0.05;
     }
-    
-    //Reactor power (It's an average of first 140 days of data) This should be coded to get the data from a txt file instead.)
     
     //test:
 #ifdef TestAllTheSame
@@ -700,6 +784,9 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     EnergyPerFission[3]=200;
     
 #else
+    
+    //Reactor power (It's an average of first 140 days of data) This should be coded to get the data from a txt file instead.)
+
     ReactorPower[0] = 2.178;// GW
     ReactorPower[1] = 2.876;
     ReactorPower[2] = 2.389;
@@ -733,24 +820,13 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
     EnergyPerFissionError[2]=0.002857;
     EnergyPerFissionError[3]=0.003043;
     
-    //Oscillation parameters and errors:from PDG 2013
-    s22t13 = 0.09;//0.09 ± 0.009
-    s22t13Error = 0.01;
-    s22t12 =0.857;//0.857 ± 0.024
-    s22t12Error = 0.024;
-    dm2_32 = 2.41e-3;//eV2
-    dm2_21 = 7.50e-5;//eV2
     
-    hierarchy=1;//-1 for inverted           // Set as external input to be set in the GUI   !!!!
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     
-    dm2_31=dm2_32+hierarchy*dm2_21;
-    dm2_ee = dm2_32+hierarchy*5.21e-5;
+    //                                          DETECTOR RESPONSE PARAMETERS
     
-    sin_start = 0;
-    sin_end = 0.2;
-    
-    dmee_start = dm2_ee - 0.001;
-    dmee_end = dm2_ee + 0.001;
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
     
     //For Hydrogen and 6 ADs: from http://dayabay.ihep.ac.cn/DocDB/0085/008556/020/Main-version3.pdf
     if(this->GetAnalysis())
@@ -878,8 +954,13 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
 //            }
 //            else
 //            {
-                LoadHydrogenMainData();// Need to do it NReactorPeriods dependent instead of just 101. DataSet chooses the (101)NReactorPeriods so far.
-                CorrectnHEvents();
+            
+            
+//                LoadHydrogenMainData();// Need to do it NReactorPeriods dependent instead of just 101. DataSet chooses the (101)NReactorPeriods so far.
+//                CorrectnHEvents();
+            
+            
+            
 //            }
         }
     }
@@ -1035,8 +1116,6 @@ NominalData :: NominalData(bool ish,Int_t dataSet)
             }
         }
     }
-    
-    IHEPReactorModel=0;
 }
 
 NominalData:: ~NominalData()
@@ -1080,6 +1159,9 @@ void NominalData :: CopyData(NominalData * data)
     std::copy(std::begin(data->m_detectorGlobalEfficiency), std::end(data->m_detectorGlobalEfficiency), std::begin(m_detectorGlobalEfficiency));
     std::copy(std::begin(data->nHCaptureFraction), std::end(data->nHCaptureFraction), std::begin(nHCaptureFraction));
     
+    std::copy(std::begin(data->ADdistances), std::end(data->ADdistances), std::begin(ADdistances));
+    std::copy(std::begin(data->DistanceFileName), std::end(data->DistanceFileName), std::begin(DistanceFileName));
+
     //Toy samples
     NSamples = data->NSamples;
     NSteps = data->NSteps;
@@ -1134,6 +1216,9 @@ void NominalData :: CopyData(NominalData * data)
     std::copy(std::begin(data->FullTime), std::end(data->FullTime), std::begin(FullTime));
     std::copy(std::begin(data->MuonEff), std::end(data->MuonEff), std::begin(MuonEff));
     std::copy(std::begin(data->MultiEff), std::end(data->MultiEff), std::begin(MultiEff));
+    std::copy(std::begin(data->InclusiveFullTime), std::end(data->InclusiveFullTime), std::begin(InclusiveFullTime));
+    std::copy(std::begin(data->InclusiveMuonEff), std::end(data->InclusiveMuonEff), std::begin(InclusiveMuonEff));
+    std::copy(std::begin(data->InclusiveMultiEff), std::end(data->InclusiveMultiEff), std::begin(InclusiveMultiEff));
     
     //IAV error:
     IAVError = data->IAVError;
@@ -2038,9 +2123,23 @@ Double_t NominalData :: GetDetectorEfficiency(Int_t detector, Int_t week, Int_t 
 #endif
         //return VolumeEfficiency * MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]; //using Logan's numbers.
         
+//        std::cout <<  MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx] << std::endl;
+        
         return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx];
         //Efficiency of Prompt energy, Delayed energy, time, distance included in global efficiency. Flasher is not (Very small) nH capture included in delayed energy cut in the new version, right now working with out it included, that's why we multiply by the nH capture fraction.
-        }
+    }
+}
+
+Double_t NominalData :: GetInclusiveDetectorEfficiency(Int_t detector, Int_t week, Int_t idx, Int_t idy)
+{
+    if(!isH)//Gd
+    {
+        return InclusiveMuonEff[detector+week*MaxDetectors]*InclusiveMultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx];
+    }
+    else//nH
+    {
+        return InclusiveMuonEff[detector+week*MaxDetectors]*InclusiveMultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx];
+    }
 }
 
 Double_t NominalData :: GetEnergyDelayedCutDetectorEfficiency()
@@ -2056,6 +2155,11 @@ Double_t NominalData :: GetDetectorEfficiencyRelativeError()
 Double_t NominalData :: GetFullTime(Int_t detector,Int_t week)
 {
     return FullTime[detector+week*MaxDetectors];
+}
+
+Double_t NominalData :: GetInclusiveFullTime(Int_t detector,Int_t week)
+{
+    return InclusiveFullTime[detector+week*MaxDetectors];
 }
 
 Double_t NominalData :: GetIAVError()
@@ -2393,21 +2497,38 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
             GetnGdInclusiveData(AmCEvents,0);
             GetnGdInclusiveData(AmCError,1);
             
-            GetInclusiveEfficiencies(MultiEff);
-            GetInclusiveEfficiencies(MuonEff);
-            GetInclusiveFullTime(FullTime);
+//            for(Int_t AD=0;AD<NADs;AD++)
+//            {
+//                for(Int_t week=0;week<NReactorPeriods;week++)
+//                {
+//                    InclusiveMultiEff[AD+week*MaxDetectors] = MultiEff[AD+week*MaxDetectors];
+//                    InclusiveMuonEff[AD+week*MaxDetectors] = MuonEff[AD+week*MaxDetectors];
+//                    InclusiveFullTime[AD+week*MaxDetectors] = FullTime[AD+week*MaxDetectors];
+//
+//                }
+//            }
+            
+            CalculateInclusiveEfficiencies(InclusiveMultiEff,MultiEff);
+            CalculateInclusiveEfficiencies(InclusiveMuonEff,MuonEff);
+            CalculateInclusiveFullTime(InclusiveFullTime,FullTime);
 
             for(Int_t AD=0;AD<NADs;AD++)
             {
                 //To make sure the inclusive data has changed
                 
-                std::cout << "Inclusive observed events AD: " << AD << " is : " << ObservedEvents[AD+week*MaxDetectors] << std::endl;
+                std::cout << "Inclusive observed events AD: " << AD << " is : " << ObservedEvents[AD+week*MaxDetectors] << "+/-" << StatisticalError[AD+week*MaxDetectors] << std::endl;
                 
-                for(Int_t week = 0; week<NReactorPeriods; week++)
-                {
-                    std::cout << " Weekly observed events AD: " << AD << " is : " << ObservedEvents[AD+week*MaxDetectors] << " for week : " << week << std::endl;
-                }
+                std::cout << "Inclusive ibd events AD: " << AD << " is : " << IBDEvents[AD+week*MaxDetectors] << std::endl;
+
+                std::cout << "Inclusive Accidental events AD: " << AD << " is : " << AccidentalEvents[AD+week*MaxDetectors]  << "+/-" << AccidentalError[AD+week*MaxDetectors] << std::endl;
                 
+                std::cout << "Inclusive LiHe events AD: " << AD << " is : " << LiHeEvents[AD+week*MaxDetectors] << "+/-" << LiHeError[AD+week*MaxDetectors] << std::endl;
+                std::cout << "Inclusive FN events AD: " << AD << " is : " << FastNeutronEvents[AD+week*MaxDetectors] << "+/-" << FastNeutronError[AD+week*MaxDetectors] << std::endl;
+
+                std::cout << "Inclusive AmC events AD: " << AD << " is : " << AmCEvents[AD+week*MaxDetectors]
+                << "+/-" << AmCError[AD+week*MaxDetectors] << std::endl;
+
+
             }
 
         }
@@ -2617,7 +2738,7 @@ void NominalData :: LoadHydrogenMainData()
                             }
                         }
                         
-                        nHCaptureFraction[VolumeIndex]=readvals[AD];
+                        nHCaptureFraction[VolumeIndex]=readvals[AD]/100;
                     }
                 }
                 //row 7 -->Detector Global Efficiency (Efficiency of Prompt energy, Delayed energy, time, distance
@@ -2899,9 +3020,9 @@ void NominalData :: CorrectnHEvents()
             }
         }
         
-        GetnHInclusiveData(StatisticalError,1);
         GetnHInclusiveData(IBDEvents,0);
         GetnHInclusiveData(ObservedEvents,0);
+        GetnHInclusiveData(StatisticalError,1);
         GetnHInclusiveData(AccidentalEvents,0);
         GetnHInclusiveData(AccidentalError,1);
         GetnHInclusiveData(LiHeEvents,0);
@@ -2928,20 +3049,41 @@ void NominalData :: CorrectnHEvents()
 
                     std::cout <<  ObservedEvents[IndexInclusive] <<  " = " << IBDEvents[IndexInclusive]  + (AccidentalEvents[IndexInclusive]+LiHeEvents[IndexInclusive]+FastNeutronEvents[IndexInclusive]+AmCEvents[IndexInclusive]) << std::endl;
                     
-                    for(Int_t week = 0; week<NReactorPeriods; week++)
-                    {
-                        Int_t IndexWeekly = AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods;
-                        Int_t IndexConstant = AD+week*MaxDetectors;
-
-                        std::cout << " Weekly observed events AD: " << AD << " is : " << ObservedEvents[IndexWeekly] << " for week : " << week << " scaled " << (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0, idx) << std::endl;
-                    }
+                        //To make sure the inclusive data has changed
+                        
+                        std::cout << "Inclusive observed events AD: " << AD << " is : \t" << ObservedEvents[IndexInclusive] << "+/-" << StatisticalError[IndexInclusive] << std::endl;
+                        
+                        std::cout << "Inclusive ibd events AD: " << AD << " is : \t" << IBDEvents[IndexInclusive] << std::endl;
+                        
+                        std::cout << "Inclusive Accidental events AD: " << AD << " is : \t" << AccidentalEvents[IndexInclusive]  << "+/-" << AccidentalError[IndexInclusive] << std::endl;
+                        
+                        std::cout << "Inclusive LiHe events AD: " << AD << " is : \t" << LiHeEvents[IndexInclusive] << "+/-" << LiHeError[IndexInclusive] << std::endl;
+                        std::cout << "Inclusive FN events AD: " << AD << " is : \t" << FastNeutronEvents[IndexInclusive] << "+/-" << FastNeutronError[IndexInclusive] << std::endl;
+                        
+                        std::cout << "Inclusive AmC events AD: " << AD << " is : \t" << AmCEvents[IndexInclusive]
+                        << "+/-" << AmCError[IndexInclusive] << std::endl;
+                        
+                        
+                    
                 }
             }
         }
         
-        GetInclusiveEfficiencies(MultiEff);
-        GetInclusiveEfficiencies(MuonEff);
-        GetInclusiveFullTime(FullTime);
+        
+//        for(Int_t AD=0;AD<NADs;AD++)
+//        {
+//            for(Int_t week=0;week<NReactorPeriods;week++)
+//            {
+//                InclusiveMultiEff[AD+week*MaxDetectors] = MultiEff[AD+week*MaxDetectors];
+//                InclusiveMuonEff[AD+week*MaxDetectors] = MuonEff[AD+week*MaxDetectors];
+//                InclusiveFullTime[AD+week*MaxDetectors] = FullTime[AD+week*MaxDetectors];
+//                
+//            }
+//        }
+        
+        CalculateInclusiveEfficiencies(InclusiveMultiEff,MultiEff);
+        CalculateInclusiveEfficiencies(InclusiveMuonEff,MuonEff);
+        CalculateInclusiveFullTime(InclusiveFullTime,FullTime);
     }
 }
 
@@ -3528,10 +3670,10 @@ void NominalData :: ReadToyEventsByCell()//Included in nHToyMC.h right now
     {
         SystematicS = "Resolution";
     }
-    else if(EfficiencyMatrix)
-    {
-        SystematicS = "Efficiency";
-    }
+//    else if(EfficiencyMatrix)
+//    {
+//        SystematicS = "Efficiency";
+//    }
     else if(AllDetectorSystematicsMatrix)
     {
         SystematicS = "AllDetectorSystematics";
@@ -3636,7 +3778,7 @@ void NominalData :: ReadToyEventsByCell()//Included in nHToyMC.h right now
             {
                 PercentualEvents[AD+NADs*idx+NADs*VolumeX*idy] = (CellIntegral[AD+NADs*idx+NADs*VolumeX*idy]/ADIntegral[AD]);
 
-                MapEvents_ratio2total->SetBinContent(idx+1,idy+1,CellIntegral[AD+NADs*idx+NADs*VolumeX*idy]/ADIntegral[AD]);
+                MapEvents_ratio2total->SetBinContent(idx+1,idy+1,PercentualEvents[AD+NADs*idx+NADs*VolumeX*idy]);
             }
         }
     }
@@ -3714,13 +3856,21 @@ void NominalData :: GetnHInclusiveData(Double_t* InclusiveData, bool ErrorMode)
     {
         for(Int_t week=0;week<NReactorPeriods;week++)
         {
+            Int_t IndexConstant = AD+week*MaxDetectors;
+
             for(Int_t idx=0; idx<VolumeX; idx++)
             {
+                Int_t IndexWeekly = AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods;
+
                 for(Int_t idy=0; idy<VolumeY; idy++)
                 {
-                    WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods] = InclusiveData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods];
+                    WeeklyData[IndexWeekly] = InclusiveData[IndexWeekly];
+         
                     
-                    InclusiveData[AD+week*MaxDetectors+idx*MaxDetectors*NReactorPeriods] = 0;
+//                        std::cout << " Weekly observed events AD: " << AD << "Volume " << idx << " is : " << WeeklyData[IndexWeekly] << " for week : " << week << " scaled " << (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0, idx) << std::endl;
+                
+                    
+                    InclusiveData[IndexWeekly] = 0;
                 }
             }
         }
@@ -3866,19 +4016,8 @@ void NominalData :: GetnGdInclusiveData(Double_t* InclusiveData, bool ErrorMode)
     }
 }
 
-void NominalData:: GetInclusiveEfficiencies(Double_t* InclusiveData)
+void NominalData:: CalculateInclusiveEfficiencies(Double_t* InclusiveData, Double_t* WeeklyData)
 {
-    
-    Double_t WeeklyData[MaxDetectors*NReactorPeriods];
-    
-    for(Int_t AD=0;AD<NADs;AD++)
-    {
-        for(Int_t week=0;week<NReactorPeriods;week++)
-        {
-            WeeklyData[AD+week*MaxDetectors] = InclusiveData[AD+week*MaxDetectors];
-        }
-    }
-    
     for(Int_t AD=0;AD<NADs;AD++)
     {
         Double_t ScaleSum = 0;
@@ -3897,21 +4036,12 @@ void NominalData:: GetInclusiveEfficiencies(Double_t* InclusiveData)
         
         InclusiveData[AD]*=1./ScaleSum;
         
-        std::cout << " TOTAL EFFICIENCY AD " << AD << " IS : " << InclusiveData[AD] << std::endl;
+        std::cout << " AVERAGE EFFICIENCY AD IN THE WHOLE PERIOD" << AD << " IS : " << InclusiveData[AD] << std::endl;
     }
 }
 
-void NominalData:: GetInclusiveFullTime(Double_t* InclusiveData)
+void NominalData:: CalculateInclusiveFullTime(Double_t* InclusiveData, Double_t* WeeklyData)
 {
-    Double_t WeeklyData[MaxDetectors*NReactorPeriods];
-    
-    for(Int_t AD=0;AD<NADs;AD++)
-    {
-        for(Int_t week=0;week<NReactorPeriods;week++)
-        {
-            WeeklyData[AD+week*MaxDetectors] = InclusiveData[AD+week*MaxDetectors];
-        }
-    }
     
     for(Int_t AD=0;AD<NADs;AD++)
     {
@@ -3924,4 +4054,51 @@ void NominalData:: GetInclusiveFullTime(Double_t* InclusiveData)
         
         std::cout << " TOTAL FULL TIME AD " << AD << " IS : " << InclusiveData[AD] << std::endl;
     }
+}
+
+//Reads baseline distances from file
+void NominalData :: ReadDistances(Char_t* distanceFileName)
+{
+    std::ifstream infile(distanceFileName);
+    std::string line;
+    
+    getline(infile,line); //To throw away the first line
+    
+    //Get baselines from text file into a Matrix
+    for(Int_t i=0;i<NADs;i++)
+    {
+        infile >> ADdistances[i*NReactors+0] >> ADdistances[i*NReactors+1] >> ADdistances[i*NReactors+2] >> ADdistances[i*NReactors+3] >> ADdistances[i*NReactors+4] >> ADdistances[i*NReactors+5];
+        
+        std::cout << " Distances in Oscillation.h : " << std::endl;
+        
+        printf("Baseline AD%d to D1 is: %f \n", i+1, ADdistances[i*NReactors+0]);
+        printf("Baseline AD%d to D2 is: %f \n", i+1, ADdistances[i*NReactors+1]);
+        printf("Baseline AD%d to L1 is: %f \n", i+1, ADdistances[i*NReactors+2]);
+        printf("Baseline AD%d to L2 is: %f \n", i+1, ADdistances[i*NReactors+3]);
+        printf("Baseline AD%d to L3 is: %f \n", i+1, ADdistances[i*NReactors+4]);
+        printf("Baseline AD%d to L4 is: %f \n", i+1, ADdistances[i*NReactors+5]);
+        //        for(int j=0;j<NReactors;j++)
+        //        {
+        //            ADdistances[i*NReactors+j]=ADdistances[i*NReactors+j]*km; //Km instead of meters
+        //        }
+    }
+    
+    //Test:
+#ifdef TestAllTheSame
+    
+    for(Int_t i=0;i<NADs;i++)
+    {
+        for(Int_t j=0;j<NReactors;j++)
+        {
+            ADdistances[i*NReactors+j]=1000;
+        }
+    }
+}
+#endif
+infile.close();
+}
+
+Double_t NominalData :: GetDistances(Int_t AD, Int_t Reactor)
+{
+    return  ADdistances[Reactor+AD*NReactors];
 }

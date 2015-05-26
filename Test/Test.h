@@ -1468,7 +1468,7 @@ void Test::TestSuperHistograms()
     {
         for(Int_t ad = 0; ad<NADs; ad++)
         {
-            MySuperHisto[reactor][ad]=(TH1F*)gDirectory->Get(Form("Rebinned Flux Spectrum from reactor%d with ad%d efficiencies",reactor+1,ad+1));
+            MySuperHisto[reactor][ad]=(TH1F*)gDirectory->Get(Form("Inclusive Rebinned Flux Spectrum from reactor%d with ad%d efficiencies",reactor+1,ad+1));
             MySuperHistoRatio[reactor][ad]=(TH1F*)MySuperHisto[reactor][ad]->Clone();
         }
     }

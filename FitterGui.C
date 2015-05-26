@@ -29,8 +29,8 @@
 
 #include <assert.h>
 
-//#define NoOscillation //this sets sin22t13 and sin22t13 = 0, also uses the reactor antineutrino model to reset the flux
-//#define TestAllTheSame;//Combined with #NoOscillation can be a nice test to see that everything agrees
+#define NoOscillation //this sets sin22t13 and sin22t13 = 0, also uses the reactor antineutrino model to reset the flux
+#define TestAllTheSame;//Combined with #NoOscillation can be a nice test to see that everything agrees
 
 //#define TestExternalInputs
 #define PrintOnConsole
@@ -1953,18 +1953,19 @@ void FitterGui::RunFlux()
     FluxData->CopyData(Data);
     std::cout << "Loading weekly data to regenerate flux: " << std::endl;
     
-    if(Analysis)
-    {
-        FluxData->LoadHydrogenMainData();
-        
-        //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
-        //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
-    }
-    else
-    {
-        FluxData->LoadOriginalGDMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
-    }
-    
+    //Already loaded
+//    if(Analysis)
+//    {
+//        FluxData->LoadHydrogenMainData();
+//        
+//        //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
+//        //        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
+//    }
+//    else
+//    {
+//        FluxData->LoadOriginalGDMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
+//    }
+//    
     Oscillation* FluxOsc= new Oscillation(FluxData);
         FluxOsc->GenerateFluxHisto();
     delete FluxOsc;

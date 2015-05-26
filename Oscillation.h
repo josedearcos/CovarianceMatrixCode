@@ -90,7 +90,8 @@ private:
     Double_t s22t13;
     
     Int_t week;
-    std::vector<Double_t> ADdistances;
+    Double_t ADdistances[MaxDetectors][NReactors];
+    
     std::vector<Double_t> Norma;
     
     Double_t FluxFraction[MaxDetectors/2][NReactors][MaxNbins][VolumeX][VolumeY];
@@ -98,10 +99,11 @@ private:
 
     Double_t DetectorProtons[MaxDetectors][VolumeX][VolumeY];
     Double_t FullTime[MaxDetectors][MaxPeriods];
+    Double_t FluxFullTime[MaxDetectors][MaxPeriods];
     Double_t DetectorEfficiencyDelayed[MaxDetectors];
     Double_t DetectorEfficiency[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     Double_t NominalDetectorEfficiency[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
-    
+    Double_t FluxNominalDetectorEfficiency[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     //AD configuration parameters:
     Int_t NADs;
     Int_t ADsEH1;
@@ -185,14 +187,12 @@ private:
     TH2D* EnergyMatrix;
     TH2D* LBNLEnergyMatrix;
     //Files
-    Char_t DistanceFileName[100];
     Char_t name[20];
     const Double_t colors[6]= {1,2,4,8,6,11};
     const std::string labels[6]={"D1","D2","L1","L2","L3","L4"};
 
     bool flagDelete;
     //Load data
-    void ReadDistances(Char_t*);
     void LoadToyHistograms(Int_t);
     void LoadNearData(Int_t);
     
@@ -207,6 +207,7 @@ private:
     void SaveBackgrounds();
 
     //Calculate oscillation
+    void PrintFluxFraction();
     void CalculateFluxFraction(Int_t,Int_t);
     void GetExtrapolation(Int_t,Int_t);
 
@@ -285,31 +286,14 @@ Oscillation :: Oscillation()
     ADsEH1 = 2;
     ADsEH2 = 1;
     ADsEH3 = 3;
-#ifdef BlindedAnalysis
-    sprintf(DistanceFileName,"./Distances/blinded_baseline.txt");
-    std::cout << " NEED TO ADD A BLINDED DISTANCE FILE" << std::endl;
-    exit(EXIT_FAILURE);
-#else
-    sprintf(DistanceFileName,"./Distances/unblinded_baseline.txt");
-#endif
-    
-    if(NADs == 8) //ADs can only be 6 or 8
-    {
-        ADsEH2 = 2;
-        ADsEH3 = 4;
-#ifdef BlindedAnalysis
-        sprintf(DistanceFileName,"./Distances/blinded_baseline.txt");
-        std::cout << " NEED TO ADD A BLINDED 8AD DISTANCE FILE" << std::endl;
-        exit(EXIT_FAILURE);
-#else
-        sprintf(DistanceFileName,"./Distances/unblinded_baseline8ADs.txt");//change file to calculate distances to a file that has the information for the 8 ADs
-        std::cout << "NEED TO ADD A TXT FILE WITH THE 8AD DISTANCES" << std::endl;
-        exit(EXIT_FAILURE);
-#endif
-    }
     
     for (Int_t AD = 0; AD<NADs; AD++)
     {
+        for(Int_t reactor = 0; reactor<NReactors; reactor++)
+        {
+            ADdistances[AD][reactor] = Nom->GetDistances(AD,reactor);
+        }
+        
         for(Int_t idx=0; idx<XCellLimit; idx++)
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
@@ -336,10 +320,16 @@ Oscillation :: Oscillation()
                     DetectorProtons[AD][idx][idy] = Nom->GetDetectorProtons(AD,0)/((XCellLimit-4)*(YCellLimit-2));//48 cells, Share uniformly the mass
                 }
 #endif
+                //For fitter:
                 for (Int_t week = 0; week <Nweeks; week++)
                 {
-                    NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy);
+                    NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetInclusiveDetectorEfficiency(AD,week,idx,idy);
                     DetectorEfficiency[AD][week][idx][idy]=NominalDetectorEfficiency[AD][week][idx][idy];
+                }
+                //For flux:
+                for (Int_t week = 0; week <NReactorPeriods; week++)
+                {
+                    FluxNominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy);
                 }
             }
         }
@@ -350,7 +340,8 @@ Oscillation :: Oscillation()
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    FullTime[AD][week] = Nom->GetFullTime(AD,week);
+                    FullTime[AD][week] = Nom->GetInclusiveFullTime(AD,week);
+                    FluxFullTime[AD][week] = Nom->GetFullTime(AD,week);
                 }
             }
         }
@@ -425,6 +416,7 @@ Oscillation :: Oscillation(NominalData* OData)
     IHEPReactorModel = OData->UsingIHEPReactorModel();
 
     Analysis = OData->GetAnalysis();
+    
     if(Analysis)
     {
         FluxInputS = "HInputs";
@@ -450,31 +442,14 @@ Oscillation :: Oscillation(NominalData* OData)
     ADsEH1 = 2;
     ADsEH2 = 1;
     ADsEH3 = 3;
-#ifdef BlindedAnalysis
-    sprintf(DistanceFileName,"./Distances/blinded_baseline.txt");
-    std::cout << " NEED TO ADD A BLINDED DISTANCE FILE" << std::endl;
-    exit(EXIT_FAILURE);
-#else
-    sprintf(DistanceFileName,"./Distances/unblinded_baseline.txt");
-#endif
-    
-    if(NADs == 8) //ADs can only be 6 or 8
-    {
-        ADsEH2 = 2;
-        ADsEH3 = 4;
-#ifdef BlindedAnalysis
-        sprintf(DistanceFileName,"./Distances/blinded_baseline.txt");
-        std::cout << " NEED TO ADD A BLINDED 8AD DISTANCE FILE" << std::endl;
-        exit(EXIT_FAILURE);
-#else
-        sprintf(DistanceFileName,"./Distances/unblinded_baseline8ADs.txt");//change file to calculate distances to a file that has the information for the 8 ADs
-        std::cout << "NEED TO ADD A TXT FILE WITH THE 8AD DISTANCES" << std::endl;
-        exit(EXIT_FAILURE);
-#endif
-    }
     
     for (Int_t AD = 0; AD<NADs; AD++)
     {
+        for(Int_t reactor = 0; reactor<NReactors; reactor++)
+        {
+            ADdistances[AD][reactor] = OData->GetDistances(AD,reactor);
+        }
+        
         for(Int_t idx=0; idx<XCellLimit; idx++)
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
@@ -503,10 +478,16 @@ Oscillation :: Oscillation(NominalData* OData)
                 }
 #endif
                 
+                //For fitter:
                 for (Int_t week = 0; week <Nweeks; week++)
                 {
-                    NominalDetectorEfficiency[AD][week][idx][idy] = OData->GetDetectorEfficiency(AD,week,idx,idy);
+                    NominalDetectorEfficiency[AD][week][idx][idy] = OData->GetInclusiveDetectorEfficiency(AD,week,idx,idy);
                     DetectorEfficiency[AD][week][idx][idy]=NominalDetectorEfficiency[AD][week][idx][idy];
+                }
+                //For flux:
+                for (Int_t week = 0; week <NReactorPeriods; week++)
+                {
+                    FluxNominalDetectorEfficiency[AD][week][idx][idy] = OData->GetDetectorEfficiency(AD,week,idx,idy);
                 }
             }
         }
@@ -522,7 +503,8 @@ Oscillation :: Oscillation(NominalData* OData)
         
         for (Int_t week = 0; week <NReactorPeriods; week++)
         {
-            FullTime[AD][week]  = OData->GetFullTime(AD,week);
+            FullTime[AD][week] = OData->GetInclusiveFullTime(AD,week);
+            FluxFullTime[AD][week]  = OData->GetFullTime(AD,week);
         }
     }
     
@@ -763,7 +745,6 @@ void Oscillation :: OscillationFromNearHallData(Int_t Week,bool ToyMC,bool mode)
     std::cout <<  "\t ***********************************************************************************************" << std::endl;
     std::cout << "\t Calculating Oscillation" << std::endl;
     
-    ReadDistances(DistanceFileName);
     LoadBackgrounds(week);
 
     if(ToyMC)//Toy MC
@@ -801,13 +782,15 @@ void Oscillation :: OscillationFromNearHallData(Int_t Week,bool ToyMC,bool mode)
     {
         for(Int_t idy=0; idy<YCellLimit; idy++)
         {
-            CalculateFluxFraction(idx,idy);// If we only use muon and multi eff this doesn't depend on the volume, nevertheless the global efficiency of each volume is different, but the definition of superflux removes the constants in time and probably this is superfluous and could be eliminated. Since it doesn't hurt (just 1 more loop run) and it's a waste of time to change back the code, I will leave it like this at the moment, but removing the idx,idy dependency could be a small improvement.
+            CalculateFluxFraction(idx,idy);// If we only use muon and multi eff this doesn't depend on the volume, nevertheless the global efficiency of each volume is different, but the definition of superflux removes the constants in time and probably this is superfluous and could be eliminated. Since it doesn't hurt (just 1 more loop run) and it's a waste of time to change back the code, I will leave it like this at the moment, but removing the idx,idy dependency could be a small improvement on performance.
             GetExtrapolation(idx,idy);//Same here
             NearSpectrumFraction(idx,idy);
             FarSpectrumPrediction(idx,idy);
         }
     }
-    
+#ifdef PrintEps
+    PrintFluxFraction();
+#endif
     std::cout << "\t Oscillation calculated" << std::endl;
     
 }
@@ -816,49 +799,6 @@ void Oscillation :: OscillationFromNearHallData(Int_t Week,bool ToyMC,bool mode)
 //LOAD DISTANCES BETWEEN ADS AND CORES
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-//Reads baseline distances from file
-void Oscillation :: ReadDistances(Char_t* distanceFileName)
-{
-    ADdistances.resize(NADs*NReactors);
-    std::ifstream infile(distanceFileName);
-    std::string line;
-    
-    getline(infile,line); //To throw away the first line
-    
-    //Get baselines from text file into a Matrix
-    for(Int_t i=0;i<NADs;i++)
-    {
-        infile >> ADdistances[i*NReactors+0] >> ADdistances[i*NReactors+1] >> ADdistances[i*NReactors+2] >> ADdistances[i*NReactors+3] >> ADdistances[i*NReactors+4] >> ADdistances[i*NReactors+5];
-       
-        std::cout << " Distances in Oscillation.h : " << std::endl;
-
-        printf("Baseline AD%d to D1 is: %f \n", i+1, ADdistances[i*NReactors+0]);
-        printf("Baseline AD%d to D2 is: %f \n", i+1, ADdistances[i*NReactors+1]);
-        printf("Baseline AD%d to L1 is: %f \n", i+1, ADdistances[i*NReactors+2]);
-        printf("Baseline AD%d to L2 is: %f \n", i+1, ADdistances[i*NReactors+3]);
-        printf("Baseline AD%d to L3 is: %f \n", i+1, ADdistances[i*NReactors+4]);
-        printf("Baseline AD%d to L4 is: %f \n", i+1, ADdistances[i*NReactors+5]);
-        //        for(int j=0;j<NReactors;j++)
-        //        {
-        //            ADdistances[i*NReactors+j]=ADdistances[i*NReactors+j]*km; //Km instead of meters
-        //        }
-    }
-    
-    //Test:
-#ifdef TestAllTheSame
-
-        for(Int_t i=0;i<NADs;i++)
-        {
-            for(Int_t j=0;j<NReactors;j++)
-            {
-                ADdistances[i*NReactors+j]=1000;
-            }
-        }
-    }
-#endif
-    infile.close();
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -932,7 +872,7 @@ void Oscillation :: CalculateOscillationFunction()
             {
                 Energy = TrueADSpectrumH[0][0][0][0]->GetXaxis()->GetBinCenter(pts+1);
 
-                OscillationFunction[near*NReactors+k]->SetBinContent(pts+1,OscProb(ADdistances[near*NReactors+k],Energy,s22t13,dm2ee));
+                OscillationFunction[near*NReactors+k]->SetBinContent(pts+1,OscProb(ADdistances[near][k],Energy,s22t13,dm2ee));
             }
         }
     }
@@ -986,7 +926,7 @@ void Oscillation :: CalculateFluxFraction(Int_t idx, Int_t idy)
             
             for (Int_t reactor = 0; reactor<NReactors; reactor++)
             {
-                Norma[near+pts*(ADsEH1+ADsEH2)] = Norma[near+pts*(ADsEH1+ADsEH2)] + ((FluxH[reactor][near][week][idx][idy]->GetBinContent(pts+1)*OscProb(ADdistances[near*NReactors+reactor],Energy,s22t13,dm2ee)/(ADdistances[near*NReactors+reactor]*ADdistances[near*NReactors+reactor])));//  Σ Over Cores of all fractions
+                Norma[near+pts*(ADsEH1+ADsEH2)] = Norma[near+pts*(ADsEH1+ADsEH2)] + ((FluxH[reactor][near][week][idx][idy]->GetBinContent(pts+1)*OscProb(ADdistances[near][reactor],Energy,s22t13,dm2ee)/(ADdistances[near][reactor]*ADdistances[near][reactor])));//  Σ Over Cores of all fractions
                 //            std::cout <<  Norma[near+pts*(ADsEH1+ADsEH2)] << "NORMA" << std::endl;
             }
         }
@@ -1005,9 +945,9 @@ void Oscillation :: CalculateFluxFraction(Int_t idx, Int_t idy)
                 
                 if(Norma[near+pts*(ADsEH1+ADsEH2)]!=0.0)
                 {
-                    FluxFraction[near][reactor][pts][idx][idy] = (FluxH[reactor][near][week][idx][idy]->GetBinContent(pts+1)*OscProb(ADdistances[near*NReactors+reactor],Energy,s22t13,dm2ee))/(ADdistances[near*NReactors+reactor]*ADdistances[near*NReactors+reactor]*Norma[near+pts*(ADsEH1+ADsEH2)]);
+                    FluxFraction[near][reactor][pts][idx][idy] = (FluxH[reactor][near][week][idx][idy]->GetBinContent(pts+1)*OscProb(ADdistances[near][reactor],Energy,s22t13,dm2ee))/(ADdistances[near][reactor]*ADdistances[near][reactor]*Norma[near+pts*(ADsEH1+ADsEH2)]);
                     
-                   // std::cout << "bin: " << pts << " flux fraction: " << FluxFraction[near][reactor][pts][idx][idy] << " flux: " << FluxH[reactor][near][week]->GetBinContent(pts+1) << " norm: " << Norma[near+pts*(ADsEH1+ADsEH2)] << " osc prob: " << OscProb(ADdistances[near*NReactors+reactor],Energy,s22t13,dm2ee) << std::endl;
+//                std::cout << "bin: " << pts << " flux fraction: " << FluxFraction[near][reactor][pts][idx][idy] << " flux: " << FluxH[reactor][near][week][idx][idy]->GetBinContent(pts+1) << " norm: " << Norma[near+pts*(ADsEH1+ADsEH2)] << " osc prob: " << OscProb(ADdistances[near][reactor],Energy,s22t13,dm2ee) << std::endl;
                 }
                 else
                 {
@@ -1025,57 +965,61 @@ void Oscillation :: CalculateFluxFraction(Int_t idx, Int_t idy)
         }
     }
     
+    std::cout << " CalculateFluxFraction ended " << std::endl;
+
     //delete FactorF;
-    
-#ifdef PrintEps
-           TCanvas* FluxFracC = new TCanvas("FluxFractions","FluxFractions",1000,300);
+}
+
+void Oscillation :: PrintFluxFraction()
+{
+    TCanvas* FluxFracC = new TCanvas("FluxFractions","FluxFractions",1000,300);
         
-        FluxFracC->Divide(ADsEH1+ADsEH2,VolumeX);
-        TLegend *leg = new TLegend(0.1,0.1,0.4,0.5);
-        leg->SetBorderSize(0);
-        leg->SetFillColor(0);
+    FluxFracC->Divide(ADsEH1+ADsEH2,VolumeX);
+    TLegend *leg = new TLegend(0.1,0.1,0.4,0.5);
+    leg->SetBorderSize(0);
+    leg->SetFillColor(0);
     
     for (Int_t idx = 0; idx<VolumeX; idx++)
     {
-        for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
+        for (Int_t idy = 0; idy<VolumeY; idy++)
         {
-            FluxFracC->cd(near+idx*(ADsEH1+ADsEH2)+1);
-            
-            for (Int_t reactor = 0; reactor<NReactors; reactor++)
+            for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
             {
-                FluxFractionH[near][reactor][idx][idy]->SetTitle("Flux Fractions");
+                FluxFracC->cd(near+idx*(ADsEH1+ADsEH2)+1);
                 
-                FluxFractionH[near][reactor][idx][idy]->SetLineColor(colors[reactor]);
-                FluxFractionH[near][reactor][idx][idy]->GetXaxis()->SetTitle("E_{true} (MeV)");
-                FluxFractionH[near][reactor][idx][idy]->GetXaxis()->SetTitleSize(0.04);
-                FluxFractionH[near][reactor][idx][idy]->GetYaxis()->SetTitleSize(0.045);
-                FluxFractionH[near][reactor][idx][idy]->GetXaxis()->SetLabelSize(0.045);
-                FluxFractionH[near][reactor][idx][idy]->GetYaxis()->SetLabelSize(0.045);
-                FluxFractionH[near][reactor][idx][idy]->SetTitle("");
-                
-                sprintf(name,"f_{%i,j}",near+1);
-                FluxFractionH[near][reactor][idx][idy]->GetYaxis()->SetTitle(name);
-                if(reactor==0)
+                for (Int_t reactor = 0; reactor<NReactors; reactor++)
                 {
-                    FluxFractionH[near][reactor][idx][idy]->GetYaxis()->SetRangeUser(0,0.5);
-                    FluxFractionH[near][reactor][idx][idy]->Draw();
+                    FluxFractionH[near][reactor][idx][idy]->SetTitle("Flux Fractions");
+                    
+                    FluxFractionH[near][reactor][idx][idy]->SetLineColor(colors[reactor]);
+                    FluxFractionH[near][reactor][idx][idy]->GetXaxis()->SetTitle("E_{true} (MeV)");
+                    FluxFractionH[near][reactor][idx][idy]->GetXaxis()->SetTitleSize(0.04);
+                    FluxFractionH[near][reactor][idx][idy]->GetYaxis()->SetTitleSize(0.045);
+                    FluxFractionH[near][reactor][idx][idy]->GetXaxis()->SetLabelSize(0.045);
+                    FluxFractionH[near][reactor][idx][idy]->GetYaxis()->SetLabelSize(0.045);
+                    FluxFractionH[near][reactor][idx][idy]->SetTitle("");
+                    
+                    sprintf(name,"f_{%i,j}",near+1);
+                    FluxFractionH[near][reactor][idx][idy]->GetYaxis()->SetTitle(name);
+                    if(reactor==0)
+                    {
+                        FluxFractionH[near][reactor][idx][idy]->GetYaxis()->SetRangeUser(0,0.5);
+                        FluxFractionH[near][reactor][idx][idy]->Draw();
+                    }
+                    FluxFractionH[near][reactor][idx][idy]->Draw("same");
+                    if(near==0&&idx==0)
+                    {
+                        leg->AddEntry(FluxFractionH[near][reactor][idx][idy],labels[reactor].c_str(),"l");
+                        leg->Draw("same");
+                    }
+                    
                 }
-                FluxFractionH[near][reactor][idx][idy]->Draw("same");
-                if(near==0)
-                {
-                    leg->AddEntry(FluxFractionH[near][reactor][idx][idy],labels[reactor].c_str(),"l");
-                    leg->Draw("same");
-                }
-                
             }
         }
     }
     FluxFracC->Print(("./Images/"+AnalysisString+"/FluxFractions.eps").c_str());
     
     delete FluxFracC;
-#endif
-    
-    std::cout << " CalculateFluxFraction ended " << std::endl;
 }
 
 void Oscillation :: NearSpectrumFraction(Int_t idx, Int_t idy)
@@ -1251,11 +1195,8 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
         for (Int_t near = 0; near<(ADsEH1+ADsEH2); near++)//near
         {
 #ifdef PlotExtrapolationFactors
-            if(idx==Int_t(XCellLimit/2)&&idy==Int_t(YCellLimit/2))
-            {
-                ++cont;
-                c2->cd(cont);
-            }
+            ++cont;
+            c2->cd(cont);
 #endif
             for (Int_t reactor = 0; reactor<NReactors; reactor++)
             {
@@ -1278,10 +1219,10 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
                     Extrapolation[near][reactor][far][pts][idx][idy]=
                     (FluxH[reactor][far+(ADsEH1+ADsEH2)][week][idx][idy]->GetBinContent(pts+1)*
                      //(DetectorEfficiency[(far+(ADsEH1+ADsEH2))*Nweeks+week]*FullTime[(far+(ADsEH1+ADsEH2))][week]*DetectorProtons[far+(ADsEH1+ADsEH2)])*
-                     OscProb(ADdistances[(far+(ADsEH1+ADsEH2))*NReactors+reactor],Energy,s22t13,dm2ee)*ADdistances[near*NReactors+reactor]*ADdistances[near*NReactors+reactor])/
+                     OscProb(ADdistances[(far+(ADsEH1+ADsEH2))][reactor],Energy,s22t13,dm2ee)*ADdistances[near][reactor]*ADdistances[near][reactor])/
                     (FluxH[reactor][near][week][idx][idy]->GetBinContent(pts+1)
                     // *(DetectorEfficiency[near*Nweeks+week]*FullTime[near][week]*DetectorProtons[near])
-                     *OscProb(ADdistances[near*NReactors+reactor],Energy,s22t13,dm2ee)*ADdistances[(far+(ADsEH1+ADsEH2))*NReactors+reactor]*ADdistances[(far+(ADsEH1+ADsEH2))*NReactors+reactor]);
+                     *OscProb(ADdistances[near][reactor],Energy,s22t13,dm2ee)*ADdistances[(far+(ADsEH1+ADsEH2))][reactor]*ADdistances[(far+(ADsEH1+ADsEH2))][reactor]);
                     
                    // std::cout << Extrapolation[near][reactor][far][pts][idx][idy] << near << reactor << far << pts << idx << idy << " Flux: " << FluxH[reactor][far+(ADsEH1+ADsEH2)][week][idx][idy]->GetBinContent(pts+1) << std::endl;
 #ifdef PlotExtrapolationFactors
@@ -1427,7 +1368,7 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
                 
                 FarHallCellSpectrumH[far][near][j][idx][idy]->Scale(DetectorEfficiency[(far+(ADsEH1+ADsEH2))][week][idx][idy]*FullTime[(far+(ADsEH1+ADsEH2))][week]*DetectorProtons[far+(ADsEH1+ADsEH2)][idx][idy]/DetectorProtons[0][idx][idy]);
                 
-                //Sum all cells:
+                //Sum all volumes/cells:
                 
                 FarHallSpectrumH[far][near][j]->Add(FarHallCellSpectrumH[far][near][j][idx][idy]);//sum over cells
 
@@ -1709,15 +1650,14 @@ void Oscillation :: LoadNearData(Int_t week)
                 //Substract backgrounds:
                 ADSpectrumVisH[near][idx][idy]->Add(NearBackgroundSpectrumH[near][idx][idy],-1);//Substract (varied if necessary) backgrounds from data
                 
-                //If the bin is negative, this will affect the covariance matrix, so apply no correction:
-//
-                //for(Int_t i = 0; i< ADSpectrumVisH[near][idx][idy]->GetXaxis()->GetNbins();i++)
-//                {
-//                    if(ADSpectrumVisH[near][idx][idy]->GetBinContent(i+1)<0)
-//                    {
-//                        ADSpectrumVisH[near][idx][idy]->SetBinContent(i+1,0);
-//                    }
-//                }
+//Negative bins don't make any sense for data
+                for(Int_t i = 0; i< ADSpectrumVisH[near][idx][idy]->GetXaxis()->GetNbins();i++)
+                {
+                    if(ADSpectrumVisH[near][idx][idy]->GetBinContent(i+1)<0)
+                    {
+                        ADSpectrumVisH[near][idx][idy]->SetBinContent(i+1,0);
+                    }
+                }
             }
         }
     }
@@ -1803,7 +1743,10 @@ void Oscillation :: ApplyResponseMatrix()
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
-                ADSpectrumVisH[near][idx][idy]->Scale(1./(DetectorEfficiency[near][week][idx][idy]*FullTime[near][week]*DetectorProtons[near][idx][idy]/DetectorProtons[0][idx][idy]));// Remove AD performance included in oscillation reactor and data. This is later included in the far spectrum fraction calculation.
+                
+                //The scaling in oscillation reactor is already corrected.
+                
+           //     ADSpectrumVisH[near][idx][idy]->Scale(1./(DetectorEfficiency[near][week][idx][idy]*FullTime[near][week]*DetectorProtons[near][idx][idy]/DetectorProtons[0][idx][idy]));// Remove AD performance included in oscillation reactor and data. This is later included in the far spectrum fraction calculation.
                 
                 for(Int_t j = 0; j < n_evis_bins; j ++)
                 {
@@ -1979,9 +1922,9 @@ void Oscillation :: GenerateFluxHisto()
                     
                     for(Int_t week=0;week<NReactorPeriods;week++)
                     {
-                        Double_t scale = FullTime[AD][week]*NominalDetectorEfficiency[AD][week][idx][idy];//DetectorEfficiency[AD][week] to use random efficiencies. LBNL pregenerates the flux so the random changes are not contemplated.
+                        Double_t scale = FluxFullTime[AD][week]*FluxNominalDetectorEfficiency[AD][week][idx][idy];//DetectorEfficiency[AD][week] to use random efficiencies. LBNL pregenerates the flux so the random changes are not contemplated.
                         
-                        std::cout << " AD: " << AD << " - reactor: " << reactor << " - Week: " << week << " - Scale: " << scale << " - Full time: " << FullTime[AD][week] << "Cell: " << idx << ", " << idy << " - Efficiency:" << NominalDetectorEfficiency[AD][week][idx][idy] << std::endl;
+                        std::cout << " AD: " << AD << " - reactor: " << reactor << " - Week: " << week << " - Scale: " << scale << " - Full time: " << FluxFullTime[AD][week] << "Cell: " << idx << ", " << idy << " - Efficiency:" << FluxNominalDetectorEfficiency[AD][week][idx][idy] << std::endl;
                         
                         //Something to consider:
                         
@@ -2126,7 +2069,8 @@ void Oscillation :: LoadFluxHisto()//weekly data periods
                 {
                     for(Int_t idy=0; idy<YCellLimit; idy++)
                     {
-                        InclusiveFluxH[reactor][AD][idx][idy]=(TH1D*)FluxF->Get(Form("Rebinned Flux Spectrum from reactor%i with week%i ad%i cell%i,%i efficiencies",reactor+1,week+1,AD+1,idx,idy));
+                        InclusiveFluxH[reactor][AD][idx][idy]=(TH1D*)FluxF->Get(Form("Rebinned Flux Spectrum from reactor%d with ad%d cell%i,%i efficiencies",reactor+1,AD+1,idx,idy));
+
                     }
                 }
             }
@@ -2144,7 +2088,7 @@ void Oscillation :: LoadFluxHisto()//weekly data periods
                     {
                         for(Int_t idy=0; idy<YCellLimit; idy++)
                         {
-                            FluxH[reactor][AD][period][idx][idy]=(TH1D*)FluxF->Get(Form("Rebinned Flux Spectrum from reactor%d with ad%d cell%i,%i efficiencies",reactor+1,AD+1,idx,idy));
+                            FluxH[reactor][AD][period][idx][idy]=(TH1D*)FluxF->Get(Form("Rebinned Flux Spectrum from reactor%i with week%i ad%i cell%i,%i efficiencies",reactor+1,week+1,AD+1,idx,idy));
                         }
                     }
                 }

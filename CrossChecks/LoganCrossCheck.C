@@ -6,7 +6,8 @@ void LoganCrossCheck()
     
     const Int_t volumesX = 2;//or 10
     const Int_t volumesY = 1;//or 10
-
+    const Int_t TrueBins = 39;
+    const Int_t VisBins = 37;
     //Load spectra
     TFile* LoganSpectrumF = new TFile("roofile_rawE.root");
         LoganPromptH = (TH1D*)LoganSpectrumF->Get("hEp");//prompt spectrum
@@ -14,7 +15,7 @@ void LoganCrossCheck()
     delete LoganSpectrumF;
     
     TH2D* NominalResponseMatrixH[volumesX][volumesY];//One per cell
-    TFile* MySpectrumF = new TFile("../ResponseMatrices/Hydrogen/NominalResponseMatrix.root");
+    TFile* MySpectrumF = new TFile(Form("../ResponseMatrices/Hydrogen/NominalResponseMatrix%i_%i.root",VisBins,TrueBins));
    
     for(Int_t x=0; x<volumesX; x++)
     {
@@ -66,7 +67,7 @@ void LoganCrossCheck()
     
     std::cout << "True Energy Spectrum dimension: x " << TrueADH->GetXaxis()->GetNbins() << std::endl;
     
-    TH1D* VisibleSpectrumH[volumesX][volumesY];
+    TH1D* VisibleSpectrumH[15*volumesX*volumesY][volumesX][volumesY];
     
     TH2D* AverageH;
 
@@ -99,7 +100,7 @@ void LoganCrossCheck()
     {
         for(Int_t y=0; y<volumesY; y++)
         {
-            VisibleSpectrumH[x][y] = new TH1D(Form("VisibleHCell%d,%d",x,y),Form("VisibleHCell%d,%d",x,y),NominalResponseMatrixH[0][0]->GetYaxis()->GetNbins(),0,12);
+            VisibleSpectrumH[0][x][y] = new TH1D(Form("VisibleHCell%d,%d",x,y),Form("VisibleHCell%d,%d",x,y),NominalResponseMatrixH[0][0]->GetYaxis()->GetNbins(),0,12);
 
             for(Int_t i=0; i<NominalResponseMatrixH[0][0]->GetYaxis()->GetNbins(); i++)//visible
             {
@@ -111,9 +112,9 @@ void LoganCrossCheck()
                     
                     // [nx1] = [n x m] x [mx1]
                     
-                    //std::cout << "Visible: " <<  VisibleSpectrumH[x][y]->GetBinContent(i+1) << " - True: " << TrueADH->GetBinContent(j+1) << " - Visible bin: " << i <<  " - True bin: " << j << std::endl;
+                    //std::cout << "Visible: " <<  VisibleSpectrumH[0][x][y]->GetBinContent(i+1) << " - True: " << TrueADH->GetBinContent(j+1) << " - Visible bin: " << i <<  " - True bin: " << j << std::endl;
                     
-                    VisibleSpectrumH[x][y]->SetBinContent(i+1,VisibleSpectrumH[x][y]->GetBinContent(i+1)+NominalResponseMatrixH[x][y]->GetBinContent(j+1+(1.8/0.05),i+1)*TrueADH->Interpolate(NominalResponseMatrixH[x][y]->GetXaxis()->GetBinCenter(j+1+(1.8/0.05))));
+                    VisibleSpectrumH[0][x][y]->SetBinContent(i+1,VisibleSpectrumH[0][x][y]->GetBinContent(i+1)+NominalResponseMatrixH[x][y]->GetBinContent(j+1+(1.8/0.05),i+1)*TrueADH->Interpolate(NominalResponseMatrixH[x][y]->GetXaxis()->GetBinCenter(j+1+(1.8/0.05))));
                    
                     if(x==0&&y==0&&i==0)
                     {
@@ -133,7 +134,7 @@ void LoganCrossCheck()
         for(Int_t y=0; y<volumesY; y++)
         {
             //Add all cells:
-            TotalVisibleSpectrumH->Add(VisibleSpectrumH[x][y],AverageH->GetBinContent(x+1,y+1));
+            TotalVisibleSpectrumH->Add(VisibleSpectrumH[0][x][y],AverageH->GetBinContent(x+1,y+1));
         }
     }
     //Compare spectra
@@ -177,4 +178,132 @@ void LoganCrossCheck()
     }
     
     delete ComparisonC;
+    
+    
+    //Show all the outputs from each respective systematic:
+    
+    TH2D* Histo[15][volumesX][volumesY];
+    
+    Int_t num = 1;
+    TString fname[100];
+    
+    const char *dirname;
+    
+
+    dirname= "../ResponseMatrices/Hydrogen/";
+    char *ext= (Form(".root"));
+
+    
+    TSystemDirectory dir(dirname, dirname);
+    TList *files = dir.GetListOfFiles();
+    
+    if(files)
+    {
+        TSystemFile *file;
+        TIter next(files);
+        
+        while ((file=(TSystemFile*)next()))
+        {
+            fname[num] = file->GetName();
+            
+            if (!file->IsDirectory() && fname[num].EndsWith(ext))
+            {
+                std::cout << fname[num] << std::endl;
+                
+                TFile* FileF = TFile::Open(dirname+fname[num]);
+                for(Int_t x=0; x<volumesX; x++)
+                {
+                    for(Int_t y=0; y<volumesY; y++)
+                    {
+                        Histo[num][x][y] = (TH2D*)FileF->Get(Form("FineEvisEnu1,Cell%d,%d",x,y));
+                    }
+                }
+                FileF->Close();
+                num++;
+            }
+        }
+    }
+    
+    
+    TCanvas* CanvasSys[15];
+    
+    for (Int_t systematic = 1; systematic<num; systematic++)
+    {
+
+        CanvasSys[systematic] = new TCanvas(Form("CanvasSys%d",systematic),Form("CanvasSys%d",systematic));
+        
+        CanvasSys[systematic]->Divide(volumesX,volumesY);
+        
+
+        for(Int_t x=0; x<volumesX; x++)
+        {
+            for(Int_t y=0; y<volumesY; y++)
+            {
+                VisibleSpectrumH[systematic][x][y] = new TH1D(Form("VisibleHCell%d,%d,%d",x,y,systematic),Form("VisibleHCell%d,%d,%d",x,y,systematic),NominalResponseMatrixH[0][0]->GetYaxis()->GetNbins(),0,12);
+
+                for(Int_t i=0; i<NominalResponseMatrixH[0][0]->GetYaxis()->GetNbins(); i++)//visible
+                {
+                    for(Int_t j=0; j<NominalResponseMatrixH[0][0]->GetXaxis()->GetNbins()-(1.8/0.05); j++)//true
+                    {
+                        //[True_0 ... True_n] = [0,0]  [...] [0,m]  * [Vis_0]
+                        //                      [0,n]  [...] [n,m]     [...]
+                        //                                            [Vis_m]
+                        
+                        // [nx1] = [n x m] x [mx1]
+                        
+                        //std::cout << "Visible: " <<  VisibleSpectrumH[x][y]->GetBinContent(i+1) << " - True: " << TrueADH->GetBinContent(j+1) << " - Visible bin: " << i <<  " - True bin: " << j << std::endl;
+                        
+                        VisibleSpectrumH[systematic][x][y]->SetBinContent(i+1,VisibleSpectrumH[systematic][x][y]->GetBinContent(i+1)+Histo[systematic][x][y]->GetBinContent(j+1+(1.8/0.05),i+1)*TrueADH->Interpolate(Histo[systematic][x][y]->GetXaxis()->GetBinCenter(j+1+(1.8/0.05))));
+                        
+                        //if(x==0&&y==0&&i==0)
+                        //{
+//                            std::cout << "energy : " << Histo[systematic][x][y]->GetXaxis()->GetBinCenter(j+1+(1.8/0.05)) << " in bin " << j+1 << std::endl;
+                        //}
+                        // std::cout << " Energy bin j " << j << " - " << NominalResponseMatrixH[x][y]->GetXaxis()->GetBinCenter(j+1+(1.8/0.05)) << std::endl;
+                        
+                    }
+                }
+                
+                CanvasSys[systematic]->cd(x+volumesX*y+1);
+                
+                VisibleSpectrumH[systematic][x][y]->Draw();
+            }
+        }
+        TString FileNameSave;
+        
+        switch (systematic) {
+            case 1:
+                FileNameSave = "AllSystematics";
+                break;
+            case 2:
+                FileNameSave = "IAV";
+                break;
+            case 3:
+                FileNameSave = "NL";
+                break;
+            case 4:
+                FileNameSave = "Nominal";
+                break;
+            case 5:
+                FileNameSave = "OAV";
+                break;
+            case 6:
+                FileNameSave = "RelativeEnergyScale";
+                break;
+            case 7:
+                FileNameSave = "Resolution";
+                break;
+                
+            default:
+                break;
+        }
+ 
+        CanvasSys[systematic]->Print(FileNameSave+".eps");
+        CanvasSys[systematic]->Close();
+    }
+    
+    //Calculate covariance matrix:
+    TH1D* F_obs = (TH1D*)
+    {
+        Cov[x][y]=(AlteredReactorPredictionVisH[fari]->GetBinContent(i+1) - ReactorPredictionVisH[fari]->GetBinContent(i+1) + AlteredPredictionVisH[neari][fari]->GetBinContent(i+1)-PredictionVisH[neari][fari]->GetBinContent(i+1))*(AlteredReactorPredictionVisH[farj]->GetBinContent(j+1) - ReactorPredictionVisH[farj]->GetBinContent(j+1)+ AlteredPredictionVisH[nearj][farj]->GetBinContent(j+1)-PredictionVisH[nearj][farj]->GetBinContent(j+1));
 }

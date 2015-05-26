@@ -1977,7 +1977,7 @@ void nHToyMC :: Toy()
                     std::cout << " RelativeEnergyScale Matrix " << std::endl;
                     break;
                 case 6:
-                    SystematicS = "AllSystematics";
+                    SystematicS = "AllDetectorSystematics";
                     AllMatrix = 1;
                     std::cout << " All Detector Systematics Matrix " << std::endl;
                     break;

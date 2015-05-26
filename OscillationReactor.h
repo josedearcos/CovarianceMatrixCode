@@ -149,7 +149,6 @@ private:
     Char_t OutputFileName[200];
     Char_t ReactorData[200];
     
-    void ReadDistances(Char_t*);
     void GenerateVisibleSpectrum();
     
     void PlotEH();
@@ -384,19 +383,13 @@ OscillationReactor :: OscillationReactor()
     ADsEH3 = 3;
     NADs = Nom->GetADs();
     
-    if(NADs==6)
-    {
-        sprintf(DistanceFileName,"./Distances/unblinded_baseline.txt");
-    }
-    else//  ADs can only be 6 or 8
-    {
-        ADsEH2 = 2;
-        ADsEH3 = 4;
-        sprintf(DistanceFileName,"./Distances/unblinded_baseline8ADs.txt");  //change file to calculate distances to a file that has the information for the 8 ADs
-    }
-    
     for (Int_t AD = 0; AD<NADs; AD++)
     {
+        for(Int_t reactor = 0; reactor < NReactors; reactor++)
+        {
+            ADdistances[AD][reactor] = Nom->GetDistances(AD,reactor);
+        }
+        
         for (Int_t week = 0; week <Nweeks; week++)
         {
             for(Int_t idx=0; idx<XCellLimit; idx++)
@@ -504,7 +497,7 @@ OscillationReactor :: OscillationReactor()
                 
                 for (Int_t week = 0; week <Nweeks; week++)
                 {
-                    NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy);
+                    NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetInclusiveDetectorEfficiency(AD,week,idx,idy);
                     
                     DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]=NominalDetectorEfficiency[AD][week][idx][idy];
                     
@@ -514,7 +507,7 @@ OscillationReactor :: OscillationReactor()
         }//idx
         for (Int_t week = 0; week <Nweeks; week++)
         {
-            FullTime[week+AD*Nweeks] = Nom->GetFullTime(AD,week);
+            FullTime[week+AD*Nweeks] = Nom->GetInclusiveFullTime(AD,week);
         }
     }//AD
     
@@ -582,19 +575,12 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
     ADsEH3 = 3;
     NADs = Data->GetADs();
     
-    if(NADs==6)
-    {
-        sprintf(DistanceFileName,"./Distances/unblinded_baseline.txt");
-    }
-    else//  ADs can only be 6 or 8
-    {
-        ADsEH2 = 2;
-        ADsEH3 = 4;
-        sprintf(DistanceFileName,"./Distances/unblinded_baseline8ADs.txt");  //change file to calculate distances to a file that has the information for the 8 ADs
-    }
-    
     for (Int_t AD = 0; AD<NADs; AD++)
     {
+        for(Int_t reactor = 0; reactor < NReactors; reactor++)
+        {
+            ADdistances[AD][reactor] = Data->GetDistances(AD,reactor);
+        }
         for (Int_t week = 0; week <Nweeks; week++)
         {
             for(Int_t idx=0; idx<XCellLimit; idx++)
@@ -694,7 +680,7 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
                 
                 for (Int_t week = 0; week <Nweeks; week++)
                 {
-                    NominalDetectorEfficiency[AD][week][idx][idy] = Data->GetDetectorEfficiency(AD,week,idx,idy);
+                    NominalDetectorEfficiency[AD][week][idx][idy] = Data->GetInclusiveDetectorEfficiency(AD,week,idx,idy);
                     
                     DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]=NominalDetectorEfficiency[AD][week][idx][idy];
                     std::cout << "\t \t \t Nominal Detector Efficiency in AD" << AD << " ,week: " << week << " Cell: " << idx << "," << idy << " inside OscillationReactor.h: " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy] << std::endl;
@@ -705,7 +691,7 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
         
         for (Int_t week = 0; week <Nweeks; week++)
         {
-            FullTime[week+AD*Nweeks] = Data->GetFullTime(AD,week);
+            FullTime[week+AD*Nweeks] = Data->GetInclusiveFullTime(AD,week);
         }
             
     }//AD
@@ -764,8 +750,6 @@ void OscillationReactor :: OscillationFromReactorData(Int_t Week,bool mode,bool 
     {
         sprintf(OutputFileName,("./RootOutputs/"+ AnalysisString+ "/NominalOutputs/Oscillation.root").c_str());
     }
-    
-    ReadDistances(DistanceFileName);
     
     LoadReactorHistograms();//Reactor model is the same for all the analyses
     
@@ -952,46 +936,6 @@ void OscillationReactor :: LoadExternalInputs()//This only works for week = 1 (i
         //CORRECT FOR EFFICIENCIES IN OSCILLATION
         
     }
-}
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-//                                          LOAD DISTANCES BETWEEN ADS AND CORES
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-//Reads baseline distances from file
-void OscillationReactor :: ReadDistances(Char_t* distanceFileName)
-{
-    std::ifstream infile(distanceFileName);
-    std::string line;
-    
-    std::getline(infile,line); //To throw away the first line
-    
-    //Get baselines from text file into a Matrix
-    for(Int_t i=0;i<NADs;i++)
-    {
-        infile >> ADdistances[i][0] >> ADdistances[i][1] >> ADdistances[i][2] >> ADdistances[i][3] >> ADdistances[i][4] >> ADdistances[i][5];
-        std::cout << " Distances in OscillationReactor.h : " << std::endl;
-        
-                printf("Baseline AD%d to D1 is: %f \n", i+1, ADdistances[i][0]);
-                printf("Baseline AD%d to D2 is: %f \n", i+1, ADdistances[i][1]);
-                printf("Baseline AD%d to L1 is: %f \n", i+1, ADdistances[i][2]);
-                printf("Baseline AD%d to L2 is: %f \n", i+1, ADdistances[i][3]);
-                printf("Baseline AD%d to L3 is: %f \n", i+1, ADdistances[i][4]);
-                printf("Baseline AD%d to L4 is: %f \n", i+1, ADdistances[i][5]);
-    }
-    infile.close();
-    
-    //Test:
-#ifdef TestAllTheSame
-    for(Int_t i=0;i<NADs;i++)
-    {
-        for(Int_t j=0;j<NReactors;j++)
-        {
-            ADdistances[i][j]=1000;
-        }
-    }
-#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1317,7 +1261,11 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             
             string SystematicS;
             
-            if(Mode)
+            if(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix||DistortLiHeMatrix||DistortFastNeutronsMatrix||DistortAmCMatrix||ReactorPowerMatrix||IsotopeMatrix||Sin22t12Matrix||EfficiencyMatrix)
+            {
+                SystematicS = "NominalResponseMatrix";
+            }
+            else if(Mode)
             {
                 if(RelativeEnergyScaleMatrix)
                 {
@@ -1331,10 +1279,10 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 {
                     SystematicS = "ResolutionResponseMatrix";
                 }
-                if(EfficiencyMatrix)
-                {
-                    SystematicS = "EfficiencyResponseMatrix";
-                }
+//                if(EfficiencyMatrix)
+//                {
+//                    SystematicS = "EfficiencyResponseMatrix";
+//                }
                 if(NLMatrix)
                 {
                     SystematicS = "NLResponseMatrix";
@@ -1345,13 +1293,12 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 }
                 if(AllDetectorSystematicsMatrix)
                 {
-                    SystematicS = "AllDetectorSystematicsMatrix";
+                    SystematicS = "AllDetectorSystematicsResponseMatrix";
                 }
             }
             else
             {
                 SystematicS = "NominalResponseMatrix";
-
             }
             
 #ifndef EREC_COMPARISON
@@ -1455,7 +1402,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
 //        {
 //            for(Int_t idy=0; idy<YCellLimit; idy++)
 //            {
-//                assert((VisibleHisto[AD][idx][idy]-VisibleHisto[AD][idx][idy])<=0.0000001);
+//                assert(Int_t(1000000*VisibleHisto[AD][idx][idy]-VisibleHisto[AD][idx][idy])<=1);
 //            }
 //        }
 //    }
@@ -1486,9 +1433,11 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 
                 if(!Mode)//If there are not background variations the observed events should be equal to IBD events + background events
                 {
-                    std::cout << "ASSERTING: " << BackgroundSpectrumH[AD][idx][idy]->Integral() << " + " << IBDEvents[AD][week][idx][idy] << " = " << ObservedEvents[AD][week][idx][idy] << std::endl;
+                    std::cout << "ASSERTING: " << BackgroundSpectrumH[AD][idx][idy]->Integral() << " + " << IBDEvents[AD][week][idx][idy] << " = " << BackgroundSpectrumH[AD][idx][idy]->Integral() + IBDEvents[AD][week][idx][idy] << "or = " << ObservedEvents[AD][week][idx][idy] << std::endl;
                     
-                    assert((BackgroundSpectrumH[AD][idx][idy]->Integral()+IBDEvents[AD][week][idx][idy]) - ObservedEvents[AD][week][idx][idy]<=0.0000001);
+                    std::cout << Int_t(100000*(BackgroundSpectrumH[AD][idx][idy]->Integral()+IBDEvents[AD][week][idx][idy] - ObservedEvents[AD][week][idx][idy])) << std::endl;
+                    
+                    assert(Int_t(100000*(BackgroundSpectrumH[AD][idx][idy]->Integral()+IBDEvents[AD][week][idx][idy] - ObservedEvents[AD][week][idx][idy]))<=1);
                 }
                 
                 //if(!CovMatrix)//Covariance matrices depend on this scaling
