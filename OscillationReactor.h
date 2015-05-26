@@ -1238,7 +1238,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         for(Int_t AD = 0; AD<NADs; AD++)
         {
 #ifdef TestDiagonalMatrix//Test diagonal matrix
-                nHPredictionMatrix[AD][0][0] = new TH2D("DiagonalResponseMatrix","DiagonalResponseMatrix",n_evis_bins,InitialVisibleEnergy,FinalVisibleEnergy,TotalOscillatedSpectrumAD[0]->GetXaxis()->GetNbins(),InitialEnergy,FinalEnergy);
+                nHPredictionMatrix[AD][0][0] = new TH2D("DiagonalResponseMatrix","DiagonalResponseMatrix",n_evis_bins,evis_bins[0],evis_bins[n_evis_bins],TotalOscillatedSpectrumAD[0]->GetXaxis()->GetNbins(),InitialEnergy,FinalEnergy);
                 
                 Ybins = nHPredictionMatrix[AD][0][0]->GetYaxis()->GetNbins();
                 Xbins = nHPredictionMatrix[AD][0][0]->GetXaxis()->GetNbins();
@@ -2294,19 +2294,24 @@ void OscillationReactor :: SetNLParameters(bool mode)
                 }
             }
             break;
+        default:
+            std::cout << " NO NON-LINEARITY FUNCTION" << std::endl;
+            exit(EXIT_FAILURE);
+            break;
     }
     
+#ifdef PrintEps
+    TCanvas* NLC = new TCanvas("NLC","NLC");
+    
+    NLF->Draw();
+    
+    NLC->Print(("./Images/"+ AnalysisString+ "/Detector/Nonlinearity.eps").c_str(),".eps");
+    delete NLC;
+#endif
     
     Interpolation(NLF);//Interpolate the non-linearity function
     
-    #ifdef PrintEps
-        TCanvas* NLC = new TCanvas("NLC","NLC");
-        
-        NLF->Draw();
-        
-        NLC->Print(("./Images/"+ AnalysisString+ "/Detector/Nonlinearity.eps").c_str(),".eps");
-        delete NLC;
-    #endif
+
 }
 
 void OscillationReactor :: LoadIavCorrection()// From Bryce Littlejohn's results. //I don't use different IAV matrix for each AD since the analysis it's been done for just 1 of them, assume identical ADs.

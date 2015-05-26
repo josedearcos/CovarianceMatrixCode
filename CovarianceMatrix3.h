@@ -98,7 +98,6 @@ private:
     Int_t ADsEH2;
     Int_t ADsEH3;
     Int_t Nweeks;
-    Int_t NReactorPeriods;
     Int_t MaxNear;
     Int_t MaxFar;
     Int_t MaxBins;
@@ -163,7 +162,6 @@ CovarianceMatrix3 :: CovarianceMatrix3()
     }
     
     Combine = Nom->GetCombineMode();
-    NReactorPeriods=Nom->GetNReactorPeriods();
     
     Sin22t13 = Nom->GetSin22t13();
     Dm2_31 = Nom->GetDm231();
@@ -246,7 +244,6 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
     }
     
     Combine = Data->GetCombineMode();
-    NReactorPeriods=Data->GetNReactorPeriods();
     
     Sin22t13 = Data->GetSin22t13();
     Dm2_31 = Data->GetDm231();
@@ -913,7 +910,7 @@ void CovarianceMatrix3 :: SaveCovarianceMatrix(Int_t week)
             TitleString = "OAV Covariance Matrix";
             break;
         case 12:
-            CovString = "All Detector Systematics";
+            CovString = "AllDetectorSystematics";
             TitleString = "All Detector Systematics Covariance Matrix";
             break;
     }

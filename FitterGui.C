@@ -29,8 +29,8 @@
 
 #include <assert.h>
 
-#define NoOscillation //this sets sin22t13 and sin22t13 = 0, also uses the reactor antineutrino model to reset the flux
-#define TestAllTheSame;//Combined with #NoOscillation can be a nice test to see that everything agrees
+//#define NoOscillation //this sets sin22t13 and sin22t13 = 0, also uses the reactor antineutrino model to reset the flux
+//#define TestAllTheSame;//Combined with #NoOscillation can be a nice test to see that everything agrees
 
 //#define TestExternalInputs
 #define PrintOnConsole
@@ -103,7 +103,8 @@ FitterGui::FitterGui(const TGWindow *p,UInt_t w,UInt_t h)
     FitSin22t13 = 1; //  1 for Sin22t13 Fit, 0 for DM2ee Fit.
     NFits = 101;//101 in the final version
     Period=1;
-    NReactorPeriods=101;
+    NReactorPeriods=101;//This will match the flux data
+    DataPeriods = 101;//This will match the weekly detector data
     PlotBin=0;//Initial bin
     Binning = 0;//Default is choosen near dobinning
     NADs=6;

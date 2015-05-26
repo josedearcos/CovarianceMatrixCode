@@ -88,8 +88,8 @@ TString roostr;
 
 //const Int_t unified_nl_pars = 4;//Number of curves used in the NL error calculation
 const Int_t unified_nl_pars = 1;//After the last nl-update, not using marginal curves, instead 1 sigma band
-const Int_t InitialSystematic = 2;// Normally 0 to run all the systematics, otherwise select initial and final by changing NSystematic
-const Int_t NSystematic = 3;//Nominal,IAV, OAV, NL, Reso, Relative Energy Scale, AllSystematics
+const Int_t InitialSystematic = 0;// Normally 0 to run all the systematics, otherwise select initial and final by changing NSystematic
+const Int_t NSystematic = 7;//Nominal,IAV, OAV, NL, Reso, Relative Energy Scale, AllSystematics
 //Efficiency(If only global eff this is not applied here actually), if a difference between Data-ToyMC efficiency map is substantial we could apply a gaussian efficiency variation per cell.
 
 class nHToyMC
@@ -119,7 +119,7 @@ private:
     Double_t FinalEnergy;
     Double_t InitialVisibleEnergy;
     Double_t FinalVisibleEnergy;
-    Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
+    Double_t evis_bins[MaxNbins+1]; // Single bins between 1.5 and 1.6 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
     Double_t enu_bins[MaxNbins+1]; // 39 bins between 1.8 and 9.6 MeV +1 for the 9.6 limit.
     
     Int_t n_evis_bins;
@@ -1183,9 +1183,7 @@ void nHToyMC :: Toy()
         
         TFile *roofile_h2d_ed_ratio2center = new TFile("./Inputs/HInputs/Data/cell_eff/h2d_ed_ratio2center.root", "read");
         TH2D *h2d_Ed_ratio2center = (TH2D*)roofile_h2d_ed_ratio2center->Get("h2d_ed_ratio2center");
-        
-        seed_generator_uncorr = 2863311530; //=(2*4294967295/3) for uncorrelated systematics, chose 2/3*(maxseed) to make it different to 'seed_generator' as a precaution so I don't use the same seeds.
-        
+    
 //        for(int idx=0; idx<MaxColumnNum; idx++)
 //        {
 //            roostr = TString::Format("hEp_cl_%03d", idx);
@@ -1309,18 +1307,16 @@ void nHToyMC :: Toy()
                 break;
         }
         
+        seed_generator_uncorr = 2863311530; //=(2*4294967295/3) for uncorrelated systematics, chose 2/3*(maxseed) to make it different to 'seed_generator' as a precaution so I don't use the same seeds.
         
-        
-        for(long ientry=0; ientry<entries_etree_read; ientry++)
+        for(Int_t AD = 0; AD<NADs;AD++)
         {
-            etree_read->GetEntry(ientry);
-            
-            //Use the loaded tree data in each AD in an independent way: And for each systematic as well, so we don't need to run this slow process once per systematic!
-            
-            for(Int_t AD = 0; AD<NADs;AD++)
+            seed_generator = 1;//this way all matrices will be random but have a common nominal spectrum
+            seed_generator_corr = 1431655765; //=(4294967295/3) for correlated systematics, chose maxseed/3 to make it different to 'seed_generator' as a precaution so I don't use the same seeds.
+         
+            for(long ientry=0; ientry<entries_etree_read; ientry++)
             {
-                seed_generator = 1;//this way all matrices will be random but have a common nominal spectrum
-                seed_generator_corr = 1431655765; //=(4294967295/3) for correlated systematics, chose maxseed/3 to make it different to 'seed_generator' as a precaution so I don't use the same seeds.
+                etree_read->GetEntry(ientry);
                 
                 if(ientry%20000==0)
                     cout<<" ---> processing response matrix in AD" << AD << " " <<ientry*100./entries_etree_read<<"%"<<endl;

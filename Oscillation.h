@@ -85,7 +85,6 @@ private:
     
     bool IHEPReactorModel;
     std::string ResponseDirectory;
-
     Double_t s22t12;
     Double_t s22t13;
     
@@ -324,24 +323,14 @@ Oscillation :: Oscillation()
                 for (Int_t week = 0; week <Nweeks; week++)
                 {
                     NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetInclusiveDetectorEfficiency(AD,week,idx,idy);
-                    DetectorEfficiency[AD][week][idx][idy]=NominalDetectorEfficiency[AD][week][idx][idy];
+                    DetectorEfficiency[AD][week][idx][idy] = NominalDetectorEfficiency[AD][week][idx][idy];
+                    FullTime[AD][week] = Nom->GetInclusiveFullTime(AD,week);
                 }
                 //For flux:
                 for (Int_t week = 0; week <NReactorPeriods; week++)
                 {
-                    FluxNominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy);
-                }
-            }
-        }
-        
-        for (Int_t week = 0; week <NReactorPeriods; week++)
-        {
-            for(Int_t idx=0; idx<XCellLimit; idx++)
-            {
-                for(Int_t idy=0; idy<YCellLimit; idy++)
-                {
-                    FullTime[AD][week] = Nom->GetInclusiveFullTime(AD,week);
                     FluxFullTime[AD][week] = Nom->GetFullTime(AD,week);
+                    FluxNominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy);
                 }
             }
         }
@@ -435,7 +424,7 @@ Oscillation :: Oscillation(NominalData* OData)
     
     Nweeks = OData->GetWeeks();
     NReactorPeriods = OData->GetNReactorPeriods();
-    
+
     std::cout << "PERIODS AND WEEKS BEFORE CONSTRUCTOR: :" <<  NReactorPeriods << " " << Nweeks << std::endl;
 
     NADs = OData->GetADs();
@@ -483,11 +472,14 @@ Oscillation :: Oscillation(NominalData* OData)
                 {
                     NominalDetectorEfficiency[AD][week][idx][idy] = OData->GetInclusiveDetectorEfficiency(AD,week,idx,idy);
                     DetectorEfficiency[AD][week][idx][idy]=NominalDetectorEfficiency[AD][week][idx][idy];
+                    FullTime[AD][week] = OData->GetInclusiveFullTime(AD,week);
                 }
                 //For flux:
                 for (Int_t week = 0; week <NReactorPeriods; week++)
                 {
                     FluxNominalDetectorEfficiency[AD][week][idx][idy] = OData->GetDetectorEfficiency(AD,week,idx,idy);
+                    FluxFullTime[AD][week]  = OData->GetFullTime(AD,week);
+
                 }
             }
         }
@@ -496,16 +488,11 @@ Oscillation :: Oscillation(NominalData* OData)
 //        if(Analysis)
 //        {
 //            std::cout << "REMINDER: NEED A WEEKLY EFFICIENCY, FULL TIME, BACKGROUND ETC INFO FILE FOR THE NH ANALYSIS" << std::endl;
-//            NReactorPeriods = 1;//This is temporary, otherwise I cannot run the cross-check, the Nreactorperiods is 1 because I have hardcoded the inclusive fulltime efficiencies etc, I need a file with all the weekly information before deleting this line.
+//            NReactorPeriods = 1;//This is temporary, otherwise I cannot run the cross-check, the NReactorPeriods is 1 because I have hardcoded the inclusive fulltime efficiencies etc, I need a file with all the weekly information before deleting this line.
 //            Nweeks =1;
 //        }
 
-        
-        for (Int_t week = 0; week <NReactorPeriods; week++)
-        {
-            FullTime[AD][week] = OData->GetInclusiveFullTime(AD,week);
-            FluxFullTime[AD][week]  = OData->GetFullTime(AD,week);
-        }
+
     }
     
     InitialEnergy = OData->GetEmin();
@@ -927,7 +914,7 @@ void Oscillation :: CalculateFluxFraction(Int_t idx, Int_t idy)
             for (Int_t reactor = 0; reactor<NReactors; reactor++)
             {
                 Norma[near+pts*(ADsEH1+ADsEH2)] = Norma[near+pts*(ADsEH1+ADsEH2)] + ((FluxH[reactor][near][week][idx][idy]->GetBinContent(pts+1)*OscProb(ADdistances[near][reactor],Energy,s22t13,dm2ee)/(ADdistances[near][reactor]*ADdistances[near][reactor])));//  Σ Over Cores of all fractions
-                //            std::cout <<  Norma[near+pts*(ADsEH1+ADsEH2)] << "NORMA" << std::endl;
+                            std::cout <<  "ENERGY: " << Energy << " POINT " << pts << " NORMA: " << Norma[near+pts*(ADsEH1+ADsEH2)] << std::endl;
             }
         }
         
@@ -947,7 +934,7 @@ void Oscillation :: CalculateFluxFraction(Int_t idx, Int_t idy)
                 {
                     FluxFraction[near][reactor][pts][idx][idy] = (FluxH[reactor][near][week][idx][idy]->GetBinContent(pts+1)*OscProb(ADdistances[near][reactor],Energy,s22t13,dm2ee))/(ADdistances[near][reactor]*ADdistances[near][reactor]*Norma[near+pts*(ADsEH1+ADsEH2)]);
                     
-//                std::cout << "bin: " << pts << " flux fraction: " << FluxFraction[near][reactor][pts][idx][idy] << " flux: " << FluxH[reactor][near][week][idx][idy]->GetBinContent(pts+1) << " norm: " << Norma[near+pts*(ADsEH1+ADsEH2)] << " osc prob: " << OscProb(ADdistances[near][reactor],Energy,s22t13,dm2ee) << std::endl;
+                //std::cout << "bin: " << pts << " flux fraction: " << FluxFraction[near][reactor][pts][idx][idy] << " flux: " << FluxH[reactor][near][week][idx][idy]->GetBinContent(pts+1) << " norm: " << Norma[near+pts*(ADsEH1+ADsEH2)] << " osc prob: " << OscProb(ADdistances[near][reactor],Energy,s22t13,dm2ee) << std::endl;
                 }
                 else
                 {
@@ -1696,12 +1683,18 @@ void Oscillation :: ApplyResponseMatrix()
     if(!strcmp((ResponseDirectory).c_str(),""))
     {
         
-        
+        TFile* TransEnergyMatrixDataF;
 #ifndef EREC_COMPARISON
-        
-        TFile* TransEnergyMatrixDataF = new TFile(("./ResponseMatrices/"+ AnalysisString+Form("/NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str());
+        if(Analysis)
+        {
+             TransEnergyMatrixDataF = new TFile(("./ResponseMatrices/"+ AnalysisString+Form("/NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str());
+        }
+        else
+        {
+             TransEnergyMatrixDataF = new TFile(("./ResponseMatrices/"+ AnalysisString+"/NominalResponseMatrix.root").c_str());
+        }
 #else
-        TFile* TransEnergyMatrixDataF = new TFile(("./ResponseMatrices/"+ AnalysisString+Form("/E_REC_NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str());
+         TransEnergyMatrixDataF = new TFile(("./ResponseMatrices/"+ AnalysisString+Form("/E_REC_NominalResponseMatrix%i_%i.root",n_evis_bins,n_etrue_bins)).c_str());
 #endif
         
         for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)

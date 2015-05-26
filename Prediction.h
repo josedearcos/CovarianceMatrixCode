@@ -4631,7 +4631,7 @@ void Prediction :: GenerateFluxCorrectedHistograms(NominalData* LocalData)
                 {
                     for(Int_t idy=0; idy<YCellLimit; idy++)
                     {
-                        TH1D* CopyFluxHisto = LocalOsc->GetFluxHisto(reactor,AD,week,idx,idy);//NReactorPeriods and periods to be fit respectively, first is used to correct the flux for weekly efficiencies, the second to fit one period of data or more.
+                        TH1D* CopyFluxHisto = LocalOsc->GetFluxHisto(reactor,AD,week,idx,idy);//NReactorPeriods and DataPeriods to be fit respectively, first is used to correct the flux for weekly efficiencies, the second to fit one period of data or more.
                 
                         FluxHisto[reactor][AD][week][idx][idy] = (TH1D*)CopyFluxHisto->Clone();
                     }

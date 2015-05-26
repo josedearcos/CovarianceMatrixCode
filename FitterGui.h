@@ -178,6 +178,7 @@ private:
     Int_t true_bins;
     Int_t Period;
     Int_t NReactorPeriods;
+    Int_t DataPeriods;
     Int_t NADs;
     Int_t NSamples;
     Int_t CombineMode;
