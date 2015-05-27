@@ -403,7 +403,7 @@ CreateEnergyMatrix :: CreateEnergyMatrix(NominalData* data)
     {
         for (Int_t week = 0; week<Nweeks; week++)
         {
-            DetectorEfficiency[AD][week] = Data->GetDetectorEfficiency(AD,week);
+            DetectorEfficiency[AD][week] = Data->GetDetectorEfficiency(AD,week,0);
             
         }
         //  Relative energy scale

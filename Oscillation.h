@@ -290,7 +290,7 @@ Oscillation :: Oscillation()
     {
         for(Int_t reactor = 0; reactor<NReactors; reactor++)
         {
-            ADdistances[AD][reactor] = Nom->GetDistances(AD,reactor);
+            ADdistances[AD][reactor] = Nom->GetDistances(AD,reactor)/1000;//IN KILOMETERS
         }
         
         for(Int_t idx=0; idx<XCellLimit; idx++)
@@ -322,15 +322,15 @@ Oscillation :: Oscillation()
                 //For fitter:
                 for (Int_t week = 0; week <Nweeks; week++)
                 {
-                    NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetInclusiveDetectorEfficiency(AD,week,idx,idy);
+                    NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy,0);
                     DetectorEfficiency[AD][week][idx][idy] = NominalDetectorEfficiency[AD][week][idx][idy];
-                    FullTime[AD][week] = Nom->GetInclusiveFullTime(AD,week);
+                    FullTime[AD][week] = Nom->GetFullTime(AD,week,0);
                 }
                 //For flux:
                 for (Int_t week = 0; week <NReactorPeriods; week++)
                 {
-                    FluxFullTime[AD][week] = Nom->GetFullTime(AD,week);
-                    FluxNominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy);
+                    FluxFullTime[AD][week] = Nom->GetFullTime(AD,week,1);
+                    FluxNominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy,1);
                 }
             }
         }
@@ -436,7 +436,7 @@ Oscillation :: Oscillation(NominalData* OData)
     {
         for(Int_t reactor = 0; reactor<NReactors; reactor++)
         {
-            ADdistances[AD][reactor] = OData->GetDistances(AD,reactor);
+            ADdistances[AD][reactor] = OData->GetDistances(AD,reactor)/1000;//IN KILOMETERS
         }
         
         for(Int_t idx=0; idx<XCellLimit; idx++)
@@ -470,15 +470,15 @@ Oscillation :: Oscillation(NominalData* OData)
                 //For fitter:
                 for (Int_t week = 0; week <Nweeks; week++)
                 {
-                    NominalDetectorEfficiency[AD][week][idx][idy] = OData->GetInclusiveDetectorEfficiency(AD,week,idx,idy);
+                    NominalDetectorEfficiency[AD][week][idx][idy] = OData->GetDetectorEfficiency(AD,week,idx,idy,0);
                     DetectorEfficiency[AD][week][idx][idy]=NominalDetectorEfficiency[AD][week][idx][idy];
-                    FullTime[AD][week] = OData->GetInclusiveFullTime(AD,week);
+                    FullTime[AD][week] = OData->GetFullTime(AD,week,0);
                 }
                 //For flux:
                 for (Int_t week = 0; week <NReactorPeriods; week++)
                 {
-                    FluxNominalDetectorEfficiency[AD][week][idx][idy] = OData->GetDetectorEfficiency(AD,week,idx,idy);
-                    FluxFullTime[AD][week]  = OData->GetFullTime(AD,week);
+                    FluxNominalDetectorEfficiency[AD][week][idx][idy] = OData->GetDetectorEfficiency(AD,week,idx,idy,1);
+                    FluxFullTime[AD][week]  = OData->GetFullTime(AD,week,1);
 
                 }
             }
@@ -797,6 +797,8 @@ void Oscillation :: OscillationFromNearHallData(Int_t Week,bool ToyMC,bool mode)
 
 Double_t Oscillation :: OscProb(Double_t L, Double_t E, Double_t S22t13,Double_t Dm2ee)
 {
+    L = L*1000; //Distances are given in km, the 1.267 factor works for km/gev or m/mev
+    
     Double_t theta13=TMath::ASin(sqrt(S22t13))*0.5;
     Double_t theta12=TMath::ASin(sqrt(s22t12))*0.5;
     Double_t dm231 = Dm2ee-hierarchy*(5.21e-5+deltam2_21);
@@ -1275,6 +1277,7 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
     if(!Analysis)
     {
         Char_t OptionFarSave[20];
+        
         if(idx==0&&idy==0)
         {
             sprintf(OptionFarSave,"recreate");
@@ -1353,7 +1356,9 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
                 
                 // Multiply by efficiencies and the corresponding # of protons in each AD, since the detector protons would make the spectrum huge, normalize with respect to AD1 protons.
                 
-                FarHallCellSpectrumH[far][near][j][idx][idy]->Scale(DetectorEfficiency[(far+(ADsEH1+ADsEH2))][week][idx][idy]*FullTime[(far+(ADsEH1+ADsEH2))][week]*DetectorProtons[far+(ADsEH1+ADsEH2)][idx][idy]/DetectorProtons[0][idx][idy]);
+//                FarHallCellSpectrumH[far][near][j][idx][idy]->Scale(DetectorEfficiency[(far+(ADsEH1+ADsEH2))][week][idx][idy]*FullTime[(far+(ADsEH1+ADsEH2))][week]*DetectorProtons[far+(ADsEH1+ADsEH2)][idx][idy]/DetectorProtons[0][idx][idy]);
+                
+                //Don't do this anymore, right now we correct data and predictions to not to have any detector effects included, also covariance matrices will be produced like that.
                 
                 //Sum all volumes/cells:
                 
@@ -1399,6 +1404,7 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
         #endif
 
     }//evis bins
+    
     if(!Analysis)
     {
         delete FarSpectrumFractionF;

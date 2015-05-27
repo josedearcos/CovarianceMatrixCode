@@ -619,7 +619,7 @@ void nHToyMC :: Toy()
             wtree->GetEntry(ientry);
             
             cout.precision(3);
-            if(ientry%100000==0)
+            if(ientry%1000000==0)
                 cout<<" ---> processing MC spectrum "<<ientry*100./entries_wtree<<"%"<<endl;
             
             //////
@@ -717,7 +717,7 @@ void nHToyMC :: Toy()
             wtree->GetEntry(ientry);
             
             cout.precision(3);
-            if(ientry%20000==0)
+            if(ientry%200000==0)
                 cout<<" ---> processing reactor shape spectrum "<<ientry*100./entries_wtree<<"%"<<endl;
             
             //////
@@ -1318,7 +1318,7 @@ void nHToyMC :: Toy()
             {
                 etree_read->GetEntry(ientry);
                 
-                if(ientry%20000==0)
+                if(ientry%200000==0)
                     cout<<" ---> processing response matrix in AD" << AD << " " <<ientry*100./entries_etree_read<<"%"<<endl;
                 
                 Int_t seed_rand = 0;
@@ -1921,28 +1921,28 @@ void nHToyMC :: Toy()
                         ADIntegralEvents[Systematic][AD] = ADIntegralEvents[Systematic][AD] + IntegralEvents[Systematic][AD][idx][idy];
                     }
                 }
-            }//AD
 #ifdef SaveTree
-            if(Systematic==0)
-            {
-                toy->Fill();//Save only nominal tree
-            }
+                if(Systematic==0)
+                {
+                    toy->Fill();//Save only nominal tree
+                }
 #endif
-        }//Events
+            }//Events
+        }//AD
         
         
         //Save event ratios:
-
-            RelativeEnergyScaleMatrix = 0;
-            IAVMatrix = 0;
-            OAVMatrix = 0;
-            NLMatrix = 0;
-            ResolutionMatrix = 0;
-            //EfficiencyMatrix = 0;
-            AllMatrix = 0;
-            
-            switch (Systematic)
-            {
+        
+        IAVMatrix = 0;
+        OAVMatrix = 0;
+        NLMatrix = 0;
+        ResolutionMatrix = 0;
+        RelativeEnergyScaleMatrix = 0;
+        //EfficiencyMatrix = 0;
+        AllMatrix = 0;
+        
+        switch (Systematic)
+        {
                 case 0:
                     SystematicS = "Nominal";
                     std::cout << " Nominal Matrix " << std::endl;

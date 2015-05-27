@@ -12,8 +12,10 @@
 //
 //
 //const Int_t NReactors=6;//Defined in NominalData
-const Double_t conv_m2_per_cm2 = 1.0e-4;
-const Double_t conv_s_per_day = 24*60*60;
+
+const Double_t conv_km2_per_cm2 = 1.0000e-10;
+const Double_t conv_s_per_year = 24*60*60*365.;
+const Double_t conv_s_per_day = 24*60*60.;
 const bool TxTFile=1;
 const Int_t MaxSamples = 1020;
 const bool FlatSpectrumCheck = 0;
@@ -126,11 +128,12 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
                 {
                     OriginalInitialEnergy = EnergyM[Samples];
                 }
-                CrossSection[Samples]*=conv_s_per_day*conv_m2_per_cm2;// We will do the calculations in terms of days and m.
+                CrossSection[Samples]*=conv_s_per_year*conv_km2_per_cm2;// We will do the calculations in terms of years and km.
                 //            std::cout <<EnergyM[Samples] <<  CrossSection[Samples] << std::endl;
                 
                 Samples++;
             }
+        
     Samples--;
 
     OriginalFinalEnergy = EnergyM[Samples-1];
@@ -180,7 +183,7 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
 #ifdef PrintEps
     TCanvas* originalcrossc = new TCanvas("OriginalCrossC","OriginalCrossC");
     OriginalCrossSectionH->SetStats(0);
-    OriginalCrossSectionH->SetYTitle("Cross section / s / cm^{2}");
+    OriginalCrossSectionH->SetYTitle("Cross section / years / km^{2}");
     OriginalCrossSectionH->SetXTitle("Energy [MeV]");
     OriginalCrossSectionH->Draw();
     originalcrossc->Print(Form(("./Images/"+AnalysisString+"/InterpolatedDataFileCrossSection.eps").c_str()),".eps");
@@ -206,8 +209,8 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
 #ifdef SaveRootFileForComparison
     TFile* CrossSectionF = new TFile("./CrossSections/nGdCrossSection.root","recreate");//
     OriginalCrossSectionH->SetYTitle("Cross section / seconds / cm^{2}");
-    CrossSectionH->Scale(1./(conv_s_per_day*conv_m2_per_cm2));
-    CrossSectionH->Write();// We will do the calculations in terms of the seconds and cm^2 for Comparison
+//    CrossSectionH->Scale(1./(conv_s_per_year*conv_km2_per_cm2));
+    CrossSectionH->Write();// We will do the calculations in terms of the years and km^2
     delete CrossSectionF;
 #endif
     }
@@ -215,14 +218,14 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
     {
         TFile* CrossSectionF = new TFile("./CrossSections/nHCrossSection.root");
         CrossSectionH = (TH1D*)gDirectory->Get("CrossSection");
-        CrossSectionH->Scale(10e-42*conv_s_per_day*conv_m2_per_cm2);// We will do the calculations in terms of the # days and m. //DetectorProtons
+        CrossSectionH->Scale(10e-42*conv_s_per_year*conv_km2_per_cm2);// We will do the calculations in terms of the # years and km2. //DetectorProtons
         delete CrossSectionF;
     }
     
     #ifdef PrintEps
         TCanvas* crossc = new TCanvas("CrossC","CrossC");
         CrossSectionH->SetStats(0);
-        CrossSectionH->SetYTitle("Cross section / day / m^{2}");
+        CrossSectionH->SetYTitle("Cross section / year / km^{2}");
         CrossSectionH->SetXTitle("Energy [MeV]");
         CrossSectionH->Draw();
         crossc->Print(Form(("./Images/"+AnalysisString+"/CrossSection.eps").c_str()),".eps");

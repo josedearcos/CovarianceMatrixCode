@@ -532,10 +532,8 @@ public:
     
     Double_t GetEnergyDelayedCutDetectorEfficiency();
     Double_t GetDetectorEfficiencyRelativeError();
-    Double_t GetDetectorEfficiency(Int_t, Int_t, Int_t, Int_t);
-    Double_t GetInclusiveDetectorEfficiency(Int_t, Int_t, Int_t, Int_t);
-    Double_t GetInclusiveFullTime(Int_t, Int_t);
-    Double_t GetFullTime(Int_t,Int_t);
+    Double_t GetDetectorEfficiency(Int_t, Int_t, Int_t, Int_t,bool);
+    Double_t GetFullTime(Int_t,Int_t,bool);
     
     Int_t GetCombineMode();
     Int_t GetWeeks();
@@ -571,8 +569,8 @@ public:
     Int_t GetNReactorPeriods();
     Int_t GetDataPeriods();
     
-    void GetnHInclusiveData(Double_t*, bool ErrorMode);
-    void GetnGdInclusiveData(Double_t*, bool ErrorMode);
+    void GetnHInclusiveData(Double_t*);
+    void GetnGdInclusiveData(Double_t*);
     void CorrectnHEvents();
     void CorrectnGdEvents();
     void CalculateInclusiveFullTime(Double_t*,Double_t*);
@@ -2100,11 +2098,23 @@ Double_t NominalData :: GetDetectorProtons(Int_t detector,Int_t idx)
     }
 }
 
-Double_t NominalData :: GetDetectorEfficiency(Int_t detector, Int_t week, Int_t idx, Int_t idy)
+Double_t NominalData :: GetDetectorEfficiency(Int_t detector, Int_t week, Int_t idx, Int_t idy,bool FluxMode)
 {
     if(!isH)//Gd
     {
-        return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx];
+        if(FluxMode)//Weekly even if Nweeks == 1
+        {
+            return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx];
+        }
+        
+        if(Nweeks==1)//Inclusive
+        {
+            return InclusiveMuonEff[detector+week*MaxDetectors]*InclusiveMultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx];
+        }
+        else
+        {
+            return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx];
+        }
     }
     else//nH
     {
@@ -2129,20 +2139,20 @@ Double_t NominalData :: GetDetectorEfficiency(Int_t detector, Int_t week, Int_t 
         
 //        std::cout <<  MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx] << std::endl;
         
-        return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx];
+        if(FluxMode)//Weekly even if Nweeks == 1
+        {
+            return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx];
+        }
+        
+        if(Nweeks==1)
+        {
+            return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx];
+        }
+        else
+        {
+            return InclusiveMuonEff[detector+week*MaxDetectors]*InclusiveMultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx];
+        }
         //Efficiency of Prompt energy, Delayed energy, time, distance included in global efficiency. Flasher is not (Very small) nH capture included in delayed energy cut in the new version, right now working with out it included, that's why we multiply by the nH capture fraction.
-    }
-}
-
-Double_t NominalData :: GetInclusiveDetectorEfficiency(Int_t detector, Int_t week, Int_t idx, Int_t idy)
-{
-    if(!isH)//Gd
-    {
-        return InclusiveMuonEff[detector+week*MaxDetectors]*InclusiveMultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx];
-    }
-    else//nH
-    {
-        return InclusiveMuonEff[detector+week*MaxDetectors]*InclusiveMultiEff[detector+week*MaxDetectors]*m_detectorGlobalEfficiency[idx]*nHCaptureFraction[idx];
     }
 }
 
@@ -2156,15 +2166,22 @@ Double_t NominalData :: GetDetectorEfficiencyRelativeError()
     return DetectorEfficiencyRelativeError;
 }
 
-Double_t NominalData :: GetFullTime(Int_t detector,Int_t week)
+Double_t NominalData :: GetFullTime(Int_t detector,Int_t week, bool FluxMode)
 {
-    return FullTime[detector+week*MaxDetectors];
+    if(FluxMode)
+    {
+        return FullTime[detector+week*MaxDetectors];
+    }
+    if(Nweeks==1)
+    {
+        return InclusiveFullTime[detector+week*MaxDetectors];
+    }
+    else
+    {
+        return FullTime[detector+week*MaxDetectors];
+    }
 }
 
-Double_t NominalData :: GetInclusiveFullTime(Int_t detector,Int_t week)
-{
-    return InclusiveFullTime[detector+week*MaxDetectors];
-}
 
 Double_t NominalData :: GetIAVError()
 {
@@ -2359,7 +2376,7 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
             {
                 for(Int_t AD=0;AD<NADs;AD++)
                 {
-                    DetectorMass[AD]=readvals[AD]/1000000;//ktons
+                    DetectorMass[AD]=readvals[AD]/1000000.;//ktons
                 }
             }
             //-->bg events
@@ -2464,60 +2481,49 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
         }
     }
     
-    if(DataPeriods>1&&Nweeks!=DataPeriods)//If the data file is not inclusive, or the fit is not weekly, generate inclusive data from weekly data.
+    //Copy values
+    for(Int_t AD=0;AD<NADs;AD++)
     {
-        //Copy values
-        for(Int_t AD=0;AD<NADs;AD++)
+        for(Int_t week = 0; week<DataPeriods; week++)
         {
-            for(Int_t week = 0; week<DataPeriods; week++)
+            Double_t correction_factor = (FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]*GetDetectorProtons(AD,0))/GetDetectorProtons(0, 0);
+            
+            if(correction_factor==0)
             {
-                Double_t correction_factor = (FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]*GetDetectorProtons(AD,0))/GetDetectorProtons(0, 0);
-                
-                if(correction_factor==0)
-                {
-                    correction_factor = 1; //We will multiply by zero in the GetnGdInclusiveData method, so it should make a difference, but this way we avoid NaNs.
-                }
-                
-                //Correct all events and rates:
-                
-                StatisticalError[AD+week*MaxDetectors] = StatisticalError[AD+week*MaxDetectors]/correction_factor;
-                IBDEvents[AD+week*MaxDetectors] = IBDEvents[AD+week*MaxDetectors]/correction_factor;
-                ObservedEvents[AD+week*MaxDetectors] = ObservedEvents[AD+week*MaxDetectors]/correction_factor;
-                
-                AccidentalEvents[AD+week*MaxDetectors] = AccidentalEvents[AD+week*MaxDetectors]/correction_factor;
-                AccidentalError[AD+week*MaxDetectors] = AccidentalError[AD+week*MaxDetectors]/correction_factor;
-                LiHeEvents[AD+week*MaxDetectors] = LiHeEvents[AD+week*MaxDetectors]/correction_factor;
-                LiHeError[AD+week*MaxDetectors] = LiHeError[AD+week*MaxDetectors]/correction_factor;
-                FastNeutronEvents[AD+week*MaxDetectors] = FastNeutronEvents[AD+week*MaxDetectors]/correction_factor;
-                FastNeutronError[AD+week*MaxDetectors] = FastNeutronError[AD+week*MaxDetectors]/correction_factor;
-                AmCEvents[AD+week*MaxDetectors] = AmCEvents[AD+week*MaxDetectors]/correction_factor;
-                AmCError[AD+week*MaxDetectors] = AmCError[AD+week*MaxDetectors]/correction_factor;
+                correction_factor = 1; //We will multiply by zero in the GetnGdInclusiveData method, so it should make a difference, but this way we avoid NaNs.
             }
+            
+            //Correct all events and rates:
+            
+            StatisticalError[AD+week*MaxDetectors] = StatisticalError[AD+week*MaxDetectors]/correction_factor;
+            IBDEvents[AD+week*MaxDetectors] = IBDEvents[AD+week*MaxDetectors]/correction_factor;
+            ObservedEvents[AD+week*MaxDetectors] = ObservedEvents[AD+week*MaxDetectors]/correction_factor;
+            
+            AccidentalEvents[AD+week*MaxDetectors] = AccidentalEvents[AD+week*MaxDetectors]/correction_factor;
+            AccidentalError[AD+week*MaxDetectors] = AccidentalError[AD+week*MaxDetectors]/correction_factor;
+            LiHeEvents[AD+week*MaxDetectors] = LiHeEvents[AD+week*MaxDetectors]/correction_factor;
+            LiHeError[AD+week*MaxDetectors] = LiHeError[AD+week*MaxDetectors]/correction_factor;
+            FastNeutronEvents[AD+week*MaxDetectors] = FastNeutronEvents[AD+week*MaxDetectors]/correction_factor;
+            FastNeutronError[AD+week*MaxDetectors] = FastNeutronError[AD+week*MaxDetectors]/correction_factor;
+            AmCEvents[AD+week*MaxDetectors] = AmCEvents[AD+week*MaxDetectors]/correction_factor;
+            AmCError[AD+week*MaxDetectors] = AmCError[AD+week*MaxDetectors]/correction_factor;
         }
-        
-        GetnGdInclusiveData(IBDEvents,0);
-        GetnGdInclusiveData(StatisticalError,1);
-        GetnGdInclusiveData(ObservedEvents,0);
-        GetnGdInclusiveData(AccidentalEvents,0);
-        GetnGdInclusiveData(AccidentalError,1);
-        GetnGdInclusiveData(LiHeEvents,0);
-        GetnGdInclusiveData(LiHeError,1);
-        GetnGdInclusiveData(FastNeutronEvents,0);
-        GetnGdInclusiveData(FastNeutronError,1);
-        GetnGdInclusiveData(AmCEvents,0);
-        GetnGdInclusiveData(AmCError,1);
-        
-        //            for(Int_t AD=0;AD<NADs;AD++)
-        //            {
-        //                for(Int_t week=0;week<DataPeriods;week++)
-        //                {
-        //                    InclusiveMultiEff[AD+week*MaxDetectors] = MultiEff[AD+week*MaxDetectors];
-        //                    InclusiveMuonEff[AD+week*MaxDetectors] = MuonEff[AD+week*MaxDetectors];
-        //                    InclusiveFullTime[AD+week*MaxDetectors] = FullTime[AD+week*MaxDetectors];
-        //
-        //                }
-        //            }
-        
+    }
+    
+    if(Nweeks==1)//If fit is not weekly generate inclusive data from weekly data.
+    {
+        GetnGdInclusiveData(IBDEvents);
+        GetnGdInclusiveData(StatisticalError);
+        GetnGdInclusiveData(ObservedEvents);
+        GetnGdInclusiveData(AccidentalEvents);
+        GetnGdInclusiveData(AccidentalError);
+        GetnGdInclusiveData(LiHeEvents);
+        GetnGdInclusiveData(LiHeError);
+        GetnGdInclusiveData(FastNeutronEvents);
+        GetnGdInclusiveData(FastNeutronError);
+        GetnGdInclusiveData(AmCEvents);
+        GetnGdInclusiveData(AmCError);
+
         for(Int_t AD=0;AD<NADs;AD++)
         {
             //To make sure the inclusive data has changed
@@ -2536,6 +2542,7 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
         }
     }
     
+    //The following are needed in the superflux calculation:
     CalculateInclusiveEfficiencies(InclusiveMultiEff,MultiEff);
     CalculateInclusiveEfficiencies(InclusiveMuonEff,MuonEff);
     CalculateInclusiveFullTime(InclusiveFullTime,FullTime);
@@ -2724,7 +2731,7 @@ void NominalData :: LoadHydrogenMainData()
                             }
                         }
                         
-                        DetectorMass[AD6Index+MaxDetectors*VolumeIndex]=readvals[AD]/1000000;
+                        DetectorMass[AD6Index+MaxDetectors*VolumeIndex]=readvals[AD]/1000000.;
                     }
                 }
                 //row 6 -->Hydrogen Capture Fraction
@@ -3000,60 +3007,58 @@ void NominalData :: LoadHydrogenMainData()
 
 void NominalData :: CorrectnHEvents()
 {
-
-    if(DataPeriods>1&&Nweeks!=DataPeriods)//If the data file is not inclusive, or the fit is not weekly, generate inclusive data from weekly data.
+    for(Int_t AD=0;AD<NADs;AD++)
     {
-
-        for(Int_t AD=0;AD<NADs;AD++)
+        for(Int_t week = 0; week<DataPeriods; week++)
         {
-            for(Int_t week = 0; week<DataPeriods; week++)
+            for(Int_t idx=0; idx<VolumeX; idx++)
             {
-                for(Int_t idx=0; idx<VolumeX; idx++)
+                for(Int_t idy=0; idy<VolumeY; idy++)
                 {
-                    for(Int_t idy=0; idy<VolumeY; idy++)
+                    Int_t IndexVariant = AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods;
+                    Int_t IndexConstant = AD+week*MaxDetectors;
+                    Double_t correction_factor = (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0,idx);
+                    
+                    if(correction_factor==0)
                     {
-                        Int_t IndexVariant = AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods;
-                        Int_t IndexConstant = AD+week*MaxDetectors;
-                        Double_t correction_factor = (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0,idx);
-                       
-                        if(correction_factor==0)
-                        {
-                            correction_factor = 1; //We will multiply by zero in the GetnHInclusiveData method, so it should make a difference, but this way we avoid NaNs.
-                        }
-                        
-                        IBDEvents[IndexVariant] = IBDEvents[IndexVariant]/correction_factor;
-                        
-                        ObservedEvents[IndexVariant] = ObservedEvents[IndexVariant]/correction_factor;
-                        
-                        StatisticalError[IndexVariant] = StatisticalError[IndexVariant]/correction_factor;
-                        
-                        AccidentalEvents[IndexVariant] = AccidentalEvents[IndexVariant]/correction_factor;
-                        AccidentalError[IndexVariant] = AccidentalError[IndexVariant]/correction_factor;
-                        LiHeEvents[IndexVariant] = LiHeEvents[IndexVariant]/correction_factor;
-                        LiHeError[IndexVariant] = LiHeError[IndexVariant]/correction_factor;
-                        FastNeutronEvents[IndexVariant] = FastNeutronEvents[IndexVariant]/correction_factor;
-                        FastNeutronError[IndexVariant] = FastNeutronError[IndexVariant]/correction_factor;
-                        AmCEvents[IndexVariant] = AmCEvents[IndexVariant]/correction_factor;
-                        AmCError[IndexVariant] = AmCError[IndexVariant]/correction_factor;
-                        
-//                        std::cout << "? " << ObservedEvents[IndexVariant] << " = " << ObservedEvents[IndexVariant]/correction_factor << std::endl;
-                        
+                        correction_factor = 1; //We will multiply by zero in the GetnHInclusiveData method, so it should make a difference, but this way we avoid NaNs.
                     }
+                    
+                    IBDEvents[IndexVariant] = IBDEvents[IndexVariant]/correction_factor;
+                    
+                    ObservedEvents[IndexVariant] = ObservedEvents[IndexVariant]/correction_factor;
+                    
+                    StatisticalError[IndexVariant] = StatisticalError[IndexVariant]/correction_factor;
+                    
+                    AccidentalEvents[IndexVariant] = AccidentalEvents[IndexVariant]/correction_factor;
+                    AccidentalError[IndexVariant] = AccidentalError[IndexVariant]/correction_factor;
+                    LiHeEvents[IndexVariant] = LiHeEvents[IndexVariant]/correction_factor;
+                    LiHeError[IndexVariant] = LiHeError[IndexVariant]/correction_factor;
+                    FastNeutronEvents[IndexVariant] = FastNeutronEvents[IndexVariant]/correction_factor;
+                    FastNeutronError[IndexVariant] = FastNeutronError[IndexVariant]/correction_factor;
+                    AmCEvents[IndexVariant] = AmCEvents[IndexVariant]/correction_factor;
+                    AmCError[IndexVariant] = AmCError[IndexVariant]/correction_factor;
+                    
+                    //                        std::cout << "? " << ObservedEvents[IndexVariant] << " = " << ObservedEvents[IndexVariant]/correction_factor << std::endl;
+                    
                 }
             }
         }
-        
-        GetnHInclusiveData(IBDEvents,0);
-        GetnHInclusiveData(ObservedEvents,0);
-        GetnHInclusiveData(StatisticalError,1);
-        GetnHInclusiveData(AccidentalEvents,0);
-        GetnHInclusiveData(AccidentalError,1);
-        GetnHInclusiveData(LiHeEvents,0);
-        GetnHInclusiveData(LiHeError,1);
-        GetnHInclusiveData(FastNeutronEvents,0);
-        GetnHInclusiveData(FastNeutronError,1);
-        GetnHInclusiveData(AmCEvents,0);
-        GetnHInclusiveData(AmCError,1);
+    }
+
+    if(Nweeks==1)//If the fit is not weekly, generate inclusive data from weekly data.
+    {
+        GetnHInclusiveData(IBDEvents);
+        GetnHInclusiveData(ObservedEvents);
+        GetnHInclusiveData(StatisticalError);
+        GetnHInclusiveData(AccidentalEvents);
+        GetnHInclusiveData(AccidentalError);
+        GetnHInclusiveData(LiHeEvents);
+        GetnHInclusiveData(LiHeError);
+        GetnHInclusiveData(FastNeutronEvents);
+        GetnHInclusiveData(FastNeutronError);
+        GetnHInclusiveData(AmCEvents);
+        GetnHInclusiveData(AmCError);
         
         for(Int_t AD=0;AD<NADs;AD++)
         {
@@ -3104,7 +3109,7 @@ void NominalData :: CorrectnHEvents()
 //            }
 //        }
     }
-    
+    //The following are needed in the superflux calculation:
     CalculateInclusiveEfficiencies(InclusiveMultiEff,MultiEff);
     CalculateInclusiveEfficiencies(InclusiveMuonEff,MuonEff);
     CalculateInclusiveFullTime(InclusiveFullTime,FullTime);
@@ -3873,7 +3878,103 @@ Double_t NominalData :: GetEventsByCell(Int_t AD,Int_t idx, Int_t idy)
 //                CombCorrEvtsSpec[idet]->Scale(1./livsum);
 //                CombCorrBgEvtsSpec[idet]->Scale(1./livsum);
 
-void NominalData :: GetnHInclusiveData(Double_t* InclusiveData, bool ErrorMode)
+//void NominalData :: GetnHInclusiveData(Double_t* InclusiveData)
+//{
+//    //Weight weekly rates to get a inclusive rate to use in the fitter
+//    Double_t WeeklyData[DataPeriods*MaxDetectors*VolumeX*VolumeY];
+//    
+//    for(Int_t AD=0;AD<NADs;AD++)
+//    {
+//        for(Int_t week=0;week<DataPeriods;week++)
+//        {
+//            Int_t IndexConstant = AD+week*MaxDetectors;
+//
+//            for(Int_t idx=0; idx<VolumeX; idx++)
+//            {
+//                Int_t IndexWeekly = AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods;
+//
+//                for(Int_t idy=0; idy<VolumeY; idy++)
+//                {
+//                    WeeklyData[IndexWeekly] = InclusiveData[IndexWeekly];
+//         
+//                    
+////                        std::cout << " Weekly observed events AD: " << AD << "Volume " << idx << " is : " << WeeklyData[IndexWeekly] << " for week : " << week << " scaled " << (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0, idx) << std::endl;
+//                
+//                    
+//                    InclusiveData[IndexWeekly] = 0;
+//                }
+//            }
+//        }
+//    }
+//
+//    for(Int_t AD=0;AD<NADs;AD++)
+//    {
+//        for(Int_t idx=0; idx<VolumeX; idx++)
+//        {
+//            for(Int_t idy=0; idy<VolumeY; idy++)
+//            {
+//                Double_t scalesum=0;
+//
+//                for(Int_t week=0;week<DataPeriods;week++)
+//                {
+//                    Double_t scale = FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]*GetDetectorProtons(AD,idx)/GetDetectorProtons(0,idx);
+//                 
+////                    if(week==0)
+////                    {
+////                        std:: cout << FullTime[AD+week*MaxDetectors] << " " << MuonEff[AD+week*MaxDetectors] << " " << MultiEff[AD+week*MaxDetectors]  << " Volume " << idx << " This should be different for volumes 0,1 : " << GetDetectorProtons(AD,idx) << " " << GetDetectorProtons(0,idx) << std::endl;
+////                        std::cout<< " WEEK " << week << " SCALE: " << scale << " IDX, AD " << idx << AD << std::endl;
+////                    }
+//                    
+//                    WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods]*=scale;//At this point The background and observed data rates/errors already have been corected for the muon and multiplicity efficiencies, also for livetime and protons.
+//                    
+//                    if(DataPeriods==Nweeks)//The data and the fit periods are the same, this can be use to fit inclusive data or fit the data weekly (studies of theta13/deltam fit depending on the weekly variations)
+//                    {
+//                        InclusiveData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods] = WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods];
+//                    }
+//                    else
+//                    {
+//                        scalesum+=scale;
+//                        
+//                        if(ErrorMode)
+//                        {
+//                            InclusiveData[AD+idx*MaxDetectors*DataPeriods]+=pow(WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods],2);
+//                        }
+//                        else
+//                        {
+//                            InclusiveData[AD+idx*MaxDetectors*DataPeriods]+=WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods];
+//                        }
+//                    }
+//                    
+//                    if(scale!=0)
+//                    {
+//                    WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods]*=1./scale;//Return the vector to its original state
+//                    }
+//                }
+//                
+//                if(scalesum==0)
+//                {
+//                    InclusiveData[AD+idx*MaxDetectors*DataPeriods]*=0;
+//                    std::cout << " WEEKLY DATA IS EMPTY, FILE NOT READ? " << std::endl;
+//                    
+//                    exit(EXIT_FAILURE);
+//                }
+//                else
+//                {
+//                    if(ErrorMode)
+//                    {
+//                        InclusiveData[AD+idx*MaxDetectors*DataPeriods]=sqrt(InclusiveData[AD+idx*MaxDetectors*DataPeriods])*1./scalesum;
+//                    }
+//                    else
+//                    {
+//                        InclusiveData[AD+idx*MaxDetectors*DataPeriods]*=1./scalesum;
+//                    }
+//                }
+//            }
+//        }
+//    }
+//}
+
+void NominalData :: GetnHInclusiveData(Double_t* InclusiveData)
 {
     //Weight weekly rates to get a inclusive rate to use in the fitter
     Double_t WeeklyData[DataPeriods*MaxDetectors*VolumeX*VolumeY];
@@ -3882,96 +3983,118 @@ void NominalData :: GetnHInclusiveData(Double_t* InclusiveData, bool ErrorMode)
     {
         for(Int_t week=0;week<DataPeriods;week++)
         {
-            Int_t IndexConstant = AD+week*MaxDetectors;
-
             for(Int_t idx=0; idx<VolumeX; idx++)
             {
                 Int_t IndexWeekly = AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods;
-
+                
                 for(Int_t idy=0; idy<VolumeY; idy++)
                 {
                     WeeklyData[IndexWeekly] = InclusiveData[IndexWeekly];
-         
                     
-//                        std::cout << " Weekly observed events AD: " << AD << "Volume " << idx << " is : " << WeeklyData[IndexWeekly] << " for week : " << week << " scaled " << (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0, idx) << std::endl;
-                
+                    
+                    //                        std::cout << " Weekly observed events AD: " << AD << "Volume " << idx << " is : " << WeeklyData[IndexWeekly] << " for week : " << week << " scaled " << (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0, idx) << std::endl;
+                    
                     
                     InclusiveData[IndexWeekly] = 0;
                 }
             }
         }
     }
-
+    
     for(Int_t AD=0;AD<NADs;AD++)
     {
         for(Int_t idx=0; idx<VolumeX; idx++)
         {
             for(Int_t idy=0; idy<VolumeY; idy++)
             {
-                Double_t scalesum=0;
-
                 for(Int_t week=0;week<DataPeriods;week++)
                 {
-                    Double_t scale = FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]*GetDetectorProtons(AD,idx)/GetDetectorProtons(0,idx);
-                 
-//                    if(week==0)
-//                    {
-//                        std:: cout << FullTime[AD+week*MaxDetectors] << " " << MuonEff[AD+week*MaxDetectors] << " " << MultiEff[AD+week*MaxDetectors]  << " Volume " << idx << " This should be different for volumes 0,1 : " << GetDetectorProtons(AD,idx) << " " << GetDetectorProtons(0,idx) << std::endl;
-//                        std::cout<< " WEEK " << week << " SCALE: " << scale << " IDX, AD " << idx << AD << std::endl;
-//                    }
-                    
-                    WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods]*=scale;//At this point The background and observed data rates/errors already have been corected for the muon and multiplicity efficiencies, also for livetime and protons.
-                    
-                    if(DataPeriods==Nweeks)//The data and the fit periods are the same, this can be use to fit inclusive data or fit the data weekly (studies of theta13/deltam fit depending on the weekly variations)
-                    {
-                        InclusiveData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods] = WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods];
-                    }
-                    else
-                    {
-                        scalesum+=scale;
-                        
-                        if(ErrorMode)
-                        {
-                            InclusiveData[AD+idx*MaxDetectors*DataPeriods]+=pow(WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods],2);
-                        }
-                        else
-                        {
-                            InclusiveData[AD+idx*MaxDetectors*DataPeriods]+=WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods];
-                        }
-                    }
-                    
-                    if(scale!=0)
-                    {
-                    WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods]*=1./scale;//Return the vector to its original state
-                    }
-                }
-                
-                if(scalesum==0)
-                {
-                    InclusiveData[AD+idx*MaxDetectors*DataPeriods]*=0;
-                    std::cout << " WEEKLY DATA IS EMPTY, FILE NOT READ? " << std::endl;
-                    
-                    exit(EXIT_FAILURE);
-                }
-                else
-                {
-                    if(ErrorMode)
-                    {
-                        InclusiveData[AD+idx*MaxDetectors*DataPeriods]=sqrt(InclusiveData[AD+idx*MaxDetectors*DataPeriods])*1./scalesum;
-                    }
-                    else
-                    {
-                        InclusiveData[AD+idx*MaxDetectors*DataPeriods]*=1./scalesum;
-                    }
+                    InclusiveData[AD+idx*MaxDetectors*DataPeriods]+=WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods];
                 }
             }
         }
     }
 }
 
-void NominalData :: GetnGdInclusiveData(Double_t* InclusiveData, bool ErrorMode)
+//void NominalData :: GetnGdInclusiveData(Double_t* InclusiveData, bool ErrorMode)
+//{
+//    
+//    //Weight weekly rates to get a inclusive rate to use in the fitter
+//    Double_t WeeklyData[DataPeriods*MaxDetectors*VolumeX*VolumeY];
+//    
+//    for(Int_t AD=0;AD<NADs;AD++)
+//    {
+//        for(Int_t week=0;week<DataPeriods;week++)
+//        {
+//            for(Int_t idx=0; idx<VolumeX; idx++)
+//            {
+//                for(Int_t idy=0; idy<VolumeY; idy++)
+//                {
+//                    WeeklyData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods] = InclusiveData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods];
+//                    
+//                    InclusiveData[AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods] = 0;
+//                }
+//            }
+//        }
+//    }
+//
+//    //Weight weekly rates to get a inclusive rate to use in the fitter
+//    
+//    for(Int_t AD=0;AD<NADs;AD++)
+//    {
+//        Double_t scalesum=0;
+//        
+//        for(Int_t week=0;week<DataPeriods;week++)
+//        {
+//            Double_t scale = FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]*GetDetectorProtons(AD,0)/GetDetectorProtons(0,0);
+//
+//            if(DataPeriods==Nweeks)//The data and the fit periods are the same, this can be use to fit inclusive data or fit the data weekly (studies of theta13/deltam fit depending on the weekly variations)
+//            {
+//                InclusiveData[AD+week*MaxDetectors] = WeeklyData[AD+week*MaxDetectors]*scale;
+//            }
+//            else
+//            {
+//                scalesum+=scale;
+//                
+//                WeeklyData[AD+week*MaxDetectors]*=FullTime[AD+week*MaxDetectors]*GetDetectorProtons(AD,0)/GetDetectorProtons(0,0);//The background and observed data rates already include the muon and multiplicity efficiencies, here include livetime and protons.
+//                
+//                if(ErrorMode)
+//                {
+//                    InclusiveData[AD]+=pow(WeeklyData[AD+week*MaxDetectors],2);
+//                }
+//                else
+//                {
+//                    InclusiveData[AD]+=WeeklyData[AD+week*MaxDetectors];
+//                }
+//            }
+//        }
+//        
+//        if(scalesum==0)
+//        {
+//            InclusiveData[AD]*=0;
+//            std::cout << " WEEKLY DATA IS EMPTY, FILE NOT READ? " << std::endl;
+//            
+//            exit(EXIT_FAILURE);
+//        }
+//        else
+//        {
+//            if(ErrorMode)
+//            {
+//                InclusiveData[AD]=sqrt(InclusiveData[AD])*1./scalesum;
+//            }
+//            else
+//            {
+//                InclusiveData[AD]*=1./scalesum;
+//            }
+//        }
+//    }
+//}
+
+void NominalData :: GetnGdInclusiveData(Double_t* InclusiveData)
 {
-    //Weight weekly rates to get a inclusive rate to use in the fitter
+    //Just add events and absolute errors
+    
+    //Sum weekly rates to get a inclusive rate to use in the fitter
     Double_t WeeklyData[DataPeriods*MaxDetectors*VolumeX*VolumeY];
     
     for(Int_t AD=0;AD<NADs;AD++)
@@ -3989,55 +4112,14 @@ void NominalData :: GetnGdInclusiveData(Double_t* InclusiveData, bool ErrorMode)
             }
         }
     }
-
-    //Weight weekly rates to get a inclusive rate to use in the fitter
+    
+    //Sum weekly rates to get a inclusive rate to use in the fitter
     
     for(Int_t AD=0;AD<NADs;AD++)
     {
-        Double_t scalesum=0;
-        
         for(Int_t week=0;week<DataPeriods;week++)
         {
-            Double_t scale = FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]*GetDetectorProtons(AD,0)/GetDetectorProtons(0,0);
-
-            if(DataPeriods==Nweeks)//The data and the fit periods are the same, this can be use to fit inclusive data or fit the data weekly (studies of theta13/deltam fit depending on the weekly variations)
-            {
-                InclusiveData[AD+week*MaxDetectors] = WeeklyData[AD+week*MaxDetectors]*scale;
-            }
-            else
-            {
-                scalesum+=scale;
-                
-                WeeklyData[AD+week*MaxDetectors]*=FullTime[AD+week*MaxDetectors]*GetDetectorProtons(AD,0)/GetDetectorProtons(0,0);//The background and observed data rates already include the muon and multiplicity efficiencies, here include livetime and protons.
-                
-                if(ErrorMode)
-                {
-                    InclusiveData[AD]+=pow(WeeklyData[AD+week*MaxDetectors],2);
-                }
-                else
-                {
-                    InclusiveData[AD]+=WeeklyData[AD+week*MaxDetectors];
-                }
-            }
-        }
-        
-        if(scalesum==0)
-        {
-            InclusiveData[AD]*=0;
-            std::cout << " WEEKLY DATA IS EMPTY, FILE NOT READ? " << std::endl;
-            
-            exit(EXIT_FAILURE);
-        }
-        else
-        {
-            if(ErrorMode)
-            {
-                InclusiveData[AD]=sqrt(InclusiveData[AD])*1./scalesum;
-            }
-            else
-            {
-                InclusiveData[AD]*=1./scalesum;
-            }
+            InclusiveData[AD]+=WeeklyData[AD+week*MaxDetectors];
         }
     }
 }

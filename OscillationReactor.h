@@ -387,7 +387,7 @@ OscillationReactor :: OscillationReactor()
     {
         for(Int_t reactor = 0; reactor < NReactors; reactor++)
         {
-            ADdistances[AD][reactor] = Nom->GetDistances(AD,reactor);
+            ADdistances[AD][reactor] = Nom->GetDistances(AD,reactor)/1000;//IN KILOMETERS
         }
         
         for (Int_t week = 0; week <Nweeks; week++)
@@ -497,7 +497,7 @@ OscillationReactor :: OscillationReactor()
                 
                 for (Int_t week = 0; week <Nweeks; week++)
                 {
-                    NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetInclusiveDetectorEfficiency(AD,week,idx,idy);
+                    NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy,0);
                     
                     DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]=NominalDetectorEfficiency[AD][week][idx][idy];
                     
@@ -507,7 +507,7 @@ OscillationReactor :: OscillationReactor()
         }//idx
         for (Int_t week = 0; week <Nweeks; week++)
         {
-            FullTime[week+AD*Nweeks] = Nom->GetInclusiveFullTime(AD,week);
+            FullTime[week+AD*Nweeks] = Nom->GetFullTime(AD,week,0)/365.;//Years
         }
     }//AD
     
@@ -579,7 +579,7 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
     {
         for(Int_t reactor = 0; reactor < NReactors; reactor++)
         {
-            ADdistances[AD][reactor] = Data->GetDistances(AD,reactor);
+            ADdistances[AD][reactor] = Data->GetDistances(AD,reactor)/1000;//IN KILOMETERS
         }
         for (Int_t week = 0; week <Nweeks; week++)
         {
@@ -658,7 +658,6 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
 #ifdef UseVolumes //To use 2 volumes, otherwise 100 cells.
                 
                 DetectorProtons[AD][idx][idy] = Data->GetDetectorProtons(AD,idx);
-                
 #else
                 if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
                 {
@@ -680,7 +679,7 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
                 
                 for (Int_t week = 0; week <Nweeks; week++)
                 {
-                    NominalDetectorEfficiency[AD][week][idx][idy] = Data->GetInclusiveDetectorEfficiency(AD,week,idx,idy);
+                    NominalDetectorEfficiency[AD][week][idx][idy] = Data->GetDetectorEfficiency(AD,week,idx,idy,0);
                     
                     DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]=NominalDetectorEfficiency[AD][week][idx][idy];
                     std::cout << "\t \t \t Nominal Detector Efficiency in AD" << AD << " ,week: " << week << " Cell: " << idx << "," << idy << " inside OscillationReactor.h: " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy] << std::endl;
@@ -691,7 +690,7 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
         
         for (Int_t week = 0; week <Nweeks; week++)
         {
-            FullTime[week+AD*Nweeks] = Data->GetInclusiveFullTime(AD,week);
+            FullTime[week+AD*Nweeks] = Data->GetFullTime(AD,week,0)/365.;//Years
         }
             
     }//AD
@@ -947,6 +946,8 @@ void OscillationReactor :: LoadExternalInputs()//This only works for week = 1 (i
 //Calculates oscillation probability
 Double_t OscillationReactor :: OscProb(Double_t L, Double_t E, Double_t S22t13,Double_t dm2ee)
 {
+    L = L*1000; //Distances are given in km, the 1.267 factor works for km/gev or m/mev
+    
     Double_t theta13=TMath::ASin(sqrt(S22t13))*0.5;
     Double_t theta12=TMath::ASin(sqrt(s22t12))*0.5;
     Double_t dm231 = dm2ee-hierarchy*(5.21e-5+deltam2_21);
@@ -1100,9 +1101,14 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
                 ScaledOscillatedSpectrumAD[AD][idx][idy] = (TH1D*)TotalOscillatedSpectrumAD[AD]->Clone();
-                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorProtons[AD][idx][idy]*FullTime[week+AD*Nweeks]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]);//in seconds and m^2 already calculated in CrossSection.
+                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorProtons[AD][idx][idy]*FullTime[week+AD*Nweeks]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]);//in years and km^2 already calculated in CrossSection.
                 
-                //I might need to use the [idx][idy] information from the efficiency maps, but we need to be sure what is going on there.
+                std::cout << " EVENTS AFTER CROSS SECTION, REACTOR MODEL AND TARGET MASSES: " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << "SHOULD BE SOMETHING IN THE ORDER OF: " << ObservedEvents[AD][week][idx][idy] << std::endl;
+                
+                std::cout << "BACKGROUND EVENTS : " << BackgroundSpectrumH[AD][idx][idy] << ", COMPARE TO EVENTS IN ANTINEUTRINO SPECTRUM TO SEE IF MAKES SENSE " << std::endl;
+                
+                
+                //ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(IBDEvents[AD][week][idx][idy]/VisibleHisto[AD][idx][idy]->Integral()/ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral());//Scale the true spectrum to the expected corrected value of events.
                 
                 VisibleHisto[AD][idx][idy] = new TH1D(Form("Visible Oscillation Prediction AD%d, week%d, cell %d,%d",AD+1,week, idx, idy),Form("Visible Oscillation Prediction AD%d, week%d, cell %d,%d",AD+1,week, idx, idy), MatrixBins,0,FinalVisibleEnergy);
             }
@@ -1419,7 +1425,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 
                 VisibleHisto[AD][idx][idy]=(TH1D*)VisibleHisto[AD][idx][idy]->Rebin(n_evis_bins,Form("Oscillation Prediction AD%d, week%d, cell %d,%d",AD+1,week,idx,idy),evis_bins);
                 
-                //if(!CovMatrix)//This shouldn't make any difference, just as a test, do covariance matrices depend on this scaling? They do!
+                if(!CovMatrix)//Scale data to expected number of events
                 {
                     //
                     VisibleHisto[AD][idx][idy]->Scale(IBDEvents[AD][week][idx][idy]/VisibleHisto[AD][idx][idy]->Integral());
@@ -1440,11 +1446,11 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                     assert(Int_t(100000*(BackgroundSpectrumH[AD][idx][idy]->Integral()+IBDEvents[AD][week][idx][idy] - ObservedEvents[AD][week][idx][idy]))<=1);
                 }
                 
-                //if(!CovMatrix)//Covariance matrices depend on this scaling
+                //Then scale to expected number of events.
+                if(!CovMatrix)
                 {
                     VisibleHisto[AD][idx][idy]->Scale(ObservedEvents[AD][week][idx][idy]/VisibleHisto[AD][idx][idy]->Integral());
                 }
-                //Then scale to expected number of events.
                 delete BackgroundSpectrumH[AD][idx][idy];
             }
         }
@@ -1831,20 +1837,43 @@ void OscillationReactor:: RandomEfficiency()
 {
     TRandom3* rand = new TRandom3(0);
     
-    for (Int_t AD = 0; AD<NADs; AD++)
+    if(Analysis)
     {
-        for (Int_t week = 0; week < Nweeks; week++)
+        for (Int_t AD = 0; AD<NADs; AD++)
         {
-            for(Int_t idx=0; idx<XCellLimit; idx++)
+            for (Int_t week = 0; week < Nweeks; week++)
             {
-                for(Int_t idy=0; idy<YCellLimit; idy++)
+                for(Int_t idx=0; idx<XCellLimit; idx++)
                 {
-                    rand->SetSeed(0);
-                    DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]= (1 + DetectorEfficiencyRelativeError * rand->Gaus(0,1))
-                    * DetectorEfficiencyDelayed[AD]
-                    * NominalDetectorEfficiency[AD][week][idx][idy]/NominalDetectorEfficiencyDelayed;//I divide over the nominal detector efficiency delayed because it is included in the total NominalDetectorEfficiency magnitude.
-                    
-                       std::cout << "\t \t \t Random Detector Efficiency in AD" << AD << " ,week: " << week << " Cell: " << idx << "," << idy << " inside OscillationReactor.h: " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy] << std::endl;
+                    for(Int_t idy=0; idy<YCellLimit; idy++)
+                    {
+                        rand->SetSeed(0);
+                        DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]= NominalDetectorEfficiency[AD][week][idx][idy]*(1 + DetectorEfficiencyRelativeError * rand->Gaus(0,1))
+                       
+                        
+                        std::cout << "\t \t \t Random Detector Efficiency in AD" << AD << " ,week: " << week << " Cell: " << idx << "," << idy << " inside OscillationReactor.h: " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy] << std::endl;
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        for (Int_t AD = 0; AD<NADs; AD++)
+        {
+            for (Int_t week = 0; week < Nweeks; week++)
+            {
+                for(Int_t idx=0; idx<XCellLimit; idx++)
+                {
+                    for(Int_t idy=0; idy<YCellLimit; idy++)
+                    {
+                        rand->SetSeed(0);
+                        DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]= (1 + DetectorEfficiencyRelativeError * rand->Gaus(0,1))
+                        * DetectorEfficiencyDelayed[AD]
+                        * NominalDetectorEfficiency[AD][week][idx][idy]/NominalDetectorEfficiencyDelayed;//I divide over the nominal detector efficiency delayed because it is included in the total NominalDetectorEfficiency magnitude.
+                        
+                        std::cout << "\t \t \t Random Detector Efficiency in AD" << AD << " ,week: " << week << " Cell: " << idx << "," << idy << " inside OscillationReactor.h: " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy] << std::endl;
+                    }
                 }
             }
         }

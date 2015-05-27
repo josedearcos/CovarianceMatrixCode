@@ -706,11 +706,10 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
         }
     }
     
-    //Possible flaw in the relative oscillation analysis as used right now. Efficiencies used in the so called superhistograms are nominal efficiencies, when variations are applied we get a residual error due to this difference.
+    //Possible flaw in the relative oscillation analysis as used right now. Efficiencies used in the so called superhistograms are nominal efficiencies, when variations are applied we might get a residual error due to this difference in the relative oscillation model.
     
-
-    Osc->SetDelayedEfficiency(OscRea->GetDelayedEfficiency());
-    Osc->SetEfficiency(OscRea->GetEfficiency());
+//    Osc->SetDelayedEfficiency(OscRea->GetDelayedEfficiency());
+//    Osc->SetEfficiency(OscRea->GetEfficiency());
     
     for(Int_t AD =0;AD<NADs;AD++)
     {

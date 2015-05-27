@@ -426,7 +426,7 @@ CreateEnergyMatrix :: CreateEnergyMatrix(NominalData* data)
     {
         for (Int_t week = 0; week<Nweeks; week++)
         {
-            DetectorEfficiency[AD][week] = Data->GetDetectorEfficiency(AD,week,0,0);//No cell in nGd
+            DetectorEfficiency[AD][week] = Data->GetDetectorEfficiency(AD,week,0,0,0);//No cell in nGd
             
         }
         //  Relative energy scale
