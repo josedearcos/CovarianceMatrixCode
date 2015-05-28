@@ -31,6 +31,7 @@ private:
     
     bool Mode;
     
+    Double_t ranvec[NReactors*MatrixBins];
     Double_t InitialEnergy;
     Double_t FinalVisibleEnergy;
     Double_t BinWidth;
@@ -65,8 +66,8 @@ private:
     bool IsotopeMatrix;
     bool ReactorPowerMatrix;
     
-    Double_t m_dNdE_nom[NReactors][MatrixBins];
-    Double_t m_dNdE[NReactors][MatrixBins];
+    Double_t Reactor_Nominal[NReactors][MatrixBins];
+    Double_t ReactorSpectrum[NReactors][MatrixBins];
     Double_t L[NReactors*MatrixBins][NReactors*MatrixBins]; // lower triangle of the covariance matrix
     
     TRandom3* rand;
@@ -106,7 +107,8 @@ ReactorSpectrumMultiple :: ReactorSpectrumMultiple()
     
     Nom = new NominalData(0,2);
     rand = new TRandom3(0);
-    
+    rand->SetSeed(0);
+
     std::setprecision(40);
     IHEPReactorModel = Nom->UsingIHEPReactorModel();
 
@@ -155,8 +157,8 @@ ReactorSpectrumMultiple :: ReactorSpectrumMultiple()
     {
         for(Int_t sample=0; sample<m_nSamples;sample++)
         {
-            m_dNdE_nom[reactor][sample] = Nom->GetNominalReactorSpectrum(reactor,sample);
-            m_dNdE[reactor][sample]=m_dNdE_nom[reactor][sample];
+            Reactor_Nominal[reactor][sample] = Nom->GetNominalReactorSpectrum(reactor,sample);
+            ReactorSpectrum[reactor][sample]=Reactor_Nominal[reactor][sample];
         }
     }
     
@@ -169,7 +171,8 @@ ReactorSpectrumMultiple :: ReactorSpectrumMultiple()
 ReactorSpectrumMultiple :: ReactorSpectrumMultiple(NominalData* Data)
 {
     rand = new TRandom3(0);
-    
+    rand->SetSeed(0);
+
     IHEPReactorModel = Data->UsingIHEPReactorModel();
     //Binning variables
     OriginalNbins = 820;
@@ -216,8 +219,8 @@ ReactorSpectrumMultiple :: ReactorSpectrumMultiple(NominalData* Data)
     {
         for(Int_t sample=0; sample<m_nSamples;sample++)
         {
-            m_dNdE_nom[reactor][sample] = Data->GetNominalReactorSpectrum(reactor,sample);
-            m_dNdE[reactor][sample]=m_dNdE_nom[reactor][sample];
+            Reactor_Nominal[reactor][sample] = Data->GetNominalReactorSpectrum(reactor,sample);
+            ReactorSpectrum[reactor][sample]=Reactor_Nominal[reactor][sample];
         }
     }
     
@@ -264,7 +267,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
         {
             for (Int_t reactor = 0; reactor < NReactors; reactor++)
             {
-                NominalSpectra[reactor]->SetBinContent(curSample+1,m_dNdE[reactor][curSample]);
+                NominalSpectra[reactor]->SetBinContent(curSample+1,ReactorSpectrum[reactor][curSample]);
             }
         }
         //        CovMatrixM = new TH2D("COV","COV",m_nSamples*NReactors,0,72,m_nSamples*NReactors,0,72);
@@ -273,11 +276,9 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
         //  Apply variations to the nominal spectrum:
         if (IsotopeMatrix&&Mode)
         {
-            Double_t ranvec[NReactors*MatrixBins];
-            
+
             for (Int_t i = 0; i < NReactors*m_nSamples; i++)
             {
-                rand->SetSeed(0);
                 ranvec[i] = rand->Gaus(0,1);
             }
             
@@ -285,17 +286,17 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
             {
                 for (Int_t iSample = 0; iSample < m_nSamples; iSample++)
                 {
-                    m_dNdE[iCore][iSample] = m_dNdE_nom[iCore][iSample];
+                    ReactorSpectrum[iCore][iSample] = Reactor_Nominal[iCore][iSample];
                     
                     for (Int_t jCore = 0; jCore < NReactors; jCore++)
                     {
                         for (Int_t jSample = 0; jSample < m_nSamples; jSample++)
                         {
                             //  Multiply: Correlated Vector = Lower Decomposed Correlation Matrix * Uncorrelated Gaussian Vector
-                            m_dNdE[iCore][iSample] += L[iCore*m_nSamples+iSample][jCore*m_nSamples+jSample] * ranvec[jCore*m_nSamples+jSample];
+                            ReactorSpectrum[iCore][iSample] = ReactorSpectrum[iCore][iSample] + (L[iCore*m_nSamples+iSample][jCore*m_nSamples+jSample]*ranvec[jCore*m_nSamples+jSample]);
                         }
                     }
-                    //                          std::cout << "dNdE, correlated vector, random vs nominal: " << m_dNdE[iCore][iSample]  << "\t" << m_dNdE_nom[iCore][iSample]  << std::endl;
+//                            std::cout << "Reactor spectrum, correlated vector, random vs nominal: " << ReactorSpectrum[iCore][iSample]  << "\t" << Reactor_Nominal[iCore][iSample]  << "difference: " << Reactor_Nominal[iCore][iSample]-ReactorSpectrum[iCore][iSample] << std::endl;
                 }
             }
         }
@@ -343,8 +344,8 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
                 
                 binIdxHigh = binIdxLow+1;
                 
-                value_low = m_dNdE[reactor][binIdxLow];
-                value_high = m_dNdE[reactor][binIdxHigh];
+                value_low = ReactorSpectrum[reactor][binIdxLow];
+                value_high = ReactorSpectrum[reactor][binIdxHigh];
                 value = value_low;
                 
                 binLowE = m_eMin + binIdxLow*m_binWidth;
@@ -361,7 +362,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
                     value = 0.0;
                 }
                 
-                TotalReactorSpectrumH[reactor]->SetBinContent(i+1, value * ReactorPower[reactor]/NominalReactorPower[reactor]);
+                TotalReactorSpectrumH[reactor]->SetBinContent(i+1, value * ReactorPower[reactor]/NominalReactorPower[reactor]* 1.0e18);
             }
             std::cout << " Reactor factor " <<  reactor << " " << ReactorPower[reactor]/NominalReactorPower[reactor] << std::endl;
             
@@ -601,7 +602,6 @@ void ReactorSpectrumMultiple :: RandomIsotopes()
     Norm =0;//reset
     for (Int_t isotope=0; isotope<NIsotopes; isotope++)
     {
-        rand->SetSeed(0);
         RandomIsotopeError[isotope] = (IsotopeError[isotope] * rand->Gaus(0,1));
         IsotopeFrac[isotope]  = (1 + RandomIsotopeError[isotope]) * NominalIsotopeFrac[isotope];
         
@@ -623,7 +623,6 @@ void ReactorSpectrumMultiple :: RandomPower()
 {
     for(Int_t reactor=0; reactor<NReactors;reactor++)
     {
-        rand->SetSeed(0);
         RandomReactorPowerError[reactor] = (ReactorPowerError[reactor] * rand->Gaus(0,1));
         ReactorPower[reactor] = (1 + RandomReactorPowerError[reactor]) * NominalReactorPower[reactor];
         std::cout << " Random Power" << reactor+1 << " is " << ReactorPower[reactor] << "\n";

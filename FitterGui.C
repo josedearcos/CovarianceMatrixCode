@@ -1774,8 +1774,15 @@ void FitterGui::RunToyMC()
             Data->SetResolutionMatrix(12==i);
             Data->SetSin22t12Matrix(13==i);
             Data->SetEfficiencyMatrix(14==i);
-            Data->SetOAVMatrix(15==i);
-            Data->SetAllDetectorSystematicsMatrix(16==i);
+            if(Analysis)
+            {
+                Data->SetOAVMatrix(15==i);
+                Data->SetAllDetectorSystematicsMatrix(16==i);
+            }
+            else
+            {
+                Data->SetAllDetectorSystematicsMatrix(15==i);
+            }
 
             Cov = new CovarianceMatrix3(Data);
             Cov->CovarianceMatrixMain(this);

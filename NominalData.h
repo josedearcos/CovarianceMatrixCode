@@ -3199,7 +3199,7 @@ void NominalData :: ReadChristineReactorSpectrum()
         }
         for (Int_t reactor = 0; reactor < NReactors; reactor++)
         {
-            m_dNdE_nom[reactor+NReactors*curSample] = dNdE[reactor]* 1.0e18;
+            m_dNdE_nom[reactor+NReactors*curSample] = dNdE[reactor];
         }
         
         curSample++;

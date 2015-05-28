@@ -40,7 +40,6 @@ class OscillationReactor
 {
 private:
     
-    bool FlagEfficiency;
     std::string NominalPredictionDirectory;
     std::string RandomPredictionDirectory;
     
@@ -324,8 +323,6 @@ OscillationReactor :: OscillationReactor()
     
     exit(EXIT_FAILURE);
     
-    FlagEfficiency = 1;
-    
     Nom = new NominalData(0,2);
     
     DataSet = Nom->GetDataSet();
@@ -517,9 +514,7 @@ OscillationReactor :: OscillationReactor()
 //                                                  USEFUL CONSTRUCTOR
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 OscillationReactor :: OscillationReactor(NominalData* Data)
-{
-    FlagEfficiency = 1;
-    
+{    
     DataSet = Data->GetDataSet();
     
     rand = new TRandom3(0);
@@ -766,8 +761,6 @@ void OscillationReactor :: OscillationFromReactorData(Int_t Week,bool mode,bool 
     {
         GenerateVisibleSpectrum();
     }
-    
-    FlagEfficiency = 1;//Not necessary since this class is created and deleted for each random prediction, but just in case...
     
     TFile* OutputFile = new TFile(OutputFileName, "recreate");
     
@@ -1051,6 +1044,17 @@ void OscillationReactor :: GenerateVisibleSpectrum()
     Char_t histnameAD[100];//55
     
     std::cout << " Generating " << AnalysisString << " ToyMC predictions " << std::endl;
+    if(!isH)//Gadolinium
+    {
+        SetUpDetectorResponse();//Need to load it before the random efficiency is applied
+    }
+    else
+    {
+        if(EfficiencyMatrix)
+        {
+            this->RandomEfficiency();//Uncertainty not included in the Toy MC, but here.
+        }
+    }
     
     //Oscilation probabilities calculated for all baselines
     for (Int_t AD = 0; AD <NADs; AD++)
@@ -1117,6 +1121,8 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 
                 std::cout << "SCALE : " << DetectorProtons[AD][idx][idy]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy] << std::endl;//Per day, since the events are corrected I will generate the covariance matrices with corrected events (no efficiencies)
                 
+                std::cout << " EFFICIENCY VARIATION : " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy]  << std::endl;
+                
                 std::cout << " EVENTS AFTER CROSS SECTION, REACTOR MODEL AND TARGET MASSES: " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << "SHOULD BE SOMETHING IN THE ORDER OF: " << ObservedEvents[AD][week][idx][idy] << std::endl;
                 
                 std::cout << "BACKGROUND EVENTS : " << BackgroundSpectrumH[AD][idx][idy]->Integral() << ", COMPARE TO EVENTS IN ANTINEUTRINO SPECTRUM TO SEE IF MAKES SENSE " << std::endl;
@@ -1146,11 +1152,11 @@ void OscillationReactor :: GenerateVisibleSpectrum()
 
     if(!isH)//Gadolinium
     {
+        
+        //nGd Toy MC based on Yasu's work (but not identical, check if they agree)
+        
         for (Int_t AD = 0; AD <NADs; AD++)
         {
-            //nGd Toy MC based on Yasu's work (but not identical, check if they agree)
-            SetUpDetectorResponse();
-            
             TH1D* ShiftHisto = new TH1D(Form("Shift Oscillation Prediction AD%d, week%d", AD+1,week),Form("Shift  Oscillation Prediction AD%d, week%d", AD+1,week),MatrixBins,0,FinalVisibleEnergy);
             
             TH1D* IAVHisto = new TH1D(Form("IAV Oscillation Prediction AD%d, week%d", AD+1,week),Form("IAV Oscillation Prediction AD%d, week%d", AD+1,week),MatrixBins,0,FinalVisibleEnergy);
@@ -1321,10 +1327,6 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 SystematicS = "NominalResponseMatrix";
             }
             
-            if(EfficiencyMatrix)
-            {
-                this->RandomEfficiency();//Uncertainty not included in the Toy MC, but here.
-            }
 #ifndef EREC_COMPARISON
             
             TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/"+SystematicS+Form("%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"read");
@@ -1459,9 +1461,9 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 {
                     std::cout << "ASSERTING: " << BackgroundSpectrumH[AD][idx][idy]->Integral() << " + " << IBDEvents[AD][week][idx][idy] << " = " << BackgroundSpectrumH[AD][idx][idy]->Integral() + IBDEvents[AD][week][idx][idy] << "or = " << ObservedEvents[AD][week][idx][idy] << std::endl;
                     
-                    std::cout << Int_t(100000*(BackgroundSpectrumH[AD][idx][idy]->Integral()+IBDEvents[AD][week][idx][idy] - ObservedEvents[AD][week][idx][idy])) << std::endl;
+                    std::cout << "DIFFERENCE IS : " << Int_t(100000*(BackgroundSpectrumH[AD][idx][idy]->Integral()+IBDEvents[AD][week][idx][idy] - ObservedEvents[AD][week][idx][idy])) << std::endl;
                     
-                    assert(Int_t(100000*(BackgroundSpectrumH[AD][idx][idy]->Integral()+IBDEvents[AD][week][idx][idy] - ObservedEvents[AD][week][idx][idy]))<=1);
+//                    assert(Int_t(100000*(BackgroundSpectrumH[AD][idx][idy]->Integral()+IBDEvents[AD][week][idx][idy] - ObservedEvents[AD][week][idx][idy]))<=1);
                 }
                 
                 //Then scale to expected number of events.
@@ -2006,8 +2008,8 @@ void OscillationReactor :: GetOscEnergyShift(Int_t AD, Int_t TrueEnergyIndex, In
     }
     else
     {
-        dNdE = (TMath::Abs(dE)/BinWidth) * TotalOscillatedSpectrumAD[AD]->GetBinContent(e_nu_Idx-Int_t(Limit/BinWidth)+sign+1)
-        +(1 - TMath::Abs(dE)/BinWidth) * TotalOscillatedSpectrumAD[AD]->GetBinContent(e_nu_Idx-Int_t(Limit/BinWidth)+1);
+        dNdE = (TMath::Abs(dE)/BinWidth) * ScaledOscillatedSpectrumAD[AD][0][0]->GetBinContent(e_nu_Idx-Int_t(Limit/BinWidth)+sign+1)
+        +(1 - TMath::Abs(dE)/BinWidth) * ScaledOscillatedSpectrumAD[AD][0][0]->GetBinContent(e_nu_Idx-Int_t(Limit/BinWidth)+1);
     }
     
     OscDeltaPositronSpectrumH[TrueEnergyIndex]->SetBinContent(TrueEnergyIndex+1,dNdE/binScaling);
@@ -2663,7 +2665,7 @@ void OscillationReactor :: SetSystematic()
     {
         this->RandomResolutionMatrix();
     }
-    if(EfficiencyMatrix&&FlagEfficiency)
+    if(EfficiencyMatrix)
     {
         this->RandomEfficiency();
     }
