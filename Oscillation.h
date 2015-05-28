@@ -1625,6 +1625,9 @@ void Oscillation :: LoadNearData(Int_t week)
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
                 ADSpectrumVisH[near][idx][idy] = (TH1D*)gDirectory->Get(NearDataSpec);
+                
+                ADSpectrumVisH[near][idx][idy]->Scale(1./(MultiMuonEff[near][week]*FullTime[near][week]));//Correct events for efficiencies and calculate it in days. This is done inclusively if NWeeks = 1, or weekly otherwise.
+
                 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
                 //  need to change neardataspec depending on idx,idy cells for nH analysis data when it is available.
@@ -1640,8 +1643,6 @@ void Oscillation :: LoadNearData(Int_t week)
             {
                 if(DataSet!=2)//need to rebin files to LBNL binning
                 {
-                    ADSpectrumVisH[near][idx][idy]->Scale(1./(MultiMuonEff[near][week]*FullTime[near][week]));//Correct events for efficiencies and calculate it in days. This is done inclusively if NWeeks = 1, or weekly otherwise.
-
                     ADSpectrumVisH[near][idx][idy]=(TH1D*)ADSpectrumVisH[near][idx][idy]->Rebin(n_evis_bins,Form("Rebinned Vis Near%d Data Spectrum, Cell%i,%i",near,idx,idy),evis_bins);
                 }
                 
