@@ -98,6 +98,7 @@ private:
 
     Double_t DetectorProtons[MaxDetectors][VolumeX][VolumeY];
     Double_t FullTime[MaxDetectors][MaxPeriods];
+    Double_t MultiMuonEff[MaxDetectors][MaxPeriods];
     Double_t FluxFullTime[MaxDetectors][MaxPeriods];
     Double_t DetectorEfficiencyDelayed[MaxDetectors];
     Double_t DetectorEfficiency[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
@@ -325,12 +326,13 @@ Oscillation :: Oscillation()
                     NominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy,0);
                     DetectorEfficiency[AD][week][idx][idy] = NominalDetectorEfficiency[AD][week][idx][idy];
                     FullTime[AD][week] = Nom->GetFullTime(AD,week,0);
+                    MultiMuonEff[AD][week] = Nom->GetMultiMuonEff(AD,week,0);
                 }
                 //For flux:
                 for (Int_t week = 0; week <NReactorPeriods; week++)
                 {
                     FluxFullTime[AD][week] = Nom->GetFullTime(AD,week,1);
-                    FluxNominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetDetectorEfficiency(AD,week,idx,idy,1);
+                    FluxNominalDetectorEfficiency[AD][week][idx][idy] = Nom->GetMultiMuonEff(AD,week,1);//We only need the weekly dependent efficiencies, we could use GetDetectorEfficiency also since the global efficiencies cancel out when we weight the weekly data, but this is more "correct"
                 }
             }
         }
@@ -473,11 +475,12 @@ Oscillation :: Oscillation(NominalData* OData)
                     NominalDetectorEfficiency[AD][week][idx][idy] = OData->GetDetectorEfficiency(AD,week,idx,idy,0);
                     DetectorEfficiency[AD][week][idx][idy]=NominalDetectorEfficiency[AD][week][idx][idy];
                     FullTime[AD][week] = OData->GetFullTime(AD,week,0);
+                    MultiMuonEff[AD][week] = OData->GetMultiMuonEff(AD,week,0);
                 }
                 //For flux:
                 for (Int_t week = 0; week <NReactorPeriods; week++)
                 {
-                    FluxNominalDetectorEfficiency[AD][week][idx][idy] = OData->GetDetectorEfficiency(AD,week,idx,idy,1);
+                    FluxNominalDetectorEfficiency[AD][week][idx][idy] = OData->GetMultiMuonEff(AD,week,1);
                     FluxFullTime[AD][week]  = OData->GetFullTime(AD,week,1);
 
                 }
@@ -1448,7 +1451,7 @@ void Oscillation :: LoadToyHistograms(Int_t week)
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
-                ADSpectrumVisH[near][idx][idy] = (TH1D*)gDirectory->Get(Form("Oscillation Prediction AD%d, week%d, cell %d,%d", near+1,week,idx,idy));
+                ADSpectrumVisH[near][idx][idy] = (TH1D*)gDirectory->Get(Form("Oscillation Prediction AD%d, week%d, cell %d,%d", near+1,week,idx,idy));//It should be calculated with corrected events
                 
                 //  In oscillationreactor ADs have backgrounds included.
                 
@@ -1637,11 +1640,13 @@ void Oscillation :: LoadNearData(Int_t week)
             {
                 if(DataSet!=2)//need to rebin files to LBNL binning
                 {
+                    ADSpectrumVisH[near][idx][idy]->Scale(1./(MultiMuonEff[near][week]*FullTime[near][week]));//Correct events for efficiencies and calculate it in days. This is done inclusively if NWeeks = 1, or weekly otherwise.
+
                     ADSpectrumVisH[near][idx][idy]=(TH1D*)ADSpectrumVisH[near][idx][idy]->Rebin(n_evis_bins,Form("Rebinned Vis Near%d Data Spectrum, Cell%i,%i",near,idx,idy),evis_bins);
                 }
                 
                 //Substract backgrounds:
-                ADSpectrumVisH[near][idx][idy]->Add(NearBackgroundSpectrumH[near][idx][idy],-1);//Substract (varied if necessary) backgrounds from data
+                ADSpectrumVisH[near][idx][idy]->Add(NearBackgroundSpectrumH[near][idx][idy],-1);//Substract (varied if necessary) backgrounds from data, which are already corrected events.
                 
 //Negative bins don't make any sense for data
                 for(Int_t i = 0; i< ADSpectrumVisH[near][idx][idy]->GetXaxis()->GetNbins();i++)

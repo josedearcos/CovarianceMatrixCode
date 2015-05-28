@@ -56,7 +56,6 @@ private:
     Double_t NominalReactorPower[NReactors];
     Double_t ReactorPower[NReactors];
     Double_t ReactorPowerError[NReactors];
-    Double_t RandomReactorPowerError[NReactors];
     Double_t EnergyPerFission[NIsotopes];
     Double_t EnergyPerFissionError[NIsotopes];
     Double_t SumEnergyPerFission;
@@ -623,8 +622,7 @@ void ReactorSpectrumMultiple :: RandomPower()
 {
     for(Int_t reactor=0; reactor<NReactors;reactor++)
     {
-        RandomReactorPowerError[reactor] = (ReactorPowerError[reactor] * rand->Gaus(0,1));
-        ReactorPower[reactor] = (1 + RandomReactorPowerError[reactor]) * NominalReactorPower[reactor];
+        ReactorPower[reactor] = (1 + ReactorPowerError[reactor] * rand->Gaus(0,1)) * NominalReactorPower[reactor];
         std::cout << " Random Power" << reactor+1 << " is " << ReactorPower[reactor] << "\n";
     }
 }

@@ -533,6 +533,7 @@ public:
     Double_t GetEnergyDelayedCutDetectorEfficiency();
     Double_t GetDetectorEfficiencyRelativeError();
     Double_t GetDetectorEfficiency(Int_t, Int_t, Int_t, Int_t,bool);
+    Double_t GetMultiMuonEff(Int_t, Int_t,bool);
     Double_t GetFullTime(Int_t,Int_t,bool);
     
     Int_t GetCombineMode();
@@ -2156,6 +2157,22 @@ Double_t NominalData :: GetDetectorEfficiency(Int_t detector, Int_t week, Int_t 
     }
 }
 
+Double_t NominalData :: GetMultiMuonEff(Int_t detector, Int_t week,bool FluxMode)
+{
+    if(FluxMode)//Weekly even if Nweeks == 1
+    {
+        return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors];
+    }
+    
+    if(Nweeks==1)
+    {
+        return MuonEff[detector+week*MaxDetectors]*MultiEff[detector+week*MaxDetectors];
+    }
+    else
+    {
+        return InclusiveMuonEff[detector+week*MaxDetectors]*InclusiveMultiEff[detector+week*MaxDetectors];
+    }
+}
 Double_t NominalData :: GetEnergyDelayedCutDetectorEfficiency()
 {
     return m_detectorEfficiency_Ed_nominal;

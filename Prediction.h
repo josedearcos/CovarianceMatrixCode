@@ -155,7 +155,9 @@ private:
     Int_t TotalBins;
     
     TH1D* FluxHisto[NReactors][MaxDetectors][MaxPeriods][VolumeX][VolumeY];
-    
+    Double_t MultiMuonEff[MaxDetectors][MaxPeriods];
+    Double_t FullTime[MaxDetectors][MaxPeriods];
+
     //Histograms
     TH1D* PredictionVisH[MaxFarDetectors][MaxNearDetectors];//  Prediction with no alterations and no backgrounds.
     TH1D* ReactorPredictionVisH[MaxDetectors];//  Prediction with no alterations but nominal backgrounds have been added. Vis Binning (after detector response is applied)
@@ -166,8 +168,8 @@ private:
     TH1D* PredictionH[MaxFarDetectors][MaxNearDetectors];
     TH1D* PredictionDataH[MaxFarDetectors][MaxNearDetectors];
     
-    TH1D* NearBackgroundSpectrumH[MaxNearDetectors];
-    TH1D* FarBackgroundSpectrumH[MaxFarDetectors];
+    TH1D* NearBackgroundSpectrumH[MaxNearDetectors][VolumeX];
+    TH1D* FarBackgroundSpectrumH[MaxFarDetectors][VolumeX];
     TH1D* CombinedNearBackgroundSpectrumH[MaxNearDetectors];
     TH1D* CombinedFarBackgroundSpectrumH[MaxFarDetectors];
     
@@ -466,7 +468,16 @@ Prediction :: Prediction()
     SysCovDirectory = Data->GetSysCovDirectory();
     
     GenerateFluxCorrectedHistograms(Data);
-
+    
+    //For fitter:
+    for (Int_t AD = 0; AD <NADs; AD++)
+    {
+        for (Int_t week = 0; week <Nweeks; week++)
+        {
+            FullTime[AD][week] = Data->GetFullTime(AD,week,0);
+            MultiMuonEff[AD][week] = Data->GetMultiMuonEff(AD,week,0);
+        }
+    }
 }
 
 Prediction :: Prediction(NominalData* data)
@@ -582,6 +593,16 @@ Prediction :: Prediction(NominalData* data)
     SysCovDirectory = Data->GetSysCovDirectory();
     
     GenerateFluxCorrectedHistograms(Data);
+    
+    //For fitter:
+    for (Int_t AD = 0; AD <NADs; AD++)
+    {
+        for (Int_t week = 0; week <Nweeks; week++)
+        {
+            FullTime[AD][week] = Data->GetFullTime(AD,week,0);
+            MultiMuonEff[AD][week] = Data->GetMultiMuonEff(AD,week,0);
+        }
+    }
 }
 
 void Prediction :: SetSystematic()
@@ -1668,13 +1689,16 @@ void Prediction :: GenerateInverseMatrix(Double_t sen22t13,Double_t dm2_ee,Int_t
         SaveCovarianceMatrices(week);//Only saves one sample
     }
     
-    for (Int_t near = 0; near<(ADsEH1+ADsEH2); near++)
+    for(Int_t idx=0; idx<XCellLimit; idx++)
     {
-        delete NearBackgroundSpectrumH[near];
-    }
-    for (Int_t far =0; far<ADsEH3; far++)
-    {
-        delete FarBackgroundSpectrumH[far];
+        for (Int_t near = 0; near<(ADsEH1+ADsEH2); near++)
+        {
+            delete NearBackgroundSpectrumH[near][idx];
+        }
+        for (Int_t far =0; far<ADsEH3; far++)
+        {
+            delete FarBackgroundSpectrumH[far][idx];
+        }
     }
     for (Int_t near = 0; near<MaxNearCombine; near++)
     {
@@ -1859,8 +1883,8 @@ void Prediction :: SaveStatisticalCovarianceMatrix(Int_t week,Double_t sen22t13,
     {
         for (Int_t near = 0; near<MaxNearCombine; near++)
         {
-            CombinedNearBackgroundSpectrumH[near]->Write(Form("Near Background Spectrum for sin22t13 %f and Δm2ee %f",sen22t13,dm2_ee));
-            CombinedNearDataH[near]->Write(Form("Near Data Spectrum for sin22t13 %f and Δm2Dm2ee %f",sen22t13,dm2_ee));
+            CombinedNearBackgroundSpectrumH[near]->Write(Form("Near%i Background Spectrum for sin22t13 %f and Δm2ee %f", near, sen22t13,dm2_ee));
+            CombinedNearDataH[near]->Write(Form("Near%i Data Spectrum for sin22t13 %f and Δm2Dm2ee %f",near,sen22t13,dm2_ee));
             
             for (Int_t far =0; far<MaxFarCombine; far++)
             {
@@ -2008,12 +2032,13 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
         }
         
         //Substract nominal background from data after any statistical fluctuation has been applied.
-        
-        for (Int_t near=0; near<ADsEH1+ADsEH2; near++)
+        for(Int_t idx=0; idx<XCellLimit; idx++)
         {
-            NearDataH[near]->Add(NearBackgroundSpectrumH[near],-1);
+            for (Int_t near=0; near<ADsEH1+ADsEH2; near++)
+            {
+                NearDataH[near]->Add(NearBackgroundSpectrumH[near][idx],-1);
+            }
         }
-        
         if(!UseToyMCTree)
         {
             for (Int_t far=0; far<MaxFarCombine; far++)
@@ -2329,13 +2354,16 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             
             FarDataH[far][0] = (TH1D*)gDirectory->Get(FarDataSpec);
             
+            FarDataH[far][0]->Scale(1./(FullTime[far][week]*MultiMuonEff[far][week]));
+            
             if(DataSet!=2)//need to rebin files to LBNL binning
             {
                 FarDataH[far][0]=(TH1D*)FarDataH[far][0]->Rebin(n_evis_bins,Form("Rebinned Vis Far%d Data Spectrum",far),evis_bins);
             }
-
-            FarDataH[far][0]->Add(FarBackgroundSpectrumH[far],-1);//Substract backgrounds from data
-            
+            for(Int_t idx = 0; idx<XCellLimit;idx++)
+            {
+                FarDataH[far][0]->Add(FarBackgroundSpectrumH[far][idx],-1);//Substract backgrounds from data
+            }
             for(Int_t i = 0; i<FarDataH[far][0]->GetXaxis()->GetNbins();i++)
             {
                 if(FarDataH[far][0]->GetBinContent(i+1)<0)
@@ -2408,8 +2436,10 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             }
             else if(DataSet==1)
             {
-
-                NearDataH[near]->Add(NearBackgroundSpectrumH[near],-1);//Substract backgrounds from LBNL data
+                for(Int_t idx=0;idx<XCellLimit;idx++)
+                {
+                    NearDataH[near]->Add(NearBackgroundSpectrumH[near][idx],-1);//Substract backgrounds from LBNL data
+                }
             }
             
             //Set 0 negative bins after subtraction.
@@ -2523,13 +2553,16 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
     {
         delete NearDataH[near];//Not used anymore;
     }
-    for (Int_t near = 0; near<(ADsEH1+ADsEH2); near++)
+    for(Int_t idx=0;idx<XCellLimit;idx++)
     {
-        delete NearBackgroundSpectrumH[near];
-    }
-    for (Int_t far =0; far<ADsEH3; far++)
-    {
-        delete FarBackgroundSpectrumH[far];
+        for (Int_t near = 0; near<(ADsEH1+ADsEH2); near++)
+        {
+            delete NearBackgroundSpectrumH[near][idx];
+        }
+        for (Int_t far =0; far<ADsEH3; far++)
+        {
+            delete FarBackgroundSpectrumH[far][idx];
+        }
     }
     for (Int_t near = 0; near<MaxNearCombine; near++)
     {
@@ -2623,93 +2656,101 @@ void Prediction :: LoadBackgrounds(Int_t week,bool mode)
     std::cout << "\t \t \t MaxNearCombine" << MaxNearCombine << std::endl;
 
     sprintf(backgroundC,("./RootOutputs/"+ AnalysisString+ "/Backgrounds/"+RandomString+"Backgrounds.root").c_str());
-
+    
     TFile* BackgroundsF = TFile::Open(backgroundC);
-    
-    for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
-    {
-        NearBackgroundSpectrumH[near]=(TH1D*)gDirectory->Get((Form("Near AD%i ",near)+RandomString+ Form(" Background Period%d",week)).c_str());
-    }
-    for (Int_t far = 0; far < ADsEH3; far++)
-    {
-        FarBackgroundSpectrumH[far]=(TH1D*)gDirectory->Get((Form("Far AD%i ",far)+RandomString+ Form(" Background Period%d",week)).c_str());
-    }
-    
-    BackgroundsF->Close();
-    
-    for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
-    {
-        CombinedNearBackgroundSpectrumH[near]=(TH1D*)NearBackgroundSpectrumH[near]->Clone();
-        
-        if(Combine!=0)
-        {
-            CombinedNearBackgroundSpectrumH[near]->Reset();
-        }
-    }
-    for (Int_t far = 0; far < ADsEH3; far++)
-    {
-        CombinedFarBackgroundSpectrumH[far]=(TH1D*)FarBackgroundSpectrumH[far]->Clone();
-        
-        if(Combine!=0)
-        {
-            CombinedFarBackgroundSpectrumH[far]->Reset();
-        }
-    }
-    
-    //Combine matrices in 9x9, 2x2 or 1x1 prediction
-    if (Combine == 1)
+    for(Int_t idx = 0; idx < XCellLimit; idx++)
     {
         for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
         {
-            CombinedNearBackgroundSpectrumH[0]->Add(NearBackgroundSpectrumH[near]);//All near hall detectors together
+            NearBackgroundSpectrumH[near][idx]=(TH1D*)gDirectory->Get((Form("Near AD%i_Volume%i ",near,idx)+RandomString+ Form(" Background Period%i",week)).c_str());
         }
-        
         for (Int_t far = 0; far < ADsEH3; far++)
         {
-            CombinedFarBackgroundSpectrumH[0]->Add(FarBackgroundSpectrumH[far]);//All far hall detectors together
+            FarBackgroundSpectrumH[far][idx]=(TH1D*)gDirectory->Get((Form("Far AD%i_Volume%i ",far,idx)+RandomString+ Form(" Background Period%i",week)).c_str());
         }
-        
-        //            CombinedNearBackgroundSpectrumH[0]->Scale(1./(ADsEH1+ADsEH2));//All near hall detectors together
-    }
-    else if(Combine == 2)
-    {
-        for (Int_t far = 0; far < ADsEH3; far++)
-        {
-            CombinedFarBackgroundSpectrumH[0]->Add(FarBackgroundSpectrumH[far]);//All far hall detectors together
-        }
-        
-        //DB
-        for(Int_t FirstHall = 0; FirstHall<ADsEH1;FirstHall++ )
-        {
-            CombinedNearBackgroundSpectrumH[0]->Add(NearBackgroundSpectrumH[FirstHall]);
-            
-        }
-        //            CombinedNearBackgroundSpectrumH[0]->Scale(1./ADsEH1);
-        
-        //LO
-        for(Int_t SecondHall = ADsEH1; SecondHall<ADsEH2;SecondHall++ )
-        {
-            CombinedNearBackgroundSpectrumH[1]->Add(NearBackgroundSpectrumH[SecondHall]);
-            
-        }
-        //            CombinedNearBackgroundSpectrumH[1]->Scale(1./ADsEH2);
-        
     }
     
+    BackgroundsF->Close();
+    for(Int_t idx = 0; idx < XCellLimit; idx++)
+    {
+        for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
+        {
+            CombinedNearBackgroundSpectrumH[near]=(TH1D*)NearBackgroundSpectrumH[near][idx]->Clone();
+            
+            if(Combine!=0)
+            {
+                CombinedNearBackgroundSpectrumH[near]->Reset();
+            }
+        }
+        for (Int_t far = 0; far < ADsEH3; far++)
+        {
+            CombinedFarBackgroundSpectrumH[far]=(TH1D*)FarBackgroundSpectrumH[far][idx]->Clone();
+            
+            if(Combine!=0)
+            {
+                CombinedFarBackgroundSpectrumH[far]->Reset();
+            }
+        }
+    }
+    //Combine matrices in 9x9, 2x2 or 1x1 prediction, also all volumes together so far, unless I have data with backgrounds per volume
+    for(Int_t idx = 0; idx < XCellLimit; idx++)
+    {
+        if (Combine == 1)
+        {
+            for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
+            {
+                CombinedNearBackgroundSpectrumH[0]->Add(NearBackgroundSpectrumH[near][idx]);//All near hall detectors together
+            }
+            
+            for (Int_t far = 0; far < ADsEH3; far++)
+            {
+                CombinedFarBackgroundSpectrumH[0]->Add(FarBackgroundSpectrumH[far][idx]);//All far hall detectors together
+            }
+            
+            //            CombinedNearBackgroundSpectrumH[0]->Scale(1./(ADsEH1+ADsEH2));//All near hall detectors together
+        }
+        else if(Combine == 2)
+        {
+            for (Int_t far = 0; far < ADsEH3; far++)
+            {
+                CombinedFarBackgroundSpectrumH[0]->Add(FarBackgroundSpectrumH[far][idx]);//All far hall detectors together
+            }
+            
+            //DB
+            for(Int_t FirstHall = 0; FirstHall<ADsEH1;FirstHall++ )
+            {
+                CombinedNearBackgroundSpectrumH[0]->Add(NearBackgroundSpectrumH[FirstHall][idx]);
+                
+            }
+            //            CombinedNearBackgroundSpectrumH[0]->Scale(1./ADsEH1);
+            
+            //LO
+            for(Int_t SecondHall = ADsEH1; SecondHall<ADsEH2;SecondHall++ )
+            {
+                CombinedNearBackgroundSpectrumH[1]->Add(NearBackgroundSpectrumH[SecondHall][idx]);
+                
+            }
+            //            CombinedNearBackgroundSpectrumH[1]->Scale(1./ADsEH2);
+            
+        }
+    }
     #ifdef PrintEps
     TCanvas* FarBackgroundsC = new TCanvas("FarBackgroundsC","FarBackgroundsC",MaxFarLoadOscModel*400,400);
     TCanvas* NearBackgroundsC = new TCanvas("NearBackgroundsC","NearBackgroundsC",(ADsEH1+ADsEH2)*400,400);
 
-    FarBackgroundsC->Divide(ADsEH3);
-    NearBackgroundsC->Divide(ADsEH1+ADsEH2);
+    FarBackgroundsC->Divide(ADsEH3,XCellLimit);
+    NearBackgroundsC->Divide(ADsEH1+ADsEH2,XCellLimit);
         
     for (Int_t ad=0; ad<NADs/2; ad++)
     {
-        FarBackgroundsC->cd(ad+1);
-        FarBackgroundSpectrumH[ad]->Draw("HIST");
-
-        NearBackgroundsC->cd(ad+1);
-        NearBackgroundSpectrumH[ad]->Draw("HIST");
+        for(Int_t idx=0;idx<XCellLimit;idx++)
+        {
+            FarBackgroundsC->cd(idx+XCellLimit*ad+1);
+            FarBackgroundSpectrumH[ad][idx]->Draw("HIST");
+            
+            NearBackgroundsC->cd(idx+XCellLimit*ad+1);
+            NearBackgroundSpectrumH[ad][idx]->Draw("HIST");
+        }
     }
     
     FarBackgroundsC->Print(("./Images/"+AnalysisString+"/FitterInputs/"+RandomString+"FarBackgrounds.eps").c_str(),".eps");

@@ -71,8 +71,8 @@ const double UncertaintyDeltaZoav = 3.0;  // +-3.0 mm discrepancy between specif
 // --- ---- --- ---- --- ---- --- ---- --- ---- --- Global
 #define FullEnergyResolution
 //#define SaveTree // To save toy tree in roofile_toy.root, we don't use it
-//#define LoadTree // To load Eprompt tree, then get the effective entries in a smaller tree (roofile_etree.root)
-//#define ReactorShapeinToy //To produce the toy with the reactor shape included
+#define LoadTree // To load Eprompt tree, then get the effective entries in a smaller tree (roofile_etree.root)
+#define ReactorShapeinToy //To produce the toy with the reactor shape included
 ///
 TString roostr;
 

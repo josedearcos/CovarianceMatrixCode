@@ -708,31 +708,31 @@ void FitterGui::RunFitter()
         FluxInputS="GdInputs";
     }
     
-    // Generate SuperHistogram:
-    NominalData* FluxData = new NominalData(Analysis,DataSet);//Same for nH and nGd, difference is on efficiencies.
-    FluxData->CopyData(Data);
-    std::cout << " Loading Flux Data: " << std::endl;
+//    // Generate SuperHistogram:
+//    NominalData* FluxData = new NominalData(Analysis,DataSet);//Same for nH and nGd, difference is on efficiencies.
+//    FluxData->CopyData(Data);
+//    std::cout << " Loading Flux Data: " << std::endl;
+//    
+//    if(Analysis)
+//    {
+//        FluxData->LoadHydrogenMainData();
+//       
+////        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
+////        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
+//    }
+//    else
+//    {
+//        //So far only 20 week reactor file:
+//        FluxData->LoadOriginalGDMainData(("./Inputs/"+FluxInputS+"/Theta13-inputs_20week.txt").c_str());
+//
+////        FluxData->LoadOriginalGDMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
+//    }
     
-    if(Analysis)
-    {
-        FluxData->LoadHydrogenMainData();
-       
-//        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
-//        FluxData->LoadHydrogenMainData(("./Inputs/"+FluxInputS+Form("/P12E_%d.txt",NReactorPeriods)).c_str());
-    }
-    else
-    {
-        //So far only 20 week reactor file:
-        FluxData->LoadOriginalGDMainData(("./Inputs/"+FluxInputS+"/Theta13-inputs_20week.txt").c_str());
-
-//        FluxData->LoadOriginalGDMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
-    }
-    
-    Oscillation* FluxOsc= new Oscillation(FluxData);
-        FluxOsc->GenerateFluxHisto();
-    delete FluxOsc;
-    delete FluxData;
-    
+//    Oscillation* FluxOsc= new Oscillation(FluxData);
+//        FluxOsc->GenerateFluxHisto();
+//    delete FluxOsc;
+//    delete FluxData;
+//    
     //Chose Data Set
     if(Data->GetAnalysis())//   Hydrogen data
     {

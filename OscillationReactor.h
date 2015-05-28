@@ -292,6 +292,7 @@ private:
     void SetUnifiedModel(bool);
     void SetSystematic();
     void RandomEfficiency();
+    void RandomPower();
     
     TH1D* VisibleHisto[MaxDetectors][VolumeX][VolumeY];
     
@@ -1116,14 +1117,21 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 ScaledOscillatedSpectrumAD[AD][idx][idy] = (TH1D*)TotalOscillatedSpectrumAD[AD]->Clone();
                 
                 std::cout << "EVENTS IN TOTAL OSCILLATED SPECTRUM : " << TotalOscillatedSpectrumAD[AD]->Integral() << std::endl;
+             
+                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(IBDEvents[AD][week][idx][idy]/TotalOscillatedSpectrumAD[AD]->Integral());
+                
+                //ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorProtons[AD][idx][idy]*FullTime[week+AD*Nweeks]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy]);//in years and km^2 already calculated in CrossSection.
 
-                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorProtons[AD][idx][idy]*FullTime[week+AD*Nweeks]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]);//in years and km^2 already calculated in CrossSection.
+                
+                //This scaling might mitigate the reactor power covariance matrix, but it is necessary until I get a good rate calculation (right now is off by 1/2 order of magnitudes, don't know why)
+
+                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy]);//Efficiency changes here, after the previous scaling
                 
                 std::cout << "SCALE : " << DetectorProtons[AD][idx][idy]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy] << std::endl;//Per day, since the events are corrected I will generate the covariance matrices with corrected events (no efficiencies)
                 
                 std::cout << " EFFICIENCY VARIATION : " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy]  << std::endl;
                 
-                std::cout << " EVENTS AFTER CROSS SECTION, REACTOR MODEL AND TARGET MASSES: " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << "SHOULD BE SOMETHING IN THE ORDER OF: " << ObservedEvents[AD][week][idx][idy] << std::endl;
+                std::cout << " EVENTS AFTER CROSS SECTION, REACTOR MODEL AND TARGET MASSES: " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << "SHOULD BE SOMETHING IN THE ORDER OF: " << IBDEvents[AD][week][idx][idy] << std::endl;
                 
                 std::cout << "BACKGROUND EVENTS : " << BackgroundSpectrumH[AD][idx][idy]->Integral() << ", COMPARE TO EVENTS IN ANTINEUTRINO SPECTRUM TO SEE IF MAKES SENSE " << std::endl;
                 
@@ -2683,4 +2691,3 @@ void OscillationReactor :: SetSystematic()
     }
     //NL case is handled by SetNLParameters();
 }
-
