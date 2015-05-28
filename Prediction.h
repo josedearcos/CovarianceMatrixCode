@@ -746,7 +746,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
         }
     }
     
-    Osc->OscillationFromNearHallData(week,ToyMC,mode);//Calculates far hall predictions from data or toy mc near hall predictions
+    Osc->OscillationFromNearHallData(week,ToyMC,mode);//Calculates far hall predictions from data or toy mc near hall predictions, here all volumes have been added together
     
     for (Int_t far=0; far<MaxFarLoadOscModel; far++)
     {
@@ -2427,7 +2427,8 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             
             NearDataH[near] = (TH1D*)gDirectory->Get(NearDataSpec);
             
-            
+            NearDataH[near]->Scale(1./(FullTime[near][week]*MultiMuonEff[near][week]));
+
             //need to rebin files to LBNL binning
             
             if(DataSet!=2)//need to rebin files to LBNL binning

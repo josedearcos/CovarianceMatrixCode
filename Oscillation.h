@@ -1893,25 +1893,31 @@ void Oscillation :: GenerateFluxHisto()
                         for(Int_t i = 0; i<n_etrue_bins; i++)
                         {
                             Double_t Energy = FluxH[reactor][AD][period][idx][idy]->GetBinCenter(i+1);
-                            if(NonBinnedFluxH->Interpolate(Energy)==0)//0
+                            if(!Analysis)//Interpolation for gd flux files
                             {
-                                if(First_time)
+                                if(NonBinnedFluxH->Interpolate(Energy)==0)//0
                                 {
-                                    last_energy = NonBinnedFluxH->GetBinCenter(i); //Last bin with no zero energy
+                                    if(First_time)
+                                    {
+                                        last_energy = NonBinnedFluxH->GetBinCenter(i); //Last bin with no zero energy
+                                        
+                                        First_time = 0;
+                                    }
+                                    FluxH[reactor][AD][period][idx][idy]->SetBinContent(i+1,NonBinnedFluxH->Interpolate(last_energy));
                                     
-                                    First_time = 0;
+//                                    std::cout << NonBinnedFluxH->Interpolate(last_energy) << std::endl;
                                 }
-                                FluxH[reactor][AD][period][idx][idy]->SetBinContent(i+1,NonBinnedFluxH->Interpolate(last_energy));
-                                
-                                std::cout << NonBinnedFluxH->Interpolate(last_energy) << std::endl;
                             }
-                            if(Energy<last_energy)
+                            else//Hydrogen
                             {
-                                FluxH[reactor][AD][period][idx][idy]->SetBinContent(i+1,NonBinnedFluxH->Interpolate(Energy));
-                            }
-                            else//the flux ends at 8.8 MeV, otherwise the bins are 0 and we get NaNs. This extrapolation produces larger error in the large enery band. Need to do it consistently with other groups.
-                            {
-                                FluxH[reactor][AD][period][idx][idy]->SetBinContent(i+1,NonBinnedFluxH->Interpolate(last_energy));
+                                if(Energy<last_energy)
+                                {
+                                    FluxH[reactor][AD][period][idx][idy]->SetBinContent(i+1,NonBinnedFluxH->Interpolate(Energy));
+                                }
+                                else//the flux ends at 8.8 MeV, otherwise the bins are 0 and we get NaNs. This extrapolation produces larger error in the large enery band. Need to do it consistently with other groups.
+                                {
+                                    FluxH[reactor][AD][period][idx][idy]->SetBinContent(i+1,NonBinnedFluxH->Interpolate(last_energy));
+                                }
                             }
                         }
                     }

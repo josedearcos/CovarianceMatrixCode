@@ -785,7 +785,7 @@ void CovarianceMatrix3 :: GenerateCovarianceMatrix(Int_t week,Int_t samples)
                                     
                                 Cov[x][y] = 0;//Empty bins will produce NaNs.
                                     
-                                    std::cout << "\t \t \t WARNING PREDi*PREDj IS 0 SO YOUR SYSTEMATIC MATRIX WILL BE NAN!!!!! FIX " << std::endl;
+                                    std::cout << "\t \t \t WARNING PREDi*PREDj IS 0 IN BIN" << i << "," << j << "SO YOUR SYSTEMATIC MATRIX WILL BE NAN!!!!! FIX " << std::endl;
                                   //  exit(EXIT_FAILURE);
                                 }
                             }

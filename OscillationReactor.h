@@ -12,7 +12,6 @@
 #include "nHToyMC.h"
 // Used to debug, if you don't want it to run, uncomment the following line: (#define NDEBUG)
 //#define NDEBUG
-
 #include <assert.h>
 
 //#define TestDiagonalMatrix
@@ -107,13 +106,9 @@ private:
     Double_t FinalVisibleEnergy;
     
     Double_t DetectorProtons[MaxDetectors][VolumeX][VolumeY];
-    
-    std::vector<Double_t> FullTime;
-    std::vector<Double_t> MuonEff;
-    std::vector<Double_t> MultiEff;
-    
-    Double_t NominalDetectorEfficiency[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
 
+    Double_t NominalDetectorEfficiency[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
+    Double_t MultiMuonEff[MaxDetectors][MaxPeriods];
     Double_t DetectorEfficiencyRelativeError;
     
     Double_t BinWidth;
@@ -127,6 +122,8 @@ private:
     
     TH1D* OscillatedSpectrumAD[MaxDetectors];
     TH1D* TotalOscillatedSpectrumAD[MaxDetectors];
+    Double_t IntegralNominalTotalOscillatedSpectrumAD[MaxDetectors];
+    TH1D* NominalTotalOscillatedSpectrumAD[MaxDetectors];
     TH1D* ScaledOscillatedSpectrumAD[MaxDetectors][VolumeX][VolumeY];
     TH1D* OscillatedSpectrumEH1;
     TH1D* OscillatedSpectrumEH2;
@@ -149,6 +146,7 @@ private:
     Char_t ReactorData[200];
     
     void GenerateVisibleSpectrum();
+    void LoadNominalTotalOscillatedSpectrum();
     
     void PlotEH();
     void PlotRatioEH();
@@ -456,14 +454,16 @@ OscillationReactor :: OscillationReactor()
     for (Int_t AD = 0; AD<NADs; AD++)
     {
         DetectorEfficiencyDelayed[AD] = NominalDetectorEfficiencyDelayed;
+        
+        for (Int_t week = 0; week <Nweeks; week++)
+        {
+            MultiMuonEff[AD][week] = Nom->GetMultiMuonEff(AD,week,0);
+        }
+        
     }
     
     DetectorEfficiencyRelativeError = Nom->GetDetectorEfficiencyRelativeError();
-    
-    FullTime.resize(NADs*Nweeks);
-    MultiEff.resize(NADs*Nweeks);
-    MuonEff.resize(NADs*Nweeks);
-    
+
     for (Int_t AD = 0; AD<NADs; AD++)
     {
         for(Int_t idx=0; idx<XCellLimit; idx++)
@@ -503,12 +503,9 @@ OscillationReactor :: OscillationReactor()
                 }
             }//idy
         }//idx
-        for (Int_t week = 0; week <Nweeks; week++)
-        {
-            FullTime[week+AD*Nweeks] = Nom->GetFullTime(AD,week,0)/365.;//Years
-        }
     }//AD
     
+
     delete Nom;
 }
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -640,10 +637,6 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
     BCW = Data->GetBCWModel();
     LBNL = Data->GetLBNLModel();
     Unified = Data->GetUnifiedModel();
-    
-    FullTime.resize(NADs*Nweeks);
-    MultiEff.resize(NADs*Nweeks);
-    MuonEff.resize(NADs*Nweeks);
 
     for (Int_t AD = 0; AD<NADs; AD++)
     {
@@ -683,12 +676,6 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
                 }
             }//idy
         }//idx
-        
-        for (Int_t week = 0; week <Nweeks; week++)
-        {
-            FullTime[week+AD*Nweeks] = Data->GetFullTime(AD,week,0)/365.;//Years
-        }
-            
     }//AD
     
     NominalDetectorEfficiencyDelayed = Data->GetEnergyDelayedCutDetectorEfficiency();
@@ -696,8 +683,13 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
     for (Int_t AD = 0; AD<NADs; AD++)
     {
         DetectorEfficiencyDelayed[AD] = NominalDetectorEfficiencyDelayed;
-    }
         
+        for (Int_t week = 0; week <Nweeks; week++)
+        {
+            MultiMuonEff[AD][week] = Data->GetMultiMuonEff(AD,week,0);
+        }
+    }
+    
     DetectorEfficiencyRelativeError = Data->GetDetectorEfficiencyRelativeError();
     
 }
@@ -1057,6 +1049,8 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         }
     }
     
+    LoadNominalTotalOscillatedSpectrum();
+    
     //Oscilation probabilities calculated for all baselines
     for (Int_t AD = 0; AD <NADs; AD++)
     {
@@ -1088,6 +1082,8 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             
             Int_t TotalPoints = ReactorSpectrumH[i]->GetXaxis()->GetNbins();
             
+            std::cout << "EVENTS IN REACTOR SPECTRUM BEFORE OSCILLATION : " << ReactorSpectrumH[i]->Integral() << std::endl;
+
             for(Int_t pts=1;pts<=TotalPoints;++pts)
             {
                 Double_t Energy = ReactorSpectrumH[i]->GetXaxis()->GetBinCenter(pts);
@@ -1116,18 +1112,29 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             {
                 ScaledOscillatedSpectrumAD[AD][idx][idy] = (TH1D*)TotalOscillatedSpectrumAD[AD]->Clone();
                 
-                std::cout << "EVENTS IN TOTAL OSCILLATED SPECTRUM : " << TotalOscillatedSpectrumAD[AD]->Integral() << std::endl;
-             
-                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(IBDEvents[AD][week][idx][idy]/TotalOscillatedSpectrumAD[AD]->Integral());
-                
-                //ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorProtons[AD][idx][idy]*FullTime[week+AD*Nweeks]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy]);//in years and km^2 already calculated in CrossSection.
+                std::cout << "Events in ScaledOscillatedSpectrumAD before : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
 
-                
-                //This scaling might mitigate the reactor power covariance matrix, but it is necessary until I get a good rate calculation (right now is off by 1/2 order of magnitudes, don't know why)
+                std::cout << "EVENTS IN TOTAL OSCILLATED SPECTRUM : " << TotalOscillatedSpectrumAD[AD]->Integral() << std::endl;
+                std::cout << "EVENTS IN TOTAL NOMINAL OSCILLATED SPECTRUM : " << IntegralNominalTotalOscillatedSpectrumAD[AD] << std::endl;
+
+                //This scaling might mitigate the reactor power covariance matrix, but it is necessary until I get a good rate calculation (right now is off by 1/2 order of magnitudes, don't know why) or a relationship between the non-scaled matrix and the ibdevents expected. Better not to use (Reactor matrices are wrong!!) So we ScaleCovMatrix until ScalledOscillatedSpectrumAD gets the events in the correct order of magnitude.
+
+                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(1./IntegralNominalTotalOscillatedSpectrumAD[AD]);//This way we keep the reactor variations inside
+                std::cout << "Events in ScaledOscillatedSpectrumAD after : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
+
+                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(IBDEvents[AD][week][idx][idy]);
+                std::cout << "Events in ScaledOscillatedSpectrumAD ~ IBD Events : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
 
                 ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy]);//Efficiency changes here, after the previous scaling
                 
-                std::cout << "SCALE : " << DetectorProtons[AD][idx][idy]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy] << std::endl;//Per day, since the events are corrected I will generate the covariance matrices with corrected events (no efficiencies)
+                std::cout << "Events in ScaledOscillatedSpectrumAD IBD EVENTS + EFFICIENCY : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
+
+//                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorProtons[AD][idx][idy]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/MultiMuonEff[AD][week]);//in days and km^2 already calculated in CrossSection.//Correct events for efficiency
+//
+//                std::cout << "SCALE : " << DetectorProtons[AD][idx][idy]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/MultiMuonEff[AD][week] << std::endl;//Per day, since the events are corrected I will generate the covariance matrices with corrected events (no weekly efficiencies)
+//                
+//                //Used to scale the predictions in the covariance matrix and get the proper scaling of the matrix according to the expected events in the detector. It would be better not to use it, to allow the covariance matrix to be free of data inputs, to do so we need a good stimation of the events in ScaledOscillatedSpectrum, which right now is off by a few of orders of magnitude (2-3)
+//                
                 
                 std::cout << " EFFICIENCY VARIATION : " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy]  << std::endl;
                 
@@ -1453,12 +1460,12 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 
                 VisibleHisto[AD][idx][idy]=(TH1D*)VisibleHisto[AD][idx][idy]->Rebin(n_evis_bins,Form("Oscillation Prediction AD%d, week%d, cell %d,%d",AD+1,week,idx,idy),evis_bins);
                 
-                if(!CovMatrix)//Scale data to expected number of events
-                {
-                    //
-                    VisibleHisto[AD][idx][idy]->Scale(IBDEvents[AD][week][idx][idy]/VisibleHisto[AD][idx][idy]->Integral());
-                    //Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
-                }
+//                if(!CovMatrix)//Scale data to expected number of events//Actually doing this here cancel's the sin22t13 fitter effect!
+//                {
+//                    //
+//                    VisibleHisto[AD][idx][idy]->Scale(IBDEvents[AD][week][idx][idy]/VisibleHisto[AD][idx][idy]->Integral());
+//                    //Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
+//                }
                 
                 //Add backgrounds:
                 
@@ -1467,6 +1474,9 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 
                 if(!Mode)//If there are not background variations the observed events should be equal to IBD events + background events
                 {
+                    
+                    std::cout << "ASSERTING: " << VisibleHisto[AD][idx][idy]->Integral() << " = " << IBDEvents[AD][week][idx][idy] << std::endl;
+                    
                     std::cout << "ASSERTING: " << BackgroundSpectrumH[AD][idx][idy]->Integral() << " + " << IBDEvents[AD][week][idx][idy] << " = " << BackgroundSpectrumH[AD][idx][idy]->Integral() + IBDEvents[AD][week][idx][idy] << "or = " << ObservedEvents[AD][week][idx][idy] << std::endl;
                     
                     std::cout << "DIFFERENCE IS : " << Int_t(100000*(BackgroundSpectrumH[AD][idx][idy]->Integral()+IBDEvents[AD][week][idx][idy] - ObservedEvents[AD][week][idx][idy])) << std::endl;
@@ -1474,11 +1484,11 @@ void OscillationReactor :: GenerateVisibleSpectrum()
 //                    assert(Int_t(100000*(BackgroundSpectrumH[AD][idx][idy]->Integral()+IBDEvents[AD][week][idx][idy] - ObservedEvents[AD][week][idx][idy]))<=1);
                 }
                 
-                //Then scale to expected number of events.
-                if(!CovMatrix)
-                {
-                    VisibleHisto[AD][idx][idy]->Scale(ObservedEvents[AD][week][idx][idy]/VisibleHisto[AD][idx][idy]->Integral());
-                }
+//                //Then scale to expected number of events.
+//                if(!CovMatrix)
+//                {
+//                    VisibleHisto[AD][idx][idy]->Scale(ObservedEvents[AD][week][idx][idy]/VisibleHisto[AD][idx][idy]->Integral());
+//                }
                 delete BackgroundSpectrumH[AD][idx][idy];
             }
         }
@@ -1699,6 +1709,7 @@ void OscillationReactor :: FreeMemory()
     for (Int_t AD = 0; AD <NADs; AD++)
     {
         delete TotalOscillatedSpectrumAD[AD];
+        delete NominalTotalOscillatedSpectrumAD[AD];
         
         for(Int_t idx=0; idx<XCellLimit; idx++)
         {
@@ -2690,4 +2701,32 @@ void OscillationReactor :: SetSystematic()
             NLMatrix = 1; //NL case is handled by SetNLParameters();
     }
     //NL case is handled by SetNLParameters();
+}
+
+void OscillationReactor :: LoadNominalTotalOscillatedSpectrum()
+{
+    TFile* InputFile = new TFile(("./RootOutputs/"+ AnalysisString+ "/NominalOutputs/Oscillation.root").c_str());
+    Char_t histnameTotalget[100];//47
+
+    InputFile->cd("Total AD Spectra after oscillation");
+    for(Int_t AD = 0; AD<NADs; AD++)
+    {
+        if (Nweeks == 1)
+        {
+            sprintf(histnameTotalget,"Total spectrum after oscillation at AD%i", AD+1);
+        }
+        else
+        {
+            sprintf(histnameTotalget,"Total spectrum after oscillation at AD%i, week%i", AD+1, week+1);
+        }
+
+        NominalTotalOscillatedSpectrumAD[AD]= (TH1D*) gDirectory->Get(histnameTotalget);
+        
+        IntegralNominalTotalOscillatedSpectrumAD[AD] = NominalTotalOscillatedSpectrumAD[AD]->Integral();
+        std::cout << "EVENTS IN TOTAL NOMINAL OSCILLATED SPECTRUM : " << NominalTotalOscillatedSpectrumAD[AD]->Integral() << std::endl;
+        
+    }
+    
+    delete InputFile;
+    
 }
