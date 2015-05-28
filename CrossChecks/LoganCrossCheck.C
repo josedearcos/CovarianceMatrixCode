@@ -231,7 +231,6 @@ void LoganCrossCheck()
     
     for (Int_t systematic = 1; systematic<num; systematic++)
     {
-
         CanvasSys[systematic] = new TCanvas(Form("CanvasSys%d",systematic),Form("CanvasSys%d",systematic));
         
         CanvasSys[systematic]->Divide(NADs,volumesX);
@@ -308,8 +307,9 @@ void LoganCrossCheck()
     
 
     TH1D* F_obs[NADs][15][volumesX][volumesY];
-
+    TH1D* RebinedF_obs[NADs][15][volumesX][volumesY];
     TH1D* F_pred[NADs][15][volumesX][volumesY];
+    TH1D* RebinedF_pred[NADs][15][volumesX][volumesY];
 
     Double_t Cov;
 
@@ -317,29 +317,26 @@ void LoganCrossCheck()
 
     //Calculate covariance matrix:
     TCanvas* CanvasCovSys[15];
+    std::cout << "Get binning " << std::endl;
 
-    Int_t n_evis_bins=34;
-    Int_t n_etrue_bins=39;
-    Double_t enu_bins[n_etrue_bins];
+    const Int_t n_evis_bins=34;
     Double_t evis_bins[n_evis_bins];
-    
-    for (Int_t i = 0; i <= n_etrue_bins; i++)
-    {
-        enu_bins[i] = 0.2 * i + Emin;
-    }
     
     evis_bins[0] = 1.5;
     
     for (Int_t i = 0; i < n_evis_bins-1; i++)
     {
         evis_bins[i+1] = 0.2 * i + 1.6;
+        
+        std::cout << "EVIS: " << evis_bins[i+1] << std::endl;
     }
     evis_bins[n_evis_bins] = 12;
     
-    
+    std::cout << "Calculate cov " << std::endl;
+
     for (Int_t systematic = 1; systematic<num; systematic++)
     {
-        CanvasCovSys[systematic] = new TCanvas(Form("CanvasSys%d",systematic),Form("CanvasSys%d",systematic));
+        CanvasCovSys[systematic] = new TCanvas(Form("CanvasCovSys%d",systematic),Form("CanvasCovSys%d",systematic));
         
         CanvasCovSys[systematic]->Divide(NADs,volumesX);
         
@@ -347,20 +344,22 @@ void LoganCrossCheck()
         {
             for(Int_t x=0; x<volumesX; x++)
             {
-                CovH[AD][systematic][x] = new TH2D(Form("ConvarianceMatrixAD%d_%i_volume%i",AD,systematic,x),Form("ConvarianceMatrixAD%d_%i_volume%i",AD,systematic,x),VisibleSpectrumH[0][0][0][0]->GetXaxis()->GetNbins(),0,12,VisibleSpectrumH[0][0][0][0]->GetXaxis()->GetNbins(),0,12);
-
+                CovH[AD][systematic][x] = new TH2D(Form("ConvarianceMatrixAD%d_%i_volume%i",AD,systematic,x),Form("ConvarianceMatrixAD%d_%i_volume%i",AD,systematic,x),n_evis_bins,evis_bins[0],evis_bins[n_evis_bins],n_evis_bins,evis_bins[0],evis_bins[n_evis_bins]);
+                
                 for(Int_t y=0; y<volumesY; y++)
                 {
-                    F_pred[AD][systematic][x][y] = (TH1D*)VisibleSpectrumH[4][AD][x][y]->Clone();
-                    F_pred[AD][systematic][x][y]->Rebin(n_evis_bins,Form("Rebined_Nominal"),evis_bins););
-                    F_obs[AD][systematic][x][y] = (TH1D*)VisibleSpectrumH[systematic][AD][x][y]->Clone();
-                    F_obs[AD][systematic][x][y]->Rebin(n_evis_bins,Form("Rebined_Varied"),evis_bins););
+                    std::cout << "CLONING REBINNING " << systematic << std::endl;
 
-                    for(Int_t a=0; a<F_obs[AD][systematic][x][y]->GetXaxis()->GetNbins(); a++)
+                    F_pred[AD][systematic][x][y] = (TH1D*)VisibleSpectrumH[4][AD][x][y]->Clone(Form("PRED_Nominal%d_%i_volume%i",AD,systematic,x));
+                    RebinedF_pred[AD][systematic][x][y] = (TH1D*)F_pred[AD][systematic][x][y]->Rebin(n_evis_bins,Form("Rebined_Nominal%d_%i_volume%i",AD,systematic,x),evis_bins);
+                    F_obs[AD][systematic][x][y] = (TH1D*)VisibleSpectrumH[systematic][AD][x][y]->Clone(Form("OBS_Nominal%d_%i_volume%i",AD,systematic,x));
+                    RebinedF_obs[AD][systematic][x][y] = (TH1D*)F_obs[AD][systematic][x][y]->Rebin(n_evis_bins,Form("Rebined_Varied%d_%i_volume%i",AD,systematic,x),evis_bins);
+
+                    for(Int_t a=0; a<n_evis_bins; a++)
                     {
-                        for(Int_t b=0; b<F_obs[AD][systematic][x][y]->GetXaxis()->GetNbins(); b++)
+                        for(Int_t b=0; b<n_evis_bins; b++)
                         {
-                            Cov=(F_pred[AD][systematic][x][y]->GetBinContent(a+1) - F_obs[AD][systematic][x][y]->GetBinContent(a+1))*(F_pred[AD][systematic][x][y]->GetBinContent(b+1) - F_obs[AD][systematic][x][y]->GetBinContent(b+1));
+                            Cov=(RebinedF_pred[AD][systematic][x][y]->GetBinContent(a+1) - RebinedF_obs[AD][systematic][x][y]->GetBinContent(a+1))*(RebinedF_pred[AD][systematic][x][y]->GetBinContent(b+1) - RebinedF_obs[AD][systematic][x][y]->GetBinContent(b+1));
                             
                             CovH[AD][systematic][x]->SetBinContent(a+1,b+1,Cov);
                         }
@@ -372,36 +371,93 @@ void LoganCrossCheck()
                 CovH[AD][systematic][x]->Draw("colz");
             }
         }
-        TString FileNameSave;
+        
+        TString FileNameSave2;
 
         switch (systematic) {
             case 1:
-                FileNameSave = "AllSystematics";
+                FileNameSave2 = "AllSystematics";
                 break;
             case 2:
-                FileNameSave = "IAV";
+                FileNameSave2 = "IAV";
                 break;
             case 3:
-                FileNameSave = "NL";
+                FileNameSave2 = "NL";
                 break;
             case 4:
-                FileNameSave = "Nominal";
+                FileNameSave2 = "Nominal";
                 break;
             case 5:
-                FileNameSave = "OAV";
+                FileNameSave2 = "OAV";
                 break;
             case 6:
-                FileNameSave = "RelativeEnergyScale";
+                FileNameSave2 = "RelativeEnergyScale";
                 break;
             case 7:
-                FileNameSave = "Resolution";
+                FileNameSave2 = "Resolution";
                 break;
                 
             default:
                 break;
         }
         
-        CanvasSys[systematic]->Print("CovarianceMatrix"+FileNameSave+".eps");
-        CanvasSys[systematic]->Close();
+        CanvasCovSys[systematic]->Print("CovarianceMatrix"+FileNameSave2+".eps");
+        CanvasCovSys[systematic]->Close();
+    }
+    
+    TCanvas* CanvasRebin[15];
+    
+    std::cout << "PRINT REBINNED " << std::endl;
+    
+    for (Int_t systematic = 1; systematic<num; systematic++)
+    {
+        CanvasRebin[systematic] = new TCanvas(Form("CanvasSysRebin%d",systematic),Form("CanvasSysRebin%d",systematic));
+        
+        CanvasRebin[systematic]->Divide(NADs,volumesX);
+        
+        for(Int_t AD=0; AD<NADs; AD++)
+        {
+            for(Int_t x=0; x<volumesX; x++)
+            {
+                for(Int_t y=0; y<volumesY; y++)
+                {
+                    CanvasRebin[systematic]->cd(AD+NADs*x+1);
+                    
+                    RebinedF_pred[AD][systematic][x][y]->Draw();
+                }
+            }
+        }
+        
+        TString FileNameSave3;
+        
+        switch (systematic) {
+            case 1:
+                FileNameSave3 = "RebinAllSystematics";
+                break;
+            case 2:
+                FileNameSave3 = "RebinIAV";
+                break;
+            case 3:
+                FileNameSave3 = "RebinNL";
+                break;
+            case 4:
+                FileNameSave3 = "RebinNominal";
+                break;
+            case 5:
+                FileNameSave3 = "RebinOAV";
+                break;
+            case 6:
+                FileNameSave3 = "RebinRelativeEnergyScale";
+                break;
+            case 7:
+                FileNameSave3 = "RebinResolution";
+                break;
+                
+            default:
+                break;
+        }
+        
+        CanvasRebin[systematic]->Print(FileNameSave3+".eps");
+        CanvasRebin[systematic]->Close();
     }
 }

@@ -722,7 +722,10 @@ void FitterGui::RunFitter()
     }
     else
     {
-        FluxData->LoadOriginalGDMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
+        //So far only 20 week reactor file:
+        FluxData->LoadOriginalGDMainData(("./Inputs/"+FluxInputS+"/Theta13-inputs_20week.txt").c_str());
+
+//        FluxData->LoadOriginalGDMainData(("./Inputs/"+FluxInputS+Form("/Theta13-inputs_%dweek.txt",NReactorPeriods)).c_str());
     }
     
     Oscillation* FluxOsc= new Oscillation(FluxData);
@@ -1902,29 +1905,16 @@ void FitterGui::RunFlux()
                 std::cout << "\t Loading simple reactor model" << std::endl;
                 break;
             case 1://   P12E
-                if(1==Data->GetWeeks())
-                {
-                    std::cout << "\t Loading Gd P12E Data" << std::endl;
-                    //                    Data->LoadOriginalGDMainData("./Inputs/GdInputs/P12E_Inclusive.txt");
-                }
-                else
-                {
+
                     std::cout << "\t \t \t NO MULTIPLE WEEK P12E DATA IN Gd ANALYSIS YET " << std::endl;
                     exit(EXIT_FAILURE);
                     Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/P12E_%d.txt",NReactorPeriods));
-                }
                 break;
             case 2:// LBNL
-                if(1==Data->GetWeeks())
-                {
-                    std::cout << "\t Loading LBNL Gd Data" << std::endl;
-                    //                    Data->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
-                }
-                else
-                {
+
                     std::cout << "\t Loading weekly LBNL Gd Data" << std::endl;
-                    Data->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
-                }
+                    Data->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_20week.txt");//Only 20 week file so far, inclusive mode is not helpful here, since it is to calculate the superflux
+                
                 break;
             default:
                 break;

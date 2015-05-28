@@ -2488,25 +2488,38 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
         {
             Double_t correction_factor = (FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]*GetDetectorProtons(AD,0))/GetDetectorProtons(0, 0);
             
-            if(correction_factor==0)
+            if(correction_factor==0)//Avoid NanS
             {
-                correction_factor = 1; //We will multiply by zero in the GetnGdInclusiveData method, so it should make a difference, but this way we avoid NaNs.
+                StatisticalError[AD+week*MaxDetectors] = 0;
+                IBDEvents[AD+week*MaxDetectors] = 0;
+                ObservedEvents[AD+week*MaxDetectors] = 0;
+                
+                AccidentalEvents[AD+week*MaxDetectors] = 0;
+                AccidentalError[AD+week*MaxDetectors] = 0;
+                LiHeEvents[AD+week*MaxDetectors] = 0;
+                LiHeError[AD+week*MaxDetectors] = 0;
+                FastNeutronEvents[AD+week*MaxDetectors] = 0;
+                FastNeutronError[AD+week*MaxDetectors] = 0;
+                AmCEvents[AD+week*MaxDetectors] = 0;
+                AmCError[AD+week*MaxDetectors] = 0;
             }
-            
-            //Correct all events and rates:
-            
-            StatisticalError[AD+week*MaxDetectors] = StatisticalError[AD+week*MaxDetectors]/correction_factor;
-            IBDEvents[AD+week*MaxDetectors] = IBDEvents[AD+week*MaxDetectors]/correction_factor;
-            ObservedEvents[AD+week*MaxDetectors] = ObservedEvents[AD+week*MaxDetectors]/correction_factor;
-            
-            AccidentalEvents[AD+week*MaxDetectors] = AccidentalEvents[AD+week*MaxDetectors]/correction_factor;
-            AccidentalError[AD+week*MaxDetectors] = AccidentalError[AD+week*MaxDetectors]/correction_factor;
-            LiHeEvents[AD+week*MaxDetectors] = LiHeEvents[AD+week*MaxDetectors]/correction_factor;
-            LiHeError[AD+week*MaxDetectors] = LiHeError[AD+week*MaxDetectors]/correction_factor;
-            FastNeutronEvents[AD+week*MaxDetectors] = FastNeutronEvents[AD+week*MaxDetectors]/correction_factor;
-            FastNeutronError[AD+week*MaxDetectors] = FastNeutronError[AD+week*MaxDetectors]/correction_factor;
-            AmCEvents[AD+week*MaxDetectors] = AmCEvents[AD+week*MaxDetectors]/correction_factor;
-            AmCError[AD+week*MaxDetectors] = AmCError[AD+week*MaxDetectors]/correction_factor;
+            else
+            {
+                //Correct all events and rates:
+                
+                StatisticalError[AD+week*MaxDetectors] = StatisticalError[AD+week*MaxDetectors]/correction_factor;
+                IBDEvents[AD+week*MaxDetectors] = IBDEvents[AD+week*MaxDetectors]/correction_factor;
+                ObservedEvents[AD+week*MaxDetectors] = ObservedEvents[AD+week*MaxDetectors]/correction_factor;
+                
+                AccidentalEvents[AD+week*MaxDetectors] = AccidentalEvents[AD+week*MaxDetectors]/correction_factor;
+                AccidentalError[AD+week*MaxDetectors] = AccidentalError[AD+week*MaxDetectors]/correction_factor;
+                LiHeEvents[AD+week*MaxDetectors] = LiHeEvents[AD+week*MaxDetectors]/correction_factor;
+                LiHeError[AD+week*MaxDetectors] = LiHeError[AD+week*MaxDetectors]/correction_factor;
+                FastNeutronEvents[AD+week*MaxDetectors] = FastNeutronEvents[AD+week*MaxDetectors]/correction_factor;
+                FastNeutronError[AD+week*MaxDetectors] = FastNeutronError[AD+week*MaxDetectors]/correction_factor;
+                AmCEvents[AD+week*MaxDetectors] = AmCEvents[AD+week*MaxDetectors]/correction_factor;
+                AmCError[AD+week*MaxDetectors] = AmCError[AD+week*MaxDetectors]/correction_factor;
+            }
         }
     }
     
@@ -3019,11 +3032,25 @@ void NominalData :: CorrectnHEvents()
                     Int_t IndexConstant = AD+week*MaxDetectors;
                     Double_t correction_factor = (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0,idx);
                     
-                    if(correction_factor==0)
+                    if(correction_factor==0)//Avoid NaNs
                     {
-                        correction_factor = 1; //We will multiply by zero in the GetnHInclusiveData method, so it should make a difference, but this way we avoid NaNs.
+                        IBDEvents[IndexVariant] = 0;
+                        
+                        ObservedEvents[IndexVariant] = 0;
+                        
+                        StatisticalError[IndexVariant] = 0;
+                        
+                        AccidentalEvents[IndexVariant] = 0;
+                        AccidentalError[IndexVariant] = 0;
+                        LiHeEvents[IndexVariant] = 0;
+                        LiHeError[IndexVariant] = 0;
+                        FastNeutronEvents[IndexVariant] =0;
+                        FastNeutronError[IndexVariant] = 0;
+                        AmCEvents[IndexVariant] = 0;
+                        AmCError[IndexVariant] = 0;
                     }
-                    
+                    else
+                    {
                     IBDEvents[IndexVariant] = IBDEvents[IndexVariant]/correction_factor;
                     
                     ObservedEvents[IndexVariant] = ObservedEvents[IndexVariant]/correction_factor;
@@ -3038,6 +3065,7 @@ void NominalData :: CorrectnHEvents()
                     FastNeutronError[IndexVariant] = FastNeutronError[IndexVariant]/correction_factor;
                     AmCEvents[IndexVariant] = AmCEvents[IndexVariant]/correction_factor;
                     AmCError[IndexVariant] = AmCError[IndexVariant]/correction_factor;
+                    }
                     
                     //                        std::cout << "? " << ObservedEvents[IndexVariant] << " = " << ObservedEvents[IndexVariant]/correction_factor << std::endl;
                     
@@ -3079,16 +3107,16 @@ void NominalData :: CorrectnHEvents()
                     
                         //To make sure the inclusive data has changed
                         
-                        std::cout << "Inclusive observed events AD: " << AD << " is : \t" << ObservedEvents[IndexInclusive] << "+/-" << StatisticalError[IndexInclusive] << std::endl;
-                        
-                        std::cout << "Inclusive ibd events AD: " << AD << " is : \t" << IBDEvents[IndexInclusive] << std::endl;
-                        
+//                        std::cout << "Inclusive observed events AD: " << AD << " is : " << ObservedEvents[IndexInclusive] << "+/-" << StatisticalError[IndexInclusive] << std::endl;
+                    
+//                        std::cout << "Inclusive ibd events AD: " << AD << " is : \t " << IBDEvents[IndexInclusive] << std::endl;
+                    
                         std::cout << "Inclusive Accidental events AD: " << AD << " is : \t" << AccidentalEvents[IndexInclusive]  << "+/-" << AccidentalError[IndexInclusive] << std::endl;
                         
                         std::cout << "Inclusive LiHe events AD: " << AD << " is : \t" << LiHeEvents[IndexInclusive] << "+/-" << LiHeError[IndexInclusive] << std::endl;
                         std::cout << "Inclusive FN events AD: " << AD << " is : \t" << FastNeutronEvents[IndexInclusive] << "+/-" << FastNeutronError[IndexInclusive] << std::endl;
                         
-                        std::cout << "Inclusive AmC events AD: " << AD << " is : \t" << AmCEvents[IndexInclusive]
+                        std::cout << "Inclusive AmC events AD: " << AD << " is : " << AmCEvents[IndexInclusive]
                         << "+/-" << AmCError[IndexInclusive] << std::endl;
                         
                         
@@ -3537,6 +3565,10 @@ Double_t NominalData :: GetObservedEvents(Int_t i,Int_t j,Int_t idx, Int_t idy)
 
 Int_t NominalData :: GetNReactorPeriods()
 {
+    if(!isH)
+    {
+        NReactorPeriods = 20;//Hard coded
+    }
     return NReactorPeriods;
 }
 

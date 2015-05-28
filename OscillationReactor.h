@@ -1089,23 +1089,37 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 //std::cout << Energy <<"\n";
                 OscillatedSpectrumAD[i]->SetBinContent(pts,ReactorSpectrumH[i]->GetBinContent(pts)*OscProb(ADdistances[AD][i],Energy,s22t13,dm2_ee)/(4*TMath::Pi()*ADdistances[AD][i]*ADdistances[AD][i]));
                 
+                //std::cout << " Survival Probability at energy " << Energy << " is " << OscProb(ADdistances[AD][i],Energy,s22t13,dm2_ee) << std::endl;
+                
+                //std::cout << " Reactor at energy " << Energy << " is " << ReactorSpectrumH[i]->GetBinContent(pts) << std::endl;
+
                 //                    Double_t Bin = OscillatedSpectrumAD[i]->GetBinContent(pts);
                 //                      std::cout << Bin <<"\n";
             }
+            
+            std::cout << "EVENTS IN REACTOR OSCILLATED SPECTRUM AFTER OSCILLATION : " << OscillatedSpectrumAD[i]->Integral() << std::endl;
+
             TotalOscillatedSpectrumAD[AD]->Add(OscillatedSpectrumAD[i]);
             delete OscillatedSpectrumAD[i];
         }
         
+        std::cout << "TOTAL REACTOR SPECTRUM IN AD : " << AD << " IS : " << TotalOscillatedSpectrumAD[AD]->Integral() << std::endl;
+
         for(Int_t idx=0; idx<XCellLimit; idx++)
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
                 ScaledOscillatedSpectrumAD[AD][idx][idy] = (TH1D*)TotalOscillatedSpectrumAD[AD]->Clone();
+                
+                std::cout << "EVENTS IN TOTAL OSCILLATED SPECTRUM : " << TotalOscillatedSpectrumAD[AD]->Integral() << std::endl;
+
                 ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorProtons[AD][idx][idy]*FullTime[week+AD*Nweeks]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]);//in years and km^2 already calculated in CrossSection.
+                
+                std::cout << "SCALE : " << DetectorProtons[AD][idx][idy]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy] << std::endl;//Per day, since the events are corrected I will generate the covariance matrices with corrected events (no efficiencies)
                 
                 std::cout << " EVENTS AFTER CROSS SECTION, REACTOR MODEL AND TARGET MASSES: " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << "SHOULD BE SOMETHING IN THE ORDER OF: " << ObservedEvents[AD][week][idx][idy] << std::endl;
                 
-                std::cout << "BACKGROUND EVENTS : " << BackgroundSpectrumH[AD][idx][idy] << ", COMPARE TO EVENTS IN ANTINEUTRINO SPECTRUM TO SEE IF MAKES SENSE " << std::endl;
+                std::cout << "BACKGROUND EVENTS : " << BackgroundSpectrumH[AD][idx][idy]->Integral() << ", COMPARE TO EVENTS IN ANTINEUTRINO SPECTRUM TO SEE IF MAKES SENSE " << std::endl;
                 
                 
                 //ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(IBDEvents[AD][week][idx][idy]/VisibleHisto[AD][idx][idy]->Integral()/ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral());//Scale the true spectrum to the expected corrected value of events.
@@ -1307,6 +1321,10 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 SystematicS = "NominalResponseMatrix";
             }
             
+            if(EfficiencyMatrix)
+            {
+                this->RandomEfficiency();//Uncertainty not included in the Toy MC, but here.
+            }
 #ifndef EREC_COMPARISON
             
             TFile* nHMatrixF = new TFile(("./ResponseMatrices/Hydrogen/"+SystematicS+Form("%i_%i.root",n_evis_bins,n_etrue_bins)).c_str(),"read");
@@ -1837,7 +1855,7 @@ void OscillationReactor:: RandomEfficiency()
 {
     TRandom3* rand = new TRandom3(0);
     
-    if(Analysis)
+    if(isH)
     {
         for (Int_t AD = 0; AD<NADs; AD++)
         {
@@ -1848,8 +1866,7 @@ void OscillationReactor:: RandomEfficiency()
                     for(Int_t idy=0; idy<YCellLimit; idy++)
                     {
                         rand->SetSeed(0);
-                        DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]= NominalDetectorEfficiency[AD][week][idx][idy]*(1 + DetectorEfficiencyRelativeError * rand->Gaus(0,1))
-                       
+                        DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy] = NominalDetectorEfficiency[AD][week][idx][idy]*(1 + DetectorEfficiencyRelativeError * rand->Gaus(0,1));
                         
                         std::cout << "\t \t \t Random Detector Efficiency in AD" << AD << " ,week: " << week << " Cell: " << idx << "," << idy << " inside OscillationReactor.h: " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy] << std::endl;
                     }

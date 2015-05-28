@@ -916,7 +916,7 @@ void Oscillation :: CalculateFluxFraction(Int_t idx, Int_t idy)
             for (Int_t reactor = 0; reactor<NReactors; reactor++)
             {
                 Norma[near+pts*(ADsEH1+ADsEH2)] = Norma[near+pts*(ADsEH1+ADsEH2)] + ((FluxH[reactor][near][week][idx][idy]->GetBinContent(pts+1)*OscProb(ADdistances[near][reactor],Energy,s22t13,dm2ee)/(ADdistances[near][reactor]*ADdistances[near][reactor])));//  Σ Over Cores of all fractions
-                            std::cout <<  "ENERGY: " << Energy << " POINT " << pts << " NORMA: " << Norma[near+pts*(ADsEH1+ADsEH2)] << std::endl;
+                  //std::cout <<  "ENERGY: " << Energy << " POINT " << pts << " NORMA: " << Norma[near+pts*(ADsEH1+ADsEH2)] << std::endl;
             }
         }
         
@@ -963,14 +963,14 @@ void Oscillation :: PrintFluxFraction()
 {
     TCanvas* FluxFracC = new TCanvas("FluxFractions","FluxFractions",1000,300);
         
-    FluxFracC->Divide(ADsEH1+ADsEH2,VolumeX);
+    FluxFracC->Divide(ADsEH1+ADsEH2,XCellLimit);
     TLegend *leg = new TLegend(0.1,0.1,0.4,0.5);
     leg->SetBorderSize(0);
     leg->SetFillColor(0);
     
-    for (Int_t idx = 0; idx<VolumeX; idx++)
+    for (Int_t idx = 0; idx<XCellLimit; idx++)
     {
-        for (Int_t idy = 0; idy<VolumeY; idy++)
+        for (Int_t idy = 0; idy<YCellLimit; idy++)
         {
             for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
             {
@@ -1658,13 +1658,13 @@ void Oscillation :: LoadNearData(Int_t week)
     #ifdef PrintEps
 
         TCanvas* c1 = new TCanvas("c1","Near Data", 1200,400);
-        c1->Divide(ADsEH1+ADsEH2,VolumeX*VolumeY);
+        c1->Divide(ADsEH1+ADsEH2,XCellLimit*YCellLimit);
         
         for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
         {
-            for(Int_t idx = 0; idx < VolumeX; idx++)
+            for(Int_t idx = 0; idx < XCellLimit; idx++)
             {
-                for(Int_t idy = 0; idy < VolumeY; idy++)
+                for(Int_t idy = 0; idy < YCellLimit; idy++)
                 {
                     c1->cd(near+idx*(ADsEH1+ADsEH2)+1);
 
@@ -1877,17 +1877,29 @@ void Oscillation :: GenerateFluxHisto()
                     {
                         
                         FluxH[reactor][AD][period][idx][idy] = new TH1D(Form("FluxH%i_%i_%i,Cell%i_%i",reactor+1,AD+1,period,idx,idy),Form("FluxH%i_%i_%i,Cell%i_%i",reactor+1,AD+1,period,idx,idy),n_etrue_bins,enu_bins);
-                        
+
                         Int_t lastbin = NonBinnedFluxH->GetNbinsX();
                         
                         Double_t last_energy = NonBinnedFluxH->GetBinCenter(lastbin);
                         
                        // std::cout << " Last energy: " << last_energy << " last bin " << lastbin << std::endl;
-                        
+                        bool First_time = 1;
+
                         for(Int_t i = 0; i<n_etrue_bins; i++)
                         {
                             Double_t Energy = FluxH[reactor][AD][period][idx][idy]->GetBinCenter(i+1);
-                            
+                            if(NonBinnedFluxH->Interpolate(Energy)==0)//0
+                            {
+                                if(First_time)
+                                {
+                                    last_energy = NonBinnedFluxH->GetBinCenter(i); //Last bin with no zero energy
+                                    
+                                    First_time = 0;
+                                }
+                                FluxH[reactor][AD][period][idx][idy]->SetBinContent(i+1,NonBinnedFluxH->Interpolate(last_energy));
+                                
+                                std::cout << NonBinnedFluxH->Interpolate(last_energy) << std::endl;
+                            }
                             if(Energy<last_energy)
                             {
                                 FluxH[reactor][AD][period][idx][idy]->SetBinContent(i+1,NonBinnedFluxH->Interpolate(Energy));

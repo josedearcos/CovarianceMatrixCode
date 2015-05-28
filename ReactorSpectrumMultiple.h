@@ -375,34 +375,36 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
             NominalSpectra[reactor]->Write();
         }
         delete ReactorFile;
-
-        #ifdef PrintEps
-            TCanvas* SaveReactor = new TCanvas("Reactor","Reactor",1200,1200);
+        
+#ifdef PrintEps
+        TCanvas* SaveReactor = new TCanvas("Reactor","Reactor",1200,1200);
+        
+        TLegend *legend=new TLegend(0.6,0.65,0.88,0.85);
+        legend->SetTextFont(72);
+        legend->SetTextSize(0.02);
+        legend->SetFillColor(0);
+        for(Int_t reactor=0; reactor<NReactors;reactor++)
+        {
+            legend->AddEntry(NominalSpectra[reactor],Form("Core #%d",reactor),"l");
             
-            TLegend *legend=new TLegend(0.6,0.65,0.88,0.85);
-            legend->SetTextFont(72);
-            legend->SetTextSize(0.02);
-            legend->SetFillColor(0);
-            for(Int_t reactor=0; reactor<NReactors;reactor++)
-            {
-                legend->AddEntry(NominalSpectra[reactor],Form("Core #%d",reactor),"l");
-
-                SaveReactor->cd((NReactors+reactor)+1);
-                NominalSpectra[reactor]->SetStats(0);
-                NominalSpectra[reactor]->SetTitle("");
-                NominalSpectra[reactor]->SetLineColor(reactor+1);
-                NominalSpectra[reactor]->GetXaxis()->SetTitle("E_{true} (MeV)");
-                NominalSpectra[reactor]->GetXaxis()->SetTitleSize(0.04);
-                NominalSpectra[reactor]->GetYaxis()->SetTitleSize(0.04);
-                // Units: [neutrinos MeV^-1 fission^-1]
-
-                NominalSpectra[reactor]->GetYaxis()->SetTitle("#nu_{e} MeV^{-1} fission^{-1}");
-                NominalSpectra[reactor]->Draw("same");
-                legend->Draw("same");
-
-                SaveReactor->Modified();
-            }
-            SaveReactor->Update();
+            SaveReactor->cd((NReactors+reactor)+1);
+            NominalSpectra[reactor]->SetStats(0);
+            NominalSpectra[reactor]->SetTitle("");
+            NominalSpectra[reactor]->SetLineColor(reactor+1);
+            NominalSpectra[reactor]->GetXaxis()->SetTitle("E_{true} (MeV)");
+            NominalSpectra[reactor]->GetXaxis()->SetTitleSize(0.04);
+            NominalSpectra[reactor]->GetYaxis()->SetTitleSize(0.04);
+            // Units: [neutrinos MeV^-1 fission^-1]
+            
+            NominalSpectra[reactor]->GetYaxis()->SetTitle("#nu_{e} MeV^{-1} fission^{-1}");
+            NominalSpectra[reactor]->Draw("same");
+            legend->Draw("same");
+            
+            SaveReactor->Modified();
+        }
+        
+        SaveReactor->Update();
+        
         if(IHEPReactorModel)
         {
             SaveReactor->Print("./Images/Reactor/IHEPReactorSpectrum.eps",".eps");
