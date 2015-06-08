@@ -1626,7 +1626,7 @@ void Oscillation :: LoadNearData(Int_t week)
             {
                 ADSpectrumVisH[near][idx][idy] = (TH1D*)gDirectory->Get(NearDataSpec);
                 
-                ADSpectrumVisH[near][idx][idy]->Scale(1./(MultiMuonEff[near][week]*FullTime[near][week]));//Correct events for efficiencies and calculate it in days. This is done inclusively if NWeeks = 1, or weekly otherwise.
+                ADSpectrumVisH[near][idx][idy]->Scale(1./(MultiMuonEff[near][week]*FullTime[near][week]*DetectorProtons[near][idx][idy]/DetectorProtons[0][idx][idy]));//Correct events for efficiencies and calculate it in days. This is done inclusively if NWeeks = 1, or weekly otherwise.
 
                 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

@@ -1082,7 +1082,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             
             Int_t TotalPoints = ReactorSpectrumH[i]->GetXaxis()->GetNbins();
             
-            std::cout << "EVENTS IN REACTOR SPECTRUM BEFORE OSCILLATION : " << ReactorSpectrumH[i]->Integral() << std::endl;
+//            std::cout << "EVENTS IN REACTOR SPECTRUM BEFORE OSCILLATION : " << ReactorSpectrumH[i]->Integral() << std::endl;
 
             for(Int_t pts=1;pts<=TotalPoints;++pts)
             {
@@ -1098,7 +1098,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 //                      std::cout << Bin <<"\n";
             }
             
-            std::cout << "EVENTS IN REACTOR OSCILLATED SPECTRUM AFTER OSCILLATION : " << OscillatedSpectrumAD[i]->Integral() << std::endl;
+//            std::cout << "EVENTS IN REACTOR OSCILLATED SPECTRUM AFTER OSCILLATION : " << OscillatedSpectrumAD[i]->Integral() << std::endl;
 
             TotalOscillatedSpectrumAD[AD]->Add(OscillatedSpectrumAD[i]);
             delete OscillatedSpectrumAD[i];
@@ -1120,14 +1120,14 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 //This scaling might mitigate the reactor power covariance matrix, but it is necessary until I get a good rate calculation (right now is off by 1/2 order of magnitudes, don't know why) or a relationship between the non-scaled matrix and the ibdevents expected. Better not to use (Reactor matrices are wrong!!) So we ScaleCovMatrix until ScalledOscillatedSpectrumAD gets the events in the correct order of magnitude.
 
                 ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(1./IntegralNominalTotalOscillatedSpectrumAD[AD]);//This way we keep the reactor variations inside
-                std::cout << "Events in ScaledOscillatedSpectrumAD after : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
+//                std::cout << "Events in ScaledOscillatedSpectrumAD after : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
 
                 ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(IBDEvents[AD][week][idx][idy]);
-                std::cout << "Events in ScaledOscillatedSpectrumAD ~ IBD Events : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
+//                std::cout << "Events in ScaledOscillatedSpectrumAD ~ IBD Events : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
 
                 ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy]);//Efficiency changes here, after the previous scaling
                 
-                std::cout << "Events in ScaledOscillatedSpectrumAD IBD EVENTS + EFFICIENCY : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
+//                std::cout << "Events in ScaledOscillatedSpectrumAD IBD EVENTS + EFFICIENCY : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
 
 //                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(DetectorProtons[AD][idx][idy]*DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/MultiMuonEff[AD][week]);//in days and km^2 already calculated in CrossSection.//Correct events for efficiency
 //
@@ -1135,12 +1135,13 @@ void OscillationReactor :: GenerateVisibleSpectrum()
 //                
 //                //Used to scale the predictions in the covariance matrix and get the proper scaling of the matrix according to the expected events in the detector. It would be better not to use it, to allow the covariance matrix to be free of data inputs, to do so we need a good stimation of the events in ScaledOscillatedSpectrum, which right now is off by a few of orders of magnitude (2-3)
 //                
+                if(EfficiencyMatrix)
+                {
+                    std::cout << " EFFICIENCY VARIATION : " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy]  << std::endl;
+                }
+                std::cout << " EVENTS AFTER CROSS SECTION, REACTOR MODEL AND TARGET MASSES for s22t13,dm2_ee: " << s22t13 << dm2_ee << " is" << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << "amd for the nominal oscillation values should be equal to: " << IBDEvents[AD][week][idx][idy] << std::endl;
                 
-                std::cout << " EFFICIENCY VARIATION : " << DetectorEfficiency[AD+NADs*week+NADs*Nweeks*idx+NADs*Nweeks*XCellLimit*idy]/NominalDetectorEfficiency[AD][week][idx][idy]  << std::endl;
-                
-                std::cout << " EVENTS AFTER CROSS SECTION, REACTOR MODEL AND TARGET MASSES: " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << "SHOULD BE SOMETHING IN THE ORDER OF: " << IBDEvents[AD][week][idx][idy] << std::endl;
-                
-                std::cout << "BACKGROUND EVENTS : " << BackgroundSpectrumH[AD][idx][idy]->Integral() << ", COMPARE TO EVENTS IN ANTINEUTRINO SPECTRUM TO SEE IF MAKES SENSE " << std::endl;
+//                std::cout << "BACKGROUND EVENTS : " << BackgroundSpectrumH[AD][idx][idy]->Integral() << ", COMPARE TO EVENTS IN ANTINEUTRINO SPECTRUM TO SEE IF MAKES SENSE " << std::endl;
                 
                 
                 //ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(IBDEvents[AD][week][idx][idy]/VisibleHisto[AD][idx][idy]->Integral()/ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral());//Scale the true spectrum to the expected corrected value of events.
@@ -1393,7 +1394,8 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                     {
                         for(Int_t j = 1; j<=Xbins; j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
                         {
-                            VisibleHisto[AD][idx][idy]->SetBinContent(i,VisibleHisto[AD][idx][idy]->GetBinContent(i)+EventsPerVolume[AD][idx][idy]*nHPredictionMatrix[AD][idx][idy]->GetBinContent(j+ShiftBin,i)*ScaledOscillatedSpectrumAD[AD][idx][idy]->GetBinContent(j));
+                            VisibleHisto[AD][idx][idy]->SetBinContent(i,VisibleHisto[AD][idx][idy]->GetBinContent(i)+nHPredictionMatrix[AD][idx][idy]->GetBinContent(j+ShiftBin,i)*ScaledOscillatedSpectrumAD[AD][idx][idy]->GetBinContent(j));
+                            //EventsPerVolume[AD][idx][idy]*nHPredictionMatrix[AD][idx][idy]? ScaledOscillatedSpectrum already has information about the ratio of events between GdLs Ls
                             
                             //Important to see if there is a big difference between nHToy->GetEventsByCell(AD,idx,idy) produced in the ToyMC and the data one. Might be interesting to use the data one when we fit and the toy when we produce the covariance matrices.
                             
@@ -1410,10 +1412,9 @@ void OscillationReactor :: GenerateVisibleSpectrum()
     }
     
     #ifdef PrintEps
-        TCanvas* PredictionC = new TCanvas("PredictionC","PredictionC");
+    TCanvas* PredictionC = new TCanvas("PredictionC","PredictionC");
 
-        PredictionC->Divide(NADs/2,XCellLimit*YCellLimit*2);
-    
+    PredictionC->Divide(NADs/2,XCellLimit*YCellLimit*2);
     
     for(Int_t idx=0; idx<XCellLimit; idx++)
     {
@@ -1475,7 +1476,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 if(!Mode)//If there are not background variations the observed events should be equal to IBD events + background events
                 {
                     
-                    std::cout << "ASSERTING: " << VisibleHisto[AD][idx][idy]->Integral() << " = " << IBDEvents[AD][week][idx][idy] << std::endl;
+                    std::cout << "ASSERTING: " << VisibleHisto[AD][idx][idy]->Integral() << " - " << BackgroundSpectrumH[AD][idx][idy]->Integral() << " = " << IBDEvents[AD][week][idx][idy] << std::endl;
                     
                     std::cout << "ASSERTING: " << BackgroundSpectrumH[AD][idx][idy]->Integral() << " + " << IBDEvents[AD][week][idx][idy] << " = " << BackgroundSpectrumH[AD][idx][idy]->Integral() + IBDEvents[AD][week][idx][idy] << "or = " << ObservedEvents[AD][week][idx][idy] << std::endl;
                     

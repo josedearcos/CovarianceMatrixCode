@@ -980,7 +980,9 @@ void FitterGui::RunFitter()
             delete Fit;
         }
     }
+#ifndef PrintOnConsole
     cout.rdbuf(coutstream);
+#endif
     gBenchmark->Show("Fitter");
 }
 
@@ -1825,7 +1827,9 @@ void FitterGui::RunToyMC()
     }
     
     delete Data;
+#ifndef PrintOnConsole
     cout.rdbuf(coutstream);
+#endif
     gBenchmark->Show("ToyMC");
     
 }
@@ -1970,7 +1974,9 @@ void FitterGui::RunFlux()
     delete FluxData;
     
     delete Data;
+#ifndef PrintOnConsole
     cout.rdbuf(coutstream);
+#endif
     gBenchmark->Show("RunFlux");
     
 }
@@ -4438,7 +4444,7 @@ void FitterGui::RunResponseMatrix()
     {
         nHToyMC* nHToy = new nHToyMC(Data);
         
-        nHToy->Toy();//Produce enu-evis matrix with nominal and varied values
+        nHToy->Toy(1);//Produce enu-evis matrix with nominal and varied values
         
         delete nHToy;
     }
@@ -4609,6 +4615,64 @@ void FitterGui::GenerateToyMC()
 
     NominalData* NData = new NominalData(Analysis,DataSet);
     
+    //Chose Data Set
+    if(Analysis)//   Hydrogen data
+    {
+        if(DataSet==2) // P12E production data given by Xiang Pan
+        {
+            //            if(1==Data->GetWeeks())
+            //            {
+            //                std::cout << "\t Loading nH P12E Data" << std::endl;
+            //                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
+            //                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
+            //            }
+            //            else
+            //            {
+            NData->LoadHydrogenMainData();//Produce inclusive data inside NominalData.h
+            //            }
+        }
+        else // Simple reactor model used as input data
+        {
+            std::cout << "\t Loading simple reactor model" << std::endl;
+            std::cout << "\t JUST CHECKING THAT THE CODE DOESN'T FOLLOW THIS PATH" << std::endl;
+            
+            exit(EXIT_FAILURE);
+        }
+    }
+    else//  Gd data
+    {
+        if(DataSet==2)
+        {
+            if(1==NData->GetWeeks())
+            {
+                std::cout << "\t Loading 32 weeks inclusive LBNL Gd P12E Data" << std::endl;
+                NData->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_32week_inclusive.txt");
+            }
+            else
+            {
+                std::cout << "\t Loading 32 week LBNL Gd P12E Data" << std::endl;
+                NData->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
+            }
+        }
+        else if(DataSet==1)
+        {
+            if(1==NData->GetWeeks())
+            {
+                std::cout << "\t Loading 20 weeks inclusive Gd Data" << std::endl;
+                NData->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
+            }
+            else
+            {
+                std::cout << "\t Loading 20 weeks Gd Data" << std::endl;
+                NData->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
+            }
+        }
+        else//  Simple reactor model used as input data
+        {
+            std::cout << "\t Loading simple reactor model" << std::endl;
+        }
+    }
+    
     NData->SetToyMCSamplesDirectory(ToyMCSampleDirectory);
     NData->SetPredictionDirectory(NominalPredictionsDirectory);
     NData->SetResponseDirectory(ResponseMatrixDirectory);
@@ -4622,6 +4686,64 @@ void FitterGui::GenerateToyMC()
     
     NominalData* VData = new NominalData(Analysis,DataSet);
     
+    //Chose Data Set
+    if(Analysis)//   Hydrogen data
+    {
+        if(DataSet==2) // P12E production data given by Xiang Pan
+        {
+            //            if(1==Data->GetWeeks())
+            //            {
+            //                std::cout << "\t Loading nH P12E Data" << std::endl;
+            //                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_GdLS_table_Inclusive.txt");
+            //                Data->LoadHydrogenMainData("./Inputs/HInputs/nH_LS_table_Inclusive.txt");
+            //            }
+            //            else
+            //            {
+            VData->LoadHydrogenMainData();//Produce inclusive data inside NominalData.h
+            //            }
+        }
+        else // Simple reactor model used as input data
+        {
+            std::cout << "\t Loading simple reactor model" << std::endl;
+            std::cout << "\t JUST CHECKING THAT THE CODE DOESN'T FOLLOW THIS PATH" << std::endl;
+            
+            exit(EXIT_FAILURE);
+        }
+    }
+    else//  Gd data
+    {
+        if(DataSet==2)
+        {
+            if(1==VData->GetWeeks())
+            {
+                std::cout << "\t Loading 32 weeks inclusive LBNL Gd P12E Data" << std::endl;
+                VData->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_32week_inclusive.txt");
+            }
+            else
+            {
+                std::cout << "\t Loading 32 week LBNL Gd P12E Data" << std::endl;
+                VData->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
+            }
+        }
+        else if(DataSet==1)
+        {
+            if(1==VData->GetWeeks())
+            {
+                std::cout << "\t Loading 20 weeks inclusive Gd Data" << std::endl;
+                VData->LoadOriginalGDMainData("./Inputs/GdInputs/Theta13-inputs_20week_inclusive.txt");
+            }
+            else
+            {
+                std::cout << "\t Loading 20 weeks Gd Data" << std::endl;
+                VData->LoadOriginalGDMainData(Form("./Inputs/GdInputs/Theta13-inputs_%dweek.txt",NReactorPeriods));
+            }
+        }
+        else//  Simple reactor model used as input data
+        {
+            std::cout << "\t Loading simple reactor model" << std::endl;
+        }
+    }
+
     VData->SetToyMCSamplesDirectory(ToyMCSampleDirectory);
     VData->SetPredictionDirectory(NominalPredictionsDirectory);
     VData->SetResponseDirectory(ResponseMatrixDirectory);
@@ -5170,8 +5292,9 @@ void FitterGui::GenerateToyMC()
 
     delete DataPred;
     delete NomPred;
-    
+#ifndef PrintOnConsole
     cout.rdbuf(coutstream);
+#endif
     gBenchmark->Show("GenerateTree");
 }
 
@@ -5239,8 +5362,9 @@ void FitterGui :: RunFitterTests()
     Fit->TestRandomExperimentsChi2(Minuit,Fit2D,FitSin22t13, this , MaxExperiments, GridSamples);
     
     delete Fit;
-    
+#ifndef PrintOnConsole
     cout.rdbuf(coutstream);
+#endif
     gBenchmark->Show("TestFitter");
     
 }

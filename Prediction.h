@@ -137,6 +137,7 @@ private:
     Int_t ADsEH1;
     Int_t ADsEH2;
     Int_t ADsEH3;
+    Double_t DetectorProtons[MaxDetectors][VolumeX][VolumeY];
     
     Int_t Combine;
     Int_t MaxFarCombine;
@@ -601,6 +602,37 @@ Prediction :: Prediction(NominalData* data)
         {
             FullTime[AD][week] = Data->GetFullTime(AD,week,0);
             MultiMuonEff[AD][week] = Data->GetMultiMuonEff(AD,week,0);
+            
+            
+            for(Int_t idx=0; idx<XCellLimit; idx++)
+            {
+                for(Int_t idy=0; idy<YCellLimit; idy++)
+                {
+                    
+#ifdef UseVolumes //To use 2 volumes, otherwise 100 cells.
+                    
+                    DetectorProtons[AD][idx][idy] = Data->GetDetectorProtons(AD,idx);
+                    
+#else
+                    if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
+                    {
+                        if(Analysis)//Hydrogen LS
+                        {
+                            DetectorProtons[AD][idx][idy] = Data->GetDetectorProtons(AD,1)/(XCellLimit+YCellLimit+(YCellLimit-2)*4);//52 cells (10+10+(10-2)+(10-2)+(10-2)+(10-2)) Share uniformly the mass
+                            
+                        }
+                        else//nGd only 1 volume
+                        {
+                            DetectorProtons[AD][idx][idy] = Data->GetDetectorProtons(AD,0);
+                        }
+                    }
+                    else//GdLS
+                    {
+                        DetectorProtons[AD][idx][idy] = Data->GetDetectorProtons(AD,0)/((XCellLimit-4)*(YCellLimit-2));//48 cells, Share uniformly the mass
+                    }
+#endif
+                }
+            }
         }
     }
 }
@@ -2354,8 +2386,17 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             
             FarDataH[far][0] = (TH1D*)gDirectory->Get(FarDataSpec);
             
-            FarDataH[far][0]->Scale(1./(FullTime[far][week]*MultiMuonEff[far][week]));
-            
+            if(analysis)
+            {
+                //I need data with GdLs-Ls
+
+                exit(EXIT_FAILURE);
+            }
+            else
+            {
+                //This works for gadollinum, but nH has different volumes!
+                FarDataH[far][0]->Scale(1./(FullTime[far][week]*MultiMuonEff[far][week]*DetectorProtons[far][0][0]/DetectorProtons[0][0][0]));
+            }
             if(DataSet!=2)//need to rebin files to LBNL binning
             {
                 FarDataH[far][0]=(TH1D*)FarDataH[far][0]->Rebin(n_evis_bins,Form("Rebinned Vis Far%d Data Spectrum",far),evis_bins);
@@ -2427,7 +2468,17 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             
             NearDataH[near] = (TH1D*)gDirectory->Get(NearDataSpec);
             
-            NearDataH[near]->Scale(1./(FullTime[near][week]*MultiMuonEff[near][week]));
+            if(analysis)
+            {
+                //I need data with GdLs-Ls
+                
+                exit(EXIT_FAILURE);
+            }
+            else
+            {
+                //This works for gadollinum, but nH has different volumes!
+                NearDataH[near]->Scale(1./(FullTime[near][week]*MultiMuonEff[near][week]*DetectorProtons[near][0][0]/DetectorProtons[0][0][0]));
+            }
 
             //need to rebin files to LBNL binning
             
@@ -2672,27 +2723,36 @@ void Prediction :: LoadBackgrounds(Int_t week,bool mode)
     }
     
     BackgroundsF->Close();
-    for(Int_t idx = 0; idx < XCellLimit; idx++)
+
+    for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
     {
-        for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
+        CombinedNearBackgroundSpectrumH[near]=(TH1D*)NearBackgroundSpectrumH[near][0]->Clone();
+        
+        for(Int_t idx = 1; idx < XCellLimit; idx++)
         {
-            CombinedNearBackgroundSpectrumH[near]=(TH1D*)NearBackgroundSpectrumH[near][idx]->Clone();
-            
-            if(Combine!=0)
-            {
-                CombinedNearBackgroundSpectrumH[near]->Reset();
-            }
+            CombinedNearBackgroundSpectrumH[near]->Add(NearBackgroundSpectrumH[near][idx]);//Add all volumes
         }
-        for (Int_t far = 0; far < ADsEH3; far++)
+        
+        if(Combine!=0)
         {
-            CombinedFarBackgroundSpectrumH[far]=(TH1D*)FarBackgroundSpectrumH[far][idx]->Clone();
-            
-            if(Combine!=0)
-            {
-                CombinedFarBackgroundSpectrumH[far]->Reset();
-            }
+            CombinedNearBackgroundSpectrumH[near]->Reset();
         }
     }
+    for (Int_t far = 0; far < ADsEH3; far++)
+    {
+        CombinedFarBackgroundSpectrumH[far]=(TH1D*)FarBackgroundSpectrumH[far][0]->Clone();
+       
+        for(Int_t idx = 1; idx < XCellLimit; idx++)
+        {
+            CombinedFarBackgroundSpectrumH[far]->Add(FarBackgroundSpectrumH[far][idx]);//Add all volumes
+        }
+        
+        if(Combine!=0)
+        {
+            CombinedFarBackgroundSpectrumH[far]->Reset();
+        }
+    }
+    
     //Combine matrices in 9x9, 2x2 or 1x1 prediction, also all volumes together so far, unless I have data with backgrounds per volume
     for(Int_t idx = 0; idx < XCellLimit; idx++)
     {

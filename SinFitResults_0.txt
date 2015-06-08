@@ -81,3 +81,6 @@
 ./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.09 0.09
 ./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.0493257 0.2
 ./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.055458 0.2
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root 0.072 0
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.09 0.09
+./ChiSquare/Hydrogen/Combine2/1DChiSquareFitSin22t13.root -0.0855652 0.09

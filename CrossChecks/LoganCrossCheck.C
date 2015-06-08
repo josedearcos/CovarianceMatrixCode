@@ -228,6 +228,15 @@ void LoganCrossCheck()
     
     
     TCanvas* CanvasSys[15];
+    TCanvas* CanvasAllSys  = new TCanvas("CanvasAllSys","CanvasAllSys");
+    CanvasAllSys->Divide(NADs);
+    
+    TLegend *leg = new TLegend(0.1,0.1,0.4,0.5);
+    leg->SetBorderSize(0);
+    leg->SetFillColor(0);
+    
+    const std::string labels[15]={"AllSystematics","IAV","NL","Nominal","OAV","RelativeEnergyScale","Resolution"};
+
     
     for (Int_t systematic = 1; systematic<num; systematic++)
     {
@@ -268,10 +277,23 @@ void LoganCrossCheck()
                     CanvasSys[systematic]->cd(AD+NADs*x+1);
                     
                     VisibleSpectrumH[systematic][AD][x][y]->Draw();
+                    CanvasAllSys->cd(AD+1);
+                    VisibleSpectrumH[systematic][AD][x][y]->SetLineColor(systematic+1);
+                     VisibleSpectrumH[systematic][AD][x][y]->SetLineWidth(1);
+                    VisibleSpectrumH[systematic][AD][x][y]->Draw("same");
+                    
+                    if(AD==0&&x==0)
+                    {
+                        leg->AddEntry(VisibleSpectrumH[systematic][AD][x][y],labels[systematic].c_str(),"l");
+                        leg->Draw("same");
+                    }
                 }
             }
         }
         
+        CanvasAllSys->Print("AllSystematicsTogether.eps");
+        CanvasSys[systematic]->Close();
+
         TString FileNameSave;
         
         switch (systematic) {

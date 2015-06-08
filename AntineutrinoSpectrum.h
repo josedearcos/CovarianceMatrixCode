@@ -230,7 +230,7 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
     {
         TFile* CrossSectionF = new TFile("./CrossSections/nHCrossSection.root");
         CrossSectionH = (TH1D*)gDirectory->Get("CrossSection");
-        CrossSectionH->Scale(10e-42*conv_s_per_day*conv_km2_per_cm2);// We will do the calculations in terms of the # days and km2. //DetectorProtons
+        CrossSectionH->Scale(10e-43*conv_s_per_day*conv_km2_per_cm2);// We will do the calculations in terms of the # days and km2. //DetectorProtons
         delete CrossSectionF;
     }
     
