@@ -2328,6 +2328,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
         {
             std::cout << "\t \t \t \t \t \t IBD DATA FILE NEEDED FOR HYDROGEN ANALYSIS" << std::endl;
             sprintf(DataFile,"./Inputs/HInputs/ibd_eprompt_shapes.root");
+            sprintf(DataFile,"./Inputs/GdInputs/IHEP_data_lbnlbin_6AD.root");
         }
         else
         {

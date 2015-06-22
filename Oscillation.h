@@ -16,7 +16,7 @@
 //Comment the plot options to speed it up.
 
 //#define PlotOscillationFunctions
-#define PlotExtrapolationFactors
+//#define PlotExtrapolationFactors
 
 #define UseLiHeToyMC
 // Originally: Given a reactor antineutrino spectrum I output the respective spectra for each AD after oscillation.
@@ -172,7 +172,7 @@ private:
     TH1D* FarHallCellSpectrumH[MaxFarDetectors][MaxNearDetectors][MatrixBins][VolumeX][VolumeY];//
 
     TH1D* FluxFractionH[MaxNearDetectors][NReactors][VolumeX][VolumeY];//
-    std::vector<TH1D*> ExtrapolationH;//
+    TH1D* ExtrapolationH[MaxNearDetectors][NReactors][MaxFarDetectors];//
     
     TH1D* TrueADSpectrumH[MaxNearDetectors][MatrixBins][VolumeX][VolumeY];//
     //    std::vector<TH1D*> CheckVisADSpectrumH;
@@ -638,7 +638,7 @@ Oscillation :: ~Oscillation()
 #endif
 //                for (Int_t far = 0; far<(ADsEH3); far++)//far
 //                {
-//                    delete ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors];
+//                    delete ExtrapolationH[near][reactor][far];
 //                }
             }
         }
@@ -764,9 +764,9 @@ void Oscillation :: OscillationFromNearHallData(Int_t Week,bool ToyMC,bool mode)
     //resize has to be done only once, outside the loops
     Norma.resize(n_etrue_bins*(ADsEH1+ADsEH2));
 
-#ifdef PlotExtrapolationFactors
-    ExtrapolationH.resize(ADsEH3*NReactors*(ADsEH1+ADsEH2));
-#endif
+//#ifdef PlotExtrapolationFactors
+//    ExtrapolationH.resize(ADsEH3*NReactors*(ADsEH1+ADsEH2));
+//#endif
     
     for(Int_t idx=0; idx<XCellLimit; idx++)
     {
@@ -1201,8 +1201,8 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
                     sprintf(filenameExtrapolation,"Extrapolation factor, Near AD%i, Far AD%i, Reactor%i, Week%i", near+1, far+1, reactor+1, week+1);
                 }
 #ifdef PlotExtrapolationFactors
-                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors] = (TH1D*)TrueADSpectrumH[0][0][0][0]->Clone(filenameExtrapolation);
-                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->SetTitle(filenameExtrapolation);
+                ExtrapolationH[near][reactor][far] = (TH1D*)TrueADSpectrumH[0][0][0][0]->Clone(filenameExtrapolation);
+                ExtrapolationH[near][reactor][far]->SetTitle(filenameExtrapolation);
 #endif
                 for(Int_t pts=0;pts<n_etrue_bins;pts++)
                 {
@@ -1219,31 +1219,31 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
                    // std::cout << Extrapolation[near][reactor][far][pts][idx][idy] << near << reactor << far << pts << idx << idy << " Flux: " << FluxH[reactor][far+(ADsEH1+ADsEH2)][week][idx][idy]->GetBinContent(pts+1) << std::endl;
 #ifdef PlotExtrapolationFactors
 
-                    ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->SetBinContent(pts+1,Extrapolation[near][reactor][far][pts][idx][idy]);
+                    ExtrapolationH[near][reactor][far]->SetBinContent(pts+1,Extrapolation[near][reactor][far][pts][idx][idy]);
 #endif
                 }
 #ifdef PlotExtrapolationFactors
-                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->SetLineColor(colors[reactor]);
-                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetXaxis()->SetTitle("E_{true} (MeV)");
-                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetXaxis()->SetTitleSize(0.040);
-                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetYaxis()->SetTitleSize(0.045);
+                ExtrapolationH[near][reactor][far]->SetLineColor(colors[reactor]);
+                ExtrapolationH[near][reactor][far]->GetXaxis()->SetTitle("E_{true} (MeV)");
+                ExtrapolationH[near][reactor][far]->GetXaxis()->SetTitleSize(0.040);
+                ExtrapolationH[near][reactor][far]->GetYaxis()->SetTitleSize(0.045);
 
-                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetXaxis()->SetLabelSize(0.045);
-                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetYaxis()->SetLabelSize(0.045);
-                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->SetTitle("");
+                ExtrapolationH[near][reactor][far]->GetXaxis()->SetLabelSize(0.045);
+                ExtrapolationH[near][reactor][far]->GetYaxis()->SetLabelSize(0.045);
+                ExtrapolationH[near][reactor][far]->SetTitle("");
                 
                 sprintf(name,"e_{%ij,%i}",near+1,far+1);
                 
-                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetYaxis()->SetTitle(name);
+                ExtrapolationH[near][reactor][far]->GetYaxis()->SetTitle(name);
                 
                 if(reactor==0)
                 {
-                    ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->GetYaxis()->SetRangeUser(0,0.885);
-                    ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->Draw();
+                    ExtrapolationH[near][reactor][far]->GetYaxis()->SetRangeUser(0,0.885);
+                    ExtrapolationH[near][reactor][far]->Draw();
                 }
-                ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->Draw("same");
-                //ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors]->Write();
-                //delete ExtrapolationH[near+reactor*(ADsEH1+ADsEH2)+far*(ADsEH1+ADsEH2)*NReactors];
+                ExtrapolationH[near][reactor][far]->Draw("same");
+                //ExtrapolationH[near][reactor][far]->Write();
+                delete ExtrapolationH[near][reactor][far];
 #endif
             }
         }
@@ -1561,6 +1561,7 @@ void Oscillation :: LoadNearData(Int_t week)
     {
         std::cout << "\t \t \t \t \t \t IBD DATA FILE NEEDED FOR HYDROGEN ANALYSIS" << std::endl;
         sprintf(NearData,"./Inputs/HInputs/ibd_eprompt_shapes.root");
+        sprintf(NearData,"./Inputs/GdInputs/IHEP_data_lbnlbin_6AD.root");
     }
     else
     {
@@ -1641,10 +1642,10 @@ void Oscillation :: LoadNearData(Int_t week)
         {
             for(Int_t idy=0; idy<YCellLimit; idy++)
             {
-                if(DataSet!=2)//need to rebin files to LBNL binning
-                {
-                    ADSpectrumVisH[near][idx][idy]=(TH1D*)ADSpectrumVisH[near][idx][idy]->Rebin(n_evis_bins,Form("Rebinned Vis Near%d Data Spectrum, Cell%i,%i",near,idx,idy),evis_bins);
-                }
+               //need to rebin files to the proper binning
+                
+                ADSpectrumVisH[near][idx][idy]=(TH1D*)ADSpectrumVisH[near][idx][idy]->Rebin(n_evis_bins,Form("Rebinned Vis Near%d Data Spectrum, Cell%i,%i",near,idx,idy),evis_bins);
+                
                 
                 //Substract backgrounds:
                 ADSpectrumVisH[near][idx][idy]->Add(NearBackgroundSpectrumH[near][idx][idy],-1);//Substract (varied if necessary) backgrounds from data, which are already corrected events.

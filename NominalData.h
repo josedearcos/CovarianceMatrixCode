@@ -29,13 +29,13 @@
     const Double_t GdLS_volume_efficiency = 1;
 #endif
 
-#define PrintEps//To save results in .eps files
+//#define PrintEps//To save results in .eps files
 //#define BlindedAnalysis // To use blinded reactor model and distances. Not all the files are operative (only those coming from Christine's reactor model)
 const bool DeltaMee = 0;//Use Δm^2ee instead of Δm32 and Δm31 values
 
 const bool ADSimple = 1;
 
-const bool LoganBinning = 1;//240 visible bins from 0 to 12 MeV to check coherence between our predicted  spectra
+const bool LoganBinning = 0;//240 visible bins from 0 to 12 MeV to check coherence between our predicted  spectra
 
 const Int_t MaxExperiments = 1000;
 const Int_t MaxPeriods = 101;//To be increased in further Data productions

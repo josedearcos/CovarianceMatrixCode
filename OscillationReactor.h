@@ -840,6 +840,12 @@ void OscillationReactor:: LoadNominalBackgrounds()
                 BackgroundSpectrumH[AD][idx][idy]->Add(LiHeH[AD][idx][idy]);
                 BackgroundSpectrumH[AD][idx][idy]->Add(FastNeutronsH[AD][idx][idy]);
                 BackgroundSpectrumH[AD][idx][idy]->Add(AmCH[AD][idx][idy]);//scaled in livetime and with ad efficiencies included.
+                
+                delete AccidentalsH[AD][idx][idy];
+                delete LiHeH[AD][idx][idy];
+                delete FastNeutronsH[AD][idx][idy];
+                delete AmCH[AD][idx][idy];
+
             }
         }
     }
@@ -1119,7 +1125,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
 
                 //This scaling might mitigate the reactor power covariance matrix, but it is necessary until I get a good rate calculation (right now is off by 1/2 order of magnitudes, don't know why) or a relationship between the non-scaled matrix and the ibdevents expected. Better not to use (Reactor matrices are wrong!!) So we ScaleCovMatrix until ScalledOscillatedSpectrumAD gets the events in the correct order of magnitude.
 
-                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(1./IntegralNominalTotalOscillatedSpectrumAD[AD]);//This way we keep the reactor variations inside
+                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(1./IntegralNominalTotalOscillatedSpectrumAD[AD]);//This way we keep the reactor variations information
 //                std::cout << "Events in ScaledOscillatedSpectrumAD after : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
 
                 ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(IBDEvents[AD][week][idx][idy]);
@@ -1394,14 +1400,21 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                     {
                         for(Int_t j = 1; j<=Xbins; j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
                         {
-                            VisibleHisto[AD][idx][idy]->SetBinContent(i,VisibleHisto[AD][idx][idy]->GetBinContent(i)+nHPredictionMatrix[AD][idx][idy]->GetBinContent(j+ShiftBin,i)*ScaledOscillatedSpectrumAD[AD][idx][idy]->GetBinContent(j));
-                            //EventsPerVolume[AD][idx][idy]*nHPredictionMatrix[AD][idx][idy]? ScaledOscillatedSpectrum already has information about the ratio of events between GdLs Ls
+                            if(!CovMatrix)
+                            {
+                                EventsPerVolume[AD][idx][idy] = 1;
+                            }
+                            
+                            VisibleHisto[AD][idx][idy]->SetBinContent(i,VisibleHisto[AD][idx][idy]->GetBinContent(i)+EventsPerVolume[AD][idx][idy]*nHPredictionMatrix[AD][idx][idy]->GetBinContent(j+ShiftBin,i)*ScaledOscillatedSpectrumAD[AD][idx][idy]->GetBinContent(j));
+                            //ScaledOscillatedSpectrum already has information about the ratio of events between GdLs Ls, but the covariance matrices
                             
                             //Important to see if there is a big difference between nHToy->GetEventsByCell(AD,idx,idy) produced in the ToyMC and the data one. Might be interesting to use the data one when we fit and the toy when we produce the covariance matrices.
                             
                         }//idy
                     }//idx
                     //std::cout << "Visible bin: " << i << " , true bin: " << j << " - Matrix: " << nHPredictionMatrix[AD]->GetBinContent(j+ShiftBin,i) << " - True Spectrum Bin: " << TotalOscillatedSpectrumAD[AD]->GetBinContent(j) << std::endl;
+                    
+                    delete  nHPredictionMatrix[AD][idx][idy];
                 }//j
                 
                 //std::cout << "Visible bin: " << i  << " - Visible Spectrum Bin: " << VisibleHisto[AD]->GetBinContent(i) << std::endl;

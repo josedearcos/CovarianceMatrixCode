@@ -4444,7 +4444,7 @@ void FitterGui::RunResponseMatrix()
     {
         nHToyMC* nHToy = new nHToyMC(Data);
         
-        nHToy->Toy(1);//Produce enu-evis matrix with nominal and varied values
+        nHToy->Toy();//Produce enu-evis matrix with nominal and varied values.
         
         delete nHToy;
     }
@@ -4582,6 +4582,8 @@ void FitterGui::DoChangeDeltaSquareOscillationParameter()
     std::cout << "Fit Distribution for DeltaM213: " << Sin22t13SliderValue << std::endl;
 }
 
+//#define LoadNHDATA //Until I don't have the data it is a waste of time to calculate this
+
 void FitterGui::GenerateToyMC()
 {
     gBenchmark->Start("GenerateTree");
@@ -4613,8 +4615,8 @@ void FitterGui::GenerateToyMC()
     
     Int_t DataSet=2;//0 is Simulation, 2 is P12E
 
-    NominalData* NData = new NominalData(Analysis,DataSet);
     
+    NominalData* NData = new NominalData(Analysis,DataSet);
     //Chose Data Set
     if(Analysis)//   Hydrogen data
     {
@@ -4833,8 +4835,10 @@ void FitterGui::GenerateToyMC()
     
     Double_t DeltaWidth;
     Double_t SinWidth;
-    
+#ifdef LoadNHDATA
+
     Prediction* DataPred = new Prediction(NData);//Using data to produce the prediction
+#endif
     Prediction* NomPred = new Prediction(NData);//Using reactor model to produce the prediction
     
     TH1D* DataHisto = new TH1D("DataHisto","DataHisto",n_evis_bins,evis_bins);
@@ -4889,10 +4893,10 @@ void FitterGui::GenerateToyMC()
             for(Int_t stepM = 0; stepM < NFits ; stepM++)
             {
                 dm2_ee = DeltaWidth*stepM + dm2_eestart;
-                
+#ifdef LoadNHDATA
                 std::cout << "DATA PREDICTION" << std::endl;
                 DataPred->MakePrediction(sin22t13, dm2_ee, 0, Period-1, 0,0); //P12E Data
-                
+#endif
                 std::cout << "NOMINAL PREDICTION" << std::endl;
                 NomPred->MakePrediction(sin22t13, dm2_ee, 0, Period-1, 1,0); //ToyMC nominal
                 
@@ -4903,38 +4907,45 @@ void FitterGui::GenerateToyMC()
                         if(CombineMode==1)
                         {
                             NominalHisto = NomPred->GetPrediction(far,near);
+#ifdef LoadNHDATA
                             DataHisto = DataPred->GetPrediction(far,near);
-                            
+#endif
                             NominalHisto->SetName(Form("Combined%d Nominal Prediction,sin_%f,DM_%f week%d",CombineMode,sin22t13,dm2_ee,Period));
                             NominalHisto->SetTitle(Form("Combined%d Nominal Prediction,sin_%f,DM_%f week%d",CombineMode,sin22t13,dm2_ee,Period));
-                            
+#ifdef LoadNHDATA
                             DataHisto->SetName(Form("Combined%d Data Prediction,sin_%f,DM_%f week%d",CombineMode,sin22t13,dm2_ee,Period));
                             DataHisto->SetTitle(Form("Combined%d Data Prediction,sin_%f,DM_%f week%d",CombineMode,sin22t13,dm2_ee,Period));
+#endif
                         }
                         else if(CombineMode==2)
                         {
                             if(near==0)
                             {
                                 NominalHisto = NomPred->GetPrediction(far,near);
+#ifdef LoadNHDATA
                                 DataHisto = DataPred->GetPrediction(far,near);
-                                
+#endif
                                 NominalHisto->SetName(Form("Daya Bay Combined%d Nominal Prediction,sin_%f,DM_%f week%d",CombineMode,sin22t13,dm2_ee,Period));
                                 NominalHisto->SetTitle(Form("Daya Bay Combined%d Nominal Prediction,sin_%f,DM_%f week%d",CombineMode,sin22t13,dm2_ee,Period));
-                                
+#ifdef LoadNHDATA
+
                                 DataHisto->SetName(Form("Daya Bay Combined%d Data Prediction,sin_%f,DM_%f week%d",CombineMode,sin22t13,dm2_ee,Period));
                                 DataHisto->SetTitle(Form("Daya Bay Combined%d Data Prediction,sin_%f,DM_%f week%d",CombineMode,sin22t13,dm2_ee,Period));
-                                
+#endif
                             }
                             else
                             {
                                 NominalHisto1 = NomPred->GetPrediction(far,near);
+#ifdef LoadNHDATA
                                 DataHisto1 = DataPred->GetPrediction(far,near);
-                                
+#endif
                                 NominalHisto1->SetName(Form("Ling Ao Combined%d Nominal Prediction,sin_%f,DM_%f week%d",CombineMode,sin22t13,dm2_ee,Period));
                                 NominalHisto1->SetTitle(Form("Ling Ao Combined%d Nominal Prediction,sin_%f,DM_%f week%d",CombineMode,sin22t13,dm2_ee,Period));
-                                
+#ifdef LoadNHDATA
+
                                 DataHisto1->SetName(Form("Ling Ao Combined%d Data Prediction,sin_%f,DM_%f week%d",CombineMode,sin22t13,dm2_ee,Period));
                                 DataHisto1->SetTitle(Form("Ling Ao Combined%d Data Prediction,sin_%f,DM_%f week%d",CombineMode,sin22t13,dm2_ee,Period));
+#endif
                             }
                         }
                     }
@@ -4948,7 +4959,9 @@ void FitterGui::GenerateToyMC()
                     {
                         //                            VarPred->DeletePrediction(far, near);
                         NomPred->DeletePrediction(far, near);
+#ifdef LoadNHDATA
                         DataPred->DeletePrediction(far, near);
+#endif
                     }
                 }
             }
@@ -5289,8 +5302,10 @@ void FitterGui::GenerateToyMC()
             delete VarPred;
         }
     }
-
+#ifdef LoadNHDATA
     delete DataPred;
+#endif
+    
     delete NomPred;
 #ifndef PrintOnConsole
     cout.rdbuf(coutstream);
