@@ -262,7 +262,6 @@ private:
     // Resolution
     // Detector resolution function
     TF1 * ResoF;
-    Double_t EventsPerVolume[MaxDetectors][VolumeX][VolumeY];
     Double_t IBDEvents[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     Double_t ObservedEvents[MaxDetectors][MaxPeriods][VolumeX][VolumeY];
     Double_t ResolutionRange; //Range of resolution
@@ -392,7 +391,6 @@ OscillationReactor :: OscillationReactor()
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    EventsPerVolume[AD][idx][idy] = Nom->GetEventsByCell(AD,idx,idy);
                     IBDEvents[AD][week][idx][idy] = Nom->GetIBDEvents(AD,week,idx,idy);
                     ObservedEvents[AD][week][idx][idy] = Nom->GetObservedEvents(AD,week,idx,idy);
                 }
@@ -580,7 +578,6 @@ OscillationReactor :: OscillationReactor(NominalData* Data)
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-                    EventsPerVolume[AD][idx][idy] = Data->GetEventsByCell(AD,idx,idy);
                     IBDEvents[AD][week][idx][idy] = Data->GetIBDEvents(AD,week,idx,idy);
                     ObservedEvents[AD][week][idx][idy] = Data->GetObservedEvents(AD,week,idx,idy);
                 }
@@ -1386,29 +1383,16 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
                 {
-#ifdef UseVolumes
-                    if(idx==0)
-                    {
-                        std::cout << " Percentage of events in Gd-Ls " << EventsPerVolume[AD][idx][idy] << std::endl;
-                    }
-                    else
-                    {
-                        std::cout << " Percentage of events in Ls " << EventsPerVolume[AD][idx][idy] << std::endl;
-                    }
-#endif
                     for(Int_t i = 1; i<=Ybins; i++)//visible, 240 bins
                     {
                         for(Int_t j = 1; j<=Xbins; j++)//true bins are not 240 //1.8 to 12MeV in 0.05 steps
                         {
-                            if(!CovMatrix)
-                            {
-                                EventsPerVolume[AD][idx][idy] = 1;
-                            }
                             
-                            VisibleHisto[AD][idx][idy]->SetBinContent(i,VisibleHisto[AD][idx][idy]->GetBinContent(i)+EventsPerVolume[AD][idx][idy]*nHPredictionMatrix[AD][idx][idy]->GetBinContent(j+ShiftBin,i)*ScaledOscillatedSpectrumAD[AD][idx][idy]->GetBinContent(j));
+                            VisibleHisto[AD][idx][idy]->SetBinContent(i,VisibleHisto[AD][idx][idy]->GetBinContent(i)+nHPredictionMatrix[AD][idx][idy]->GetBinContent(j+ShiftBin,i)*ScaledOscillatedSpectrumAD[AD][idx][idy]->GetBinContent(j));
                             //ScaledOscillatedSpectrum already has information about the ratio of events between GdLs Ls, but the covariance matrices
                             
-                            //Important to see if there is a big difference between nHToy->GetEventsByCell(AD,idx,idy) produced in the ToyMC and the data one. Might be interesting to use the data one when we fit and the toy when we produce the covariance matrices.
+                            //Try to minimize the statistical noise, but this will come at a cost of additional uncertainty in this process, just a trial to see if the covariance matrices look smoother:
+                            VisibleHisto[AD][idx][idy]->Smooth(1);
                             
                         }//idy
                     }//idx

@@ -188,6 +188,9 @@ CovarianceMatrix3 :: CovarianceMatrix3()
     EfficiencyMatrix = Nom->GetEfficiencyMatrix();
     AllDetectorSystematicsMatrix = Nom->GetAllDetectorSystematicsMatrix();
     
+#ifdef OneEvent
+    NSamples = Nom->GetNSamples();//LBNL produces ~500 samples per covariance matrix with a different random variation for each sample
+#else
     if(Analysis&&!(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix||DistortLiHeMatrix||DistortFastNeutronsMatrix||DistortAmCMatrix||IsotopeMatrix||ReactorPowerMatrix||Sin22t12Matrix))
     {
         NSamples = 1;//nH Toy MC is made event by event, with a sufficiently dense number of events the random detector systematics can be applied to the whole spectrum at once. This is not the same for reactor or background systematics though.
@@ -196,7 +199,7 @@ CovarianceMatrix3 :: CovarianceMatrix3()
     {
         NSamples = Nom->GetNSamples();//LBNL produces ~500 samples per covariance matrix with a different random variation for each sample
     }
-    
+#endif
     Nweeks = Nom->GetWeeks();
     NADs = Nom->GetADs();
     ADsEH1 = 2;
@@ -269,7 +272,9 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
     Sin22t12Matrix = Data->GetSin22t12Matrix();
     EfficiencyMatrix = Data->GetEfficiencyMatrix();
     AllDetectorSystematicsMatrix = Data->GetAllDetectorSystematicsMatrix();
-    
+#ifdef OneEvent
+    NSamples = Data->GetNSamples();//LBNL produces ~500 samples per covariance matrix with a different random variation for each sample
+#else
     if(Analysis&&!(VaryAccidentalMatrix||VaryLiHeMatrix||VaryFastNeutronsMatrix||VaryAmCMatrix||DistortLiHeMatrix||DistortFastNeutronsMatrix||DistortAmCMatrix||IsotopeMatrix||ReactorPowerMatrix||Sin22t12Matrix))
     {
         NSamples = 1;//nH Toy MC is made event by event, with a sufficiently dense number of events the random detector systematics can be applied to the whole spectrum at once. This is not the same for reactor or background systematics though.
@@ -278,7 +283,7 @@ CovarianceMatrix3 :: CovarianceMatrix3(NominalData* Data)
     {
         NSamples = Data->GetNSamples();//LBNL produces ~500 samples per covariance matrix with a different random variation for each sample
     }
-    
+#endif
     Nweeks = Data->GetWeeks();
     NADs = Data->GetADs();
     ADsEH1 = 2;

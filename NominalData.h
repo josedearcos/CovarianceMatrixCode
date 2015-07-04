@@ -29,7 +29,7 @@
     const Double_t GdLS_volume_efficiency = 1;
 #endif
 
-//#define PrintEps//To save results in .eps files
+#define PrintEps//To save results in .eps files
 //#define BlindedAnalysis // To use blinded reactor model and distances. Not all the files are operative (only those coming from Christine's reactor model)
 const bool DeltaMee = 0;//Use Δm^2ee instead of Δm32 and Δm31 values
 
@@ -577,7 +577,7 @@ public:
     void CalculateInclusiveFullTime(Double_t*,Double_t*);
     void CalculateInclusiveEfficiencies(Double_t*,Double_t*);
     void ReadToyEventsByCell();
-    Double_t GetEventsByCell(Int_t,Int_t,Int_t);
+//    Double_t GetEventsByCell(Int_t,Int_t,Int_t);
     void ReadDistances(Char_t*);
     Double_t GetDistances(Int_t,Int_t);
 };
@@ -3883,10 +3883,10 @@ void NominalData :: ReadToyEventsByCell()//Included in nHToyMC.h right now
     delete MapEvents_ratio2total;
 }
 
-Double_t NominalData :: GetEventsByCell(Int_t AD,Int_t idx, Int_t idy)
-{
-    return PercentualEvents[AD+NADs*idx+NADs*VolumeX*idy];
-}
+//Double_t NominalData :: GetEventsByCell(Int_t AD,Int_t idx, Int_t idy)
+//{
+//    return PercentualEvents[AD+NADs*idx+NADs*VolumeX*idy];
+//}
 
 //                if (FirstMakeSuperPrediction){
 //                    sprintf(dummyname,"CombCorrEvtsSpec_%i",idet);

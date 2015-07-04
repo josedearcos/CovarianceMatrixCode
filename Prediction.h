@@ -2787,7 +2787,7 @@ void Prediction :: LoadBackgrounds(Int_t week,bool mode)
             //            CombinedNearBackgroundSpectrumH[0]->Scale(1./ADsEH1);
             
             //LO
-            for(Int_t SecondHall = ADsEH1; SecondHall<ADsEH2;SecondHall++ )
+            for(Int_t SecondHall = ADsEH1; SecondHall<(ADsEH1+ADsEH2);SecondHall++ )
             {
                 CombinedNearBackgroundSpectrumH[1]->Add(NearBackgroundSpectrumH[SecondHall][idx]);
                 
