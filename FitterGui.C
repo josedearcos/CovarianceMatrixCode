@@ -2347,7 +2347,7 @@ void FitterGui::PlotAccidental()
         
         for(Int_t i = 0; i < NADs; i++)
         {
-            AccHistograms[i] = (TH1D*)HydrogenBackgroundsF->Get(Form("Accidentals_AD%d",i));
+            AccHistograms[i] = (TH1D*)HydrogenBackgroundsF->Get(Form("Accidentals_AD%d_Volume1",i));
         }
         
         delete HydrogenBackgroundsF;
@@ -2358,7 +2358,7 @@ void FitterGui::PlotAccidental()
         
         for(Int_t i = 0; i < NADs; i++)
         {
-            AccHistograms[i] = (TH1D*)GdBackgroundsF->Get(Form("Accidentals_AD%d",i));
+            AccHistograms[i] = (TH1D*)GdBackgroundsF->Get(Form("Accidentals_AD%d_Volume0",i));
         }
         
         delete GdBackgroundsF;
@@ -2389,7 +2389,7 @@ void FitterGui::PlotFN()
         
         for(Int_t i = 0; i < NADs; i++)
         {
-            FNHistograms[i] = (TH1D*)HydrogenBackgroundsF->Get(Form("FN_AD%d",i));
+            FNHistograms[i] = (TH1D*)HydrogenBackgroundsF->Get(Form("FN_AD%d_Volume1",i));
         }
         
         delete HydrogenBackgroundsF;
@@ -2400,7 +2400,7 @@ void FitterGui::PlotFN()
         
         for(Int_t i = 0; i < NADs; i++)
         {
-            FNHistograms[i] = (TH1D*)GdBackgroundsF->Get(Form("FN_AD%d",i));
+            FNHistograms[i] = (TH1D*)GdBackgroundsF->Get(Form("FN_AD%d_Volume0",i));
         }
         
         delete GdBackgroundsF;
@@ -2430,7 +2430,7 @@ void FitterGui::PlotLiHe()
         
         for(Int_t i = 0; i < NADs; i++)
         {
-            LiHeHistograms[i] = (TH1D*)HydrogenBackgroundsF->Get(Form("LiHe_AD%d",i));
+            LiHeHistograms[i] = (TH1D*)HydrogenBackgroundsF->Get(Form("LiHe_AD%d_Volume1",i));
         }
         
         delete HydrogenBackgroundsF;
@@ -2441,7 +2441,7 @@ void FitterGui::PlotLiHe()
         
         for(Int_t i = 0; i < NADs; i++)
         {
-            LiHeHistograms[i] = (TH1D*)GdBackgroundsF->Get(Form("LiHe_AD%d",i));
+            LiHeHistograms[i] = (TH1D*)GdBackgroundsF->Get(Form("LiHe_AD%d_Volume0",i));
         }
         
         delete GdBackgroundsF;
@@ -2471,7 +2471,7 @@ void FitterGui::PlotAmC()
         
         for(Int_t i = 0; i < NADs; i++)
         {
-            AmCHistograms[i] = (TH1D*)HydrogenBackgroundsF->Get(Form("AmC_AD%d",i));
+            AmCHistograms[i] = (TH1D*)HydrogenBackgroundsF->Get(Form("AmC_AD%d_Volume1",i));
         }
         
         delete HydrogenBackgroundsF;
@@ -2482,7 +2482,7 @@ void FitterGui::PlotAmC()
         
         for(Int_t i = 0; i < NADs; i++)
         {
-            AmCHistograms[i] = (TH1D*)GdBackgroundsF->Get(Form("AmC_AD%d",i));
+            AmCHistograms[i] = (TH1D*)GdBackgroundsF->Get(Form("AmC_AD%d_Volume0",i));
         }
         
         delete GdBackgroundsF;

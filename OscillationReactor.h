@@ -1139,7 +1139,18 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 
 //                std::cout << "Events in ScaledOscillatedSpectrumAD after : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
 
-                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(IBDEvents[AD][week][idx][idy]);//No backgrounds, given full time and AD effects included
+                Double_t EffLost;
+                
+                if(isH)
+                {
+                    EffLost = 1.05;
+                }
+                else
+                {
+                    EffLost = 1.0012;//0.9988
+                }
+                //the 1.05 hard coded is the efficiency loss because of the 1.5 MeV cut. Technically this is true energy, and the IBD events are visible energy with selection cuts included. This scaling would decrease the number of events and make the covariance matrices smaller, so we need to add a small percentage due to that loss. It has been measured to be 1.5 for the nH analysis.
+                ScaledOscillatedSpectrumAD[AD][idx][idy]->Scale(EffLost*IBDEvents[AD][week][idx][idy]);//No backgrounds, given full time and AD effects included
 //                std::cout << "Events in ScaledOscillatedSpectrumAD ~ IBD Events : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
                 
 //                std::cout << "Events in ScaledOscillatedSpectrumAD IBD EVENTS + EFFICIENCY : " << ScaledOscillatedSpectrumAD[AD][idx][idy]->Integral() << std::endl;
@@ -1180,10 +1191,11 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             TotalOscillatedSpectrumAD[AD]->GetXaxis()->SetTitle("E_{true} (MeV)");
             TotalOscillatedSpectrumAD[AD]->GetXaxis()->SetTitleSize(0.04);
             TotalOscillatedSpectrumAD[AD]->GetYaxis()->SetTitleSize(0.04);
-            TotalOscillatedSpectrumAD[AD]->GetYaxis()->SetTitle("Events/day");
+            TotalOscillatedSpectrumAD[AD]->GetYaxis()->SetTitle("Events");
+            TotalOscillatedSpectrumAD[AD]->GetYaxis()->SetTitleOffset(1.5);
             TotalOscillatedSpectrumAD[AD]->SetTitle(Form("AD%d",AD+1));
             
-            TotalOscillatedSpectrumAD[AD]->Draw();
+            TotalOscillatedSpectrumAD[AD]->Draw("HIST");
         }
         AntineutrinoSpectrumC->Print(("./Images/"+AnalysisString+"/ReactorSpectrumOscillatedInADs_NotScaled.eps").c_str());
         delete AntineutrinoSpectrumC;
@@ -1453,7 +1465,6 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         }//AD
     }
     
-    
     for(Int_t idx=0; idx<XCellLimit; idx++)
     {
         for(Int_t idy=0; idy<YCellLimit; idy++)
@@ -1496,9 +1507,9 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 VisibleHisto[AD][idx][idy]->GetXaxis()->SetTitle("E_{vis} (MeV)");
                 VisibleHisto[AD][idx][idy]->GetXaxis()->SetTitleSize(0.04);
                 VisibleHisto[AD][idx][idy]->GetYaxis()->SetTitleSize(0.04);
-                VisibleHisto[AD][idx][idy]->GetYaxis()->SetTitle("Events/day");
-                
-                VisibleHisto[AD][idx][idy]->Draw();
+                VisibleHisto[AD][idx][idy]->GetYaxis()->SetTitleOffset(1.5);
+                VisibleHisto[AD][idx][idy]->GetYaxis()->SetTitle("Events");
+                VisibleHisto[AD][idx][idy]->Draw("HIST");
             }
         }
     }
@@ -1579,8 +1590,8 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 VisibleHisto[AD][idx][idy]->GetXaxis()->SetTitle("E_{vis} (MeV)");
                 VisibleHisto[AD][idx][idy]->GetXaxis()->SetTitleSize(0.04);
                 VisibleHisto[AD][idx][idy]->GetYaxis()->SetTitleSize(0.04);
-                VisibleHisto[AD][idx][idy]->GetYaxis()->SetTitle("Events/day");
-                
+                VisibleHisto[AD][idx][idy]->GetYaxis()->SetTitleOffset(1.5);
+                VisibleHisto[AD][idx][idy]->GetYaxis()->SetTitle("Events");
                 VisibleHisto[AD][idx][idy]->Draw("HIST");
             }
         }

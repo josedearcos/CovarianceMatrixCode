@@ -991,7 +991,8 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
                 CombinedPredictionVisH[far][near]->GetXaxis()->SetTitle("E_{vis} (MeV)");
                 CombinedPredictionVisH[far][near]->GetXaxis()->SetTitleSize(0.04);
                 CombinedPredictionVisH[far][near]->GetYaxis()->SetTitleSize(0.04);
-                CombinedPredictionVisH[far][near]->GetYaxis()->SetTitle("Events/day");
+                CombinedPredictionVisH[far][near]->GetYaxis()->SetTitle("Events");
+                CombinedPredictionVisH[far][near]->GetYaxis()->SetTitleOffset(1.5);
                 CombinedPredictionVisH[far][near]->Draw("HIST");
                 CombC->Modified();
             }
@@ -1016,6 +1017,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
                 PredictionVisH[far][near]->GetXaxis()->SetTitleSize(0.04);
                 PredictionVisH[far][near]->GetYaxis()->SetTitleSize(0.04);
                 PredictionVisH[far][near]->GetYaxis()->SetTitle("Events");
+                PredictionVisH[far][near]->GetYaxis()->SetTitleOffset(1.5);
                 PredictionVisH[far][near]->Draw("HIST");
             }
         }
@@ -1057,7 +1059,8 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
                 PredictionVisH[far][near]->GetXaxis()->SetTitleSize(0.04);
                 PredictionVisH[far][near]->GetYaxis()->SetTitleSize(0.04);
                 PredictionVisH[far][near]->GetYaxis()->SetTitle("Events");
-                
+                PredictionVisH[far][near]->GetYaxis()->SetTitleOffset(1.5);
+
                 PredictionVisH[far][near]->Draw("same");
                 if(far==1)
                 {
@@ -1099,6 +1102,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
                 ReactorPredictionVisH[far]->GetXaxis()->SetTitleSize(0.04);
                 ReactorPredictionVisH[far]->GetYaxis()->SetTitleSize(0.04);
                 ReactorPredictionVisH[far]->GetYaxis()->SetTitle("Events");
+                ReactorPredictionVisH[far]->GetYaxis()->SetTitleOffset(1.5);
                 ReactorPredictionVisH[far]->Draw("HIST");
             }
             AllReactorPredC->Print(("./Images/"+AnalysisString+"/FitterInputs/"+RandomString+"AllReactorPredictions.eps").c_str(),".eps");
@@ -1917,16 +1921,37 @@ void Prediction :: GenerateStatisticalCovarianceMatrix()
     
     #ifdef PrintEps
         TCanvas* StatisticalCovarianceMatrixC = new TCanvas("StatisticalCovarianceMatrixC","Statistical Cov",500,500);
-        StatisticalCovarianceMatrixH->SetStats(0);
-        StatisticalCovarianceMatrixH->GetXaxis()->SetTitle("Bin number");
-        StatisticalCovarianceMatrixH->GetXaxis()->SetTitleSize(0.04);
-        StatisticalCovarianceMatrixH->GetYaxis()->SetTitleSize(0.04);
-        StatisticalCovarianceMatrixH->GetYaxis()->SetTitle("Bin number");
+    
+    TPad* centerpad = new TPad("upperPad", "upperPad", 0,0,1,1);
+    centerpad->Draw();
+    centerpad->cd();
+    
+    StatisticalCovarianceMatrixH->SetStats(0);
+    StatisticalCovarianceMatrixH->GetXaxis()->SetTitle("Bin number");
+    StatisticalCovarianceMatrixH->GetXaxis()->SetTitleSize(0.04);
+    StatisticalCovarianceMatrixH->GetYaxis()->SetTitleSize(0.04);
+    StatisticalCovarianceMatrixH->GetYaxis()->SetTitle("Bin number");
+    
+    StatisticalCovarianceMatrixH->Draw("colz");
+    centerpad->Update();
 
-        StatisticalCovarianceMatrixH->Draw("colz");
-        StatisticalCovarianceMatrixC->Print(("./Images/"+AnalysisString+"/StatisticalCovarianceMatrix.eps").c_str(),".eps");
-        
-        delete StatisticalCovarianceMatrixC;
+    TPaletteAxis *palette = (TPaletteAxis*)StatisticalCovarianceMatrixH->GetListOfFunctions()->FindObject("palette");
+    
+    palette->SetLabelSize(.025);
+    palette->SetX1NDC(0.902);
+    palette->SetX2NDC(0.925);
+    palette->SetY1NDC(0.1);
+    palette->SetY2NDC(0.9);
+    
+    centerpad->Modified();
+    centerpad->Update();
+    
+    StatisticalCovarianceMatrixC->cd();
+    StatisticalCovarianceMatrixC->Update();
+    
+    StatisticalCovarianceMatrixC->Print(("./Images/"+AnalysisString+"/StatisticalCovarianceMatrix.eps").c_str(),".eps");
+    
+    delete StatisticalCovarianceMatrixC;
     #endif
     
     std::cout << "\t Finished Generating StatisticalCovarianceMatrix" << std::endl;
@@ -2319,7 +2344,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
                 NearDataH[near]->GetXaxis()->SetTitleSize(0.04);
                 NearDataH[near]->GetYaxis()->SetTitleSize(0.04);
                 NearDataH[near]->GetYaxis()->SetTitle("Events");
-                NearDataH[near]->GetYaxis()->SetTitleOffset(1.4);
+                NearDataH[near]->GetYaxis()->SetTitleOffset(1.5);
                 
                 NearDataH[near]->SetTitle(Form("AD%d spectrum",near+1));
 
@@ -2339,7 +2364,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
                     FarDataH[far][near]->GetXaxis()->SetTitle("E_{vis} (MeV)");
                     FarDataH[far][near]->GetXaxis()->SetTitleSize(0.04);
                     FarDataH[far][near]->GetYaxis()->SetTitleSize(0.04);
-                    FarDataH[far][near]->GetYaxis()->SetTitleOffset(1.4);
+                    FarDataH[far][near]->GetYaxis()->SetTitleOffset(1.5);
                     FarDataH[far][near]->GetYaxis()->SetTitle("Events");
                     FarDataH[far][near]->SetTitle(Form("Far combined from EH%d data",near+1));
                     FarDataH[far][near]->Draw("HIST");
@@ -4197,7 +4222,7 @@ void Prediction :: ApplyStatisticalFluctuation(TH1D* Histo)
 {
     for(Int_t VisibleEnergyIndex=1;VisibleEnergyIndex<=Histo->GetXaxis()->GetNbins();VisibleEnergyIndex++)
     {
-        rand->SetSeed(0);//The mean is the width of the bin * events in that bin, then we need to divide over the binwidth
+        rand->SetSeed(500+VisibleEnergyIndex);//The mean is the width of the bin * events in that bin, then we need to divide over the binwidth
         Histo->SetBinContent(VisibleEnergyIndex,(Double_t)(rand->PoissonD(Histo->GetBinContent(VisibleEnergyIndex)*Histo->GetXaxis()->GetBinWidth(VisibleEnergyIndex))/Histo->GetXaxis()->GetBinWidth(VisibleEnergyIndex)));
     }
 }

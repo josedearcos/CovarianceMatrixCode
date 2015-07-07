@@ -235,7 +235,7 @@ void FitBackgrounds2 :: ReadHBackgrounds()
         AccidentalsF->Close();
     }
     
-    FitFastNeutrons();//Pol0 and Pol1 fit
+    FitFastNeutrons();
     
     FitAmc();//Exponential fit
     
@@ -256,19 +256,27 @@ void FitBackgrounds2 :: ReadHBackgrounds()
    // LiHeBackgroundH->Add(HeliumH,.1);
     
     BackgroundsH[NADs] = new TH1D("LiHe","LiHe",n_evis_bins,evis_bins);
-
-    for (Int_t visbin = 1; visbin <= n_evis_bins; visbin++)
+    TH1D* LinearBackgroundsH = new TH1D("LinearLiHe","LiHe",240,0,12);
+    for (Int_t visbin = 1; visbin <= 240; visbin++)
     {
-        BackgroundsH[NADs]->SetBinContent(visbin,(.9)*LithiumH->Interpolate(BackgroundsH[NADs]->GetXaxis()->GetBinCenter(visbin))+(.1)*HeliumH->Interpolate(HeliumH->GetXaxis()->GetBinCenter(visbin)));
-
-        
-      //  BackgroundsH[NADs]->SetBinContent(visbin,LiHeBackgroundH->Interpolate(BackgroundsH[NADs]->GetXaxis()->GetBinCenter(visbin)));
-        
-        //                std::cout << "Vis Bin: " << visbin << " - Center Bin: " << BackgroundsH[AD]->GetXaxis()->GetBinCenter(visbin) << std::endl;
-        //                std::cout << "interpolation value: " << AccidentalsH[AD]->Interpolate(BackgroundsH[AD]->GetXaxis()->GetBinCenter(visbin)) << std::endl;
-        //                std::cout << "evis_bins: " << evis_bins[visbin] << std::endl;
-        
+        LinearBackgroundsH->SetBinContent(visbin,(.9)*LithiumH->Interpolate(LinearBackgroundsH->GetXaxis()->GetBinCenter(visbin))+(.1)*HeliumH->Interpolate(HeliumH->GetXaxis()->GetBinCenter(visbin)));
     }
+    
+    BackgroundsH[NADs] = (TH1D*)LinearBackgroundsH->Rebin(n_evis_bins,"LiHe",evis_bins);
+
+    delete LinearBackgroundsH;
+//    for (Int_t visbin = 1; visbin <= n_evis_bins; visbin++)
+//    {
+//        BackgroundsH[NADs]->SetBinContent(visbin,(.9)*LithiumH->Interpolate(BackgroundsH[NADs]->GetXaxis()->GetBinCenter(visbin))+(.1)*HeliumH->Interpolate(HeliumH->GetXaxis()->GetBinCenter(visbin)));
+//
+//        
+//      //  BackgroundsH[NADs]->SetBinContent(visbin,LiHeBackgroundH->Interpolate(BackgroundsH[NADs]->GetXaxis()->GetBinCenter(visbin)));
+//        
+//        //                std::cout << "Vis Bin: " << visbin << " - Center Bin: " << BackgroundsH[AD]->GetXaxis()->GetBinCenter(visbin) << std::endl;
+//        //                std::cout << "interpolation value: " << AccidentalsH[AD]->Interpolate(BackgroundsH[AD]->GetXaxis()->GetBinCenter(visbin)) << std::endl;
+//        //                std::cout << "evis_bins: " << evis_bins[visbin] << std::endl;
+//        
+//    }
     
     delete LithiumH;
     delete HeliumH;
@@ -551,19 +559,32 @@ void FitBackgrounds2::FitFastNeutrons()
         
         BackgroundsH[NADs+1] = new TH1D("FN","FN",n_evis_bins,evis_bins);//60 so the bins are 0.2
         
-        for(Int_t i=1;i<=n_evis_bins;i++)
+        TH1D* LinearFN = new TH1D("LinearFN","FN",240,0,12);
+        
+        for(Int_t i=1;i<=240;i++)
         {
-            BackgroundsH[NADs+1]->SetBinContent(i,TotalAverage);
+            LinearFN->SetBinContent(i,TotalAverage);
         }
         
+        BackgroundsH[NADs+1] = (TH1D*)LinearFN->Rebin(n_evis_bins,"FN",evis_bins);
+        
+        delete LinearFN;
+
         delete FastNeutronH;
     }
     else
     {
-        TF1* FNCurve = new TF1("FastNeutron","pow(x,[0])",InitialVisibleEnergy,FinalVisibleEnergy);
+        TF1* FNCurve = new TF1("FastNeutron","pow(x,[0])",0,12);
         FNCurve->SetParameter(0,-0.639);//From Xiang Pan Fast Neutron = E^{-P} where P = 0.639±0.036
-        BackgroundsH[NADs+1] = new TH1D("FN","FN",n_evis_bins,evis_bins);
-        BackgroundsH[NADs+1]->Add(FNCurve);
+        
+        TH1D* LinearFN = new TH1D("LinearFN","FN",240,0,12);
+        
+        LinearFN->Add(FNCurve);
+        
+        BackgroundsH[NADs+1] = (TH1D*)LinearFN->Rebin(n_evis_bins,"FN",evis_bins);
+        
+        delete LinearFN;
+        
         delete FNCurve;
     }
 //    delete polynomial;

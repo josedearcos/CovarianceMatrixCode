@@ -1496,7 +1496,8 @@ void Oscillation :: LoadToyHistograms(Int_t week)
             ADSpectrumVisH[near][0][0]->GetXaxis()->SetTitle("E_{true} (MeV)");
             ADSpectrumVisH[near][0][0]->GetXaxis()->SetTitleSize(0.04);
             ADSpectrumVisH[near][0][0]->GetYaxis()->SetTitleSize(0.04);
-            ADSpectrumVisH[near][0][0]->GetYaxis()->SetTitle("Events/day");
+            ADSpectrumVisH[near][0][0]->GetYaxis()->SetTitle("Events");
+            ADSpectrumVisH[near][0][0]->GetYaxis()->SetTitleOffset(1.5);
             ADSpectrumVisH[near][0][0]->GetXaxis()->SetTitle(Form("AD%d",near+1));
 
             ADSpectrumVisH[near][0][0]->Draw("HIST");
