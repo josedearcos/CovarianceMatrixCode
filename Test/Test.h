@@ -825,7 +825,7 @@ void Test :: TestTree()
     
     TTree *T;
     
-    TFile *f = new TFile("./ToyMCTrees/ToyMCTreeCombined2.root");
+    TFile *f = new TFile("./ToyMCTrees/Gadolinium/ToyMCTreeCombined2.root");
     T = (TTree*)f->Get("TVar");
     
     TH1D* TNominalHisto = 0;

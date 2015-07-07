@@ -1,0 +1,1 @@
+./ChiSquare/Hydrogen/Combine2/TurnOnBudget/S2/TotalChiSquare.root -0.000252353 0.09

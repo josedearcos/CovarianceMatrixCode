@@ -2906,6 +2906,13 @@ void nHToyMC :: Toy()
                 
                 etree_read->Draw(">>List",Form("Ev >= %f && Ev < %f",MinTrueEnergy,MaxTrueEnergy));
                 
+                usr_r2_P = pow(sqrt(X_P*X_P+Y_P*Y_P),2) * 1e-6;  // mm2 ---> m2
+                usr_z_P  = (Z_P) * 1e-3;  // mm ---> m
+                
+                global_bin_num = hist_findbin->FindBin(usr_r2_P, usr_z_P);
+                hist_findbin->GetBinXYZ(global_bin_num, local_xbin, local_ybin, local_zbin);
+                
+                
                 ListEvents = (TEventList*)gDirectory->Get("List");
                 
                 etree_read->SetEventList(ListEvents);

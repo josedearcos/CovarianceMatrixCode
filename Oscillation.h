@@ -1361,10 +1361,11 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
                 
 //                FarHallCellSpectrumH[far][near][j][idx][idy]->Scale(DetectorEfficiency[(far+(ADsEH1+ADsEH2))][week][idx][idy]*FullTime[(far+(ADsEH1+ADsEH2))][week]*DetectorProtons[far+(ADsEH1+ADsEH2)][idx][idy]/DetectorProtons[0][idx][idy]);
                 
-                //Don't do this anymore, right now we correct data and predictions to not to have any detector effects included, also covariance matrices will be produced like that.
-                
+                //If I comment it out, we correct AD effects and use days, also covariance matrices will be produced like that.
+                FarHallCellSpectrumH[far][near][j][idx][idy]->Scale((FullTime[far+(ADsEH1+ADsEH2)][week]*MultiMuonEff[far+(ADsEH1+ADsEH2)][week]*DetectorProtons[far+(ADsEH1+ADsEH2)][idx][idy]/DetectorProtons[0][idx][idy]));
+
                 //Sum all volumes/cells:
-                
+
                 FarHallSpectrumH[far][near][j]->Add(FarHallCellSpectrumH[far][near][j][idx][idy]);//sum over cells
 
                 
@@ -1455,7 +1456,9 @@ void Oscillation :: LoadToyHistograms(Int_t week)
                 
                 //  In oscillationreactor ADs have backgrounds included.
                 
-                ADSpectrumVisH[near][idx][idy]->Add(BackgroundSpectrumH[near][idx][idy],-1.);
+                ADSpectrumVisH[near][idx][idy]->Add(BackgroundSpectrumH[near][idx][idy],-1.);//This is important, in the nominal case we will clean the backgrounds completely, but if we apply varitions, the residual will remain here, which is needed in the covariance matrix generation!
+                
+                ADSpectrumVisH[near][idx][idy]->Scale(1./(FullTime[near][week]*MultiMuonEff[near][week]*DetectorProtons[near][idx][idy]/DetectorProtons[0][idx][idy]));
             }
         }
     }
@@ -1476,6 +1479,7 @@ void Oscillation :: LoadToyHistograms(Int_t week)
                 for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
                 {
                     cr->cd(near+idy*(ADsEH1+ADsEH2)+(ADsEH1+ADsEH2)*YCellLimit*idx+1);
+                    ADSpectrumVisH[near][idx][idy]->Draw("HIST");
 
                     ADSpectrumVisH[near][idx][idy]->Draw();
                 }
@@ -1489,6 +1493,12 @@ void Oscillation :: LoadToyHistograms(Int_t week)
         {
             cr->cd(near+1);
             
+            ADSpectrumVisH[near][0][0]->GetXaxis()->SetTitle("E_{true} (MeV)");
+            ADSpectrumVisH[near][0][0]->GetXaxis()->SetTitleSize(0.04);
+            ADSpectrumVisH[near][0][0]->GetYaxis()->SetTitleSize(0.04);
+            ADSpectrumVisH[near][0][0]->GetYaxis()->SetTitle("Events/day");
+            ADSpectrumVisH[near][0][0]->GetXaxis()->SetTitle(Form("AD%d",near+1));
+
             ADSpectrumVisH[near][0][0]->Draw("HIST");
         }
     }
@@ -1627,7 +1637,9 @@ void Oscillation :: LoadNearData(Int_t week)
             {
                 ADSpectrumVisH[near][idx][idy] = (TH1D*)gDirectory->Get(NearDataSpec);
                 
-                ADSpectrumVisH[near][idx][idy]->Scale(1./(MultiMuonEff[near][week]*FullTime[near][week]*DetectorProtons[near][idx][idy]/DetectorProtons[0][idx][idy]));//Correct events for efficiencies and calculate it in days. This is done inclusively if NWeeks = 1, or weekly otherwise.
+                //Data has to be given with full livetime and detector effects.
+                
+                //ADSpectrumVisH[near][idx][idy]->Scale(1./(FullTime[near][week]*MultiMuonEff[near][week]*DetectorProtons[near][idx][idy]/DetectorProtons[0][idx][idy]));//Correct events for efficiencies. This is done inclusively if NWeeks = 1, or weekly otherwise.//FullTime[near][week]
 
                 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -1646,9 +1658,10 @@ void Oscillation :: LoadNearData(Int_t week)
                 
                 ADSpectrumVisH[near][idx][idy]=(TH1D*)ADSpectrumVisH[near][idx][idy]->Rebin(n_evis_bins,Form("Rebinned Vis Near%d Data Spectrum, Cell%i,%i",near,idx,idy),evis_bins);
                 
-                
                 //Substract backgrounds:
-                ADSpectrumVisH[near][idx][idy]->Add(NearBackgroundSpectrumH[near][idx][idy],-1);//Substract (varied if necessary) backgrounds from data, which are already corrected events.
+                ADSpectrumVisH[near][idx][idy]->Add(NearBackgroundSpectrumH[near][idx][idy],-1);//Substract (varied if necessary) backgrounds from data, which are already corrected events, given in days.
+                
+                ADSpectrumVisH[near][idx][idy]->Scale(1./(FullTime[near][week]*MultiMuonEff[near][week]*DetectorProtons[near][idx][idy]/DetectorProtons[0][idx][idy]));
                 
 //Negative bins don't make any sense for data
                 for(Int_t i = 0; i< ADSpectrumVisH[near][idx][idy]->GetXaxis()->GetNbins();i++)
@@ -1675,7 +1688,7 @@ void Oscillation :: LoadNearData(Int_t week)
                 {
                     c1->cd(near+idx*(ADsEH1+ADsEH2)+1);
 
-                        ADSpectrumVisH[near][idx][idy]->Draw();
+                    ADSpectrumVisH[near][idx][idy]->Draw();
                 }
             }
         }

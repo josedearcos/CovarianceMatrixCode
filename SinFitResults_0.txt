@@ -88,3 +88,16 @@
 ./ChiSquare/Hydrogen/Combine2/1DChiSquareFitSin22t13.root -0.0579177 0.09
 ./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.09 0.09
 ./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -1e+10 1e+10
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.09 0.09
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.09 0.09
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -1e+10 1e+10
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.0896812 0.1
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.09 0.09
+./ChiSquare/Hydrogen/Combine2/1DChiSquareFitSin22t13.root 0 0.09
+./ChiSquare/Hydrogen/Combine2/1DChiSquareFitSin22t13.root -0.000621207 0.09
+./ChiSquare/Hydrogen/Combine2/1DChiSquareFitSin22t13.root -0.00061191 0.09
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.00818435 0.09
+./ChiSquare/Hydrogen/Combine2/1DChiSquareFitSin22t13.root -0.0112126 0.09
+./ChiSquare/Hydrogen/Combine2/1DChiSquareFitSin22t13.root -0.0364579 0.09
+./ChiSquare/Gadolinium/Combine2/1DChiSquareFitSin22t13.root -0.0890258 0.09
+./ChiSquare/Hydrogen/Combine2/1DChiSquareFitSin22t13.root -0.0425758 0.09

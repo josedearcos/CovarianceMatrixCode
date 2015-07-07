@@ -573,7 +573,6 @@ public:
     void GetnHInclusiveData(Double_t*);
     void GetnGdInclusiveData(Double_t*);
     void CorrectnHEvents();
-    void CorrectnGdEvents();
     void CalculateInclusiveFullTime(Double_t*,Double_t*);
     void CalculateInclusiveEfficiencies(Double_t*,Double_t*);
     void ReadToyEventsByCell();
@@ -2499,6 +2498,7 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
     }
     
     //Copy values
+
     for(Int_t AD=0;AD<NADs;AD++)
     {
         for(Int_t week = 0; week<DataPeriods; week++)
@@ -2568,7 +2568,7 @@ void NominalData :: LoadOriginalGDMainData(const Char_t* mainmatrixname)
             std::cout << "Inclusive FN events AD: " << AD << " is : " << FastNeutronEvents[AD+week*MaxDetectors] << "+/-" << FastNeutronError[AD+week*MaxDetectors] << std::endl;
             
             std::cout << "Inclusive AmC events AD: " << AD << " is : " << AmCEvents[AD+week*MaxDetectors]
-            << "+/-" << AmCError[AD+week*MaxDetectors] << std::endl;
+            << "+/-" << AmCError[AD+week*MaxDetectors] << "\n" << std::endl;
         }
     }
     
@@ -2858,7 +2858,10 @@ void NominalData :: LoadHydrogenMainData()
                             }
                         }
                         
-                        AccidentalEvents[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*DataPeriods]=readvals[AD]*FullTime[AD6Index+(week-1)*MaxDetectors];
+                        AccidentalEvents[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*DataPeriods]=readvals[AD]*FullTime[AD6Index+(week-1)*MaxDetectors];//In the nH file the backgrounds are already corrected for AD efficiencies, so no need to do it here
+                        
+                        std::cout << "\n AccidentalEvents EVENTS LOAD: " << AccidentalEvents[AD6Index+(week-1)*MaxDetectors+VolumeIndex*MaxDetectors*DataPeriods] << " in AD" << AD6Index << " volume " << VolumeIndex << " and period " << week-1 << "\n " << std::endl;
+
                     }
                 }
                 if(row==11)
@@ -3025,13 +3028,14 @@ void NominalData :: LoadHydrogenMainData()
                 for(Int_t idy=0; idy<VolumeY; idy++)
                 {
                     Int_t IndexVariant = AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods;
-                    
+
                     IBDEvents[IndexVariant] = (ObservedEvents[IndexVariant]-(AccidentalEvents[IndexVariant]+LiHeEvents[IndexVariant]+FastNeutronEvents[IndexVariant]+AmCEvents[IndexVariant]));//Apply background  suppression for events with AD effects, then correct AD effects and scale to days
+                    
+                    std::cout << "\n AccidentalEvents EVENTS BEFORE CORRECTION: " << AccidentalEvents[IndexVariant] << " in AD" << AD << " volume " << idx << " and period " << week << "\n " << std::endl;
                 }
             }
         }
     }
-    
     CorrectnHEvents();
 }
 
@@ -3041,12 +3045,14 @@ void NominalData :: CorrectnHEvents()
     {
         for(Int_t week = 0; week<DataPeriods; week++)
         {
+            Int_t IndexConstant = AD+week*MaxDetectors;
+
             for(Int_t idx=0; idx<VolumeX; idx++)
             {
+                Int_t IndexVariant = AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods;
+
                 for(Int_t idy=0; idy<VolumeY; idy++)
                 {
-                    Int_t IndexVariant = AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods;
-                    Int_t IndexConstant = AD+week*MaxDetectors;
                     Double_t correction_factor = (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0,idx);
                     
                     if(correction_factor==0)//Avoid NaNs
@@ -3068,20 +3074,23 @@ void NominalData :: CorrectnHEvents()
                     }
                     else
                     {
-                    IBDEvents[IndexVariant] = IBDEvents[IndexVariant]/correction_factor;
-                    
-                    ObservedEvents[IndexVariant] = ObservedEvents[IndexVariant]/correction_factor;
-                    
-                    StatisticalError[IndexVariant] = StatisticalError[IndexVariant]/correction_factor;
-                    
-                    AccidentalEvents[IndexVariant] = AccidentalEvents[IndexVariant]/correction_factor;
-                    AccidentalError[IndexVariant] = AccidentalError[IndexVariant]/correction_factor;
-                    LiHeEvents[IndexVariant] = LiHeEvents[IndexVariant]/correction_factor;
-                    LiHeError[IndexVariant] = LiHeError[IndexVariant]/correction_factor;
-                    FastNeutronEvents[IndexVariant] = FastNeutronEvents[IndexVariant]/correction_factor;
-                    FastNeutronError[IndexVariant] = FastNeutronError[IndexVariant]/correction_factor;
-                    AmCEvents[IndexVariant] = AmCEvents[IndexVariant]/correction_factor;
-                    AmCError[IndexVariant] = AmCError[IndexVariant]/correction_factor;
+                        IBDEvents[IndexVariant] = IBDEvents[IndexVariant]/correction_factor;
+                        
+                        ObservedEvents[IndexVariant] = ObservedEvents[IndexVariant]/correction_factor;
+                        
+                        StatisticalError[IndexVariant] = StatisticalError[IndexVariant]/correction_factor;
+                        
+                        AccidentalEvents[IndexVariant] = AccidentalEvents[IndexVariant]/correction_factor;
+                        
+                        std::cout << "\n AccidentalEvents EVENTS AFTER CORRECTION: " << AccidentalEvents[IndexVariant] << " in AD" << AD << " volume " << idx << " and period " << week << "\n " << std::endl;
+
+                        AccidentalError[IndexVariant] = AccidentalError[IndexVariant]/correction_factor;
+                        LiHeEvents[IndexVariant] = LiHeEvents[IndexVariant]/correction_factor;
+                        LiHeError[IndexVariant] = LiHeError[IndexVariant]/correction_factor;
+                        FastNeutronEvents[IndexVariant] = FastNeutronEvents[IndexVariant]/correction_factor;
+                        FastNeutronError[IndexVariant] = FastNeutronError[IndexVariant]/correction_factor;
+                        AmCEvents[IndexVariant] = AmCEvents[IndexVariant]/correction_factor;
+                        AmCError[IndexVariant] = AmCError[IndexVariant]/correction_factor;
                     }
                     
                     //                        std::cout << "? " << ObservedEvents[IndexVariant] << " = " << ObservedEvents[IndexVariant]/correction_factor << std::endl;
@@ -3109,9 +3118,10 @@ void NominalData :: CorrectnHEvents()
         {
             for(Int_t idx=0; idx<VolumeX; idx++)
             {
+                Int_t IndexInclusive = AD+idx*MaxDetectors*DataPeriods;
+
                 for(Int_t idy=0; idy<VolumeY; idy++)
                 {
-                    Int_t IndexInclusive = AD+idx*MaxDetectors*DataPeriods;
                     //To make sure the inclusive data has changed
                     
                     std::cout << "Inclusive observed events AD: " << AD << " is : " << ObservedEvents[IndexInclusive] << " in " << idx << std::endl;
@@ -4032,19 +4042,20 @@ void NominalData :: GetnHInclusiveData(Double_t* InclusiveData)
     {
         for(Int_t week=0;week<DataPeriods;week++)
         {
+            Int_t IndexConstant = AD+week*MaxDetectors;
+
             for(Int_t idx=0; idx<VolumeX; idx++)
             {
                 Int_t IndexWeekly = AD+week*MaxDetectors+idx*MaxDetectors*DataPeriods;
                 
                 for(Int_t idy=0; idy<VolumeY; idy++)
                 {
-                    WeeklyData[IndexWeekly] = InclusiveData[IndexWeekly];
+                    WeeklyData[IndexWeekly] = InclusiveData[IndexWeekly]*(FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0, idx);
+                    
+                    std::cout << " Weekly observed events AD: " << AD << "Volume " << idx << " is : " << WeeklyData[IndexWeekly] << " for week : " << week << " scaled using " << (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0, idx) << std::endl;
                     
                     
-                    //                        std::cout << " Weekly observed events AD: " << AD << "Volume " << idx << " is : " << WeeklyData[IndexWeekly] << " for week : " << week << " scaled " << (FullTime[IndexConstant]*MuonEff[IndexConstant]*MultiEff[IndexConstant]*GetDetectorProtons(AD,idx))/GetDetectorProtons(0, idx) << std::endl;
-                    
-                    
-                    InclusiveData[IndexWeekly] = 0;
+                    InclusiveData[IndexWeekly] = 0;//Reset after copying
                 }
             }
         }
@@ -4168,7 +4179,7 @@ void NominalData :: GetnGdInclusiveData(Double_t* InclusiveData)
     {
         for(Int_t week=0;week<DataPeriods;week++)
         {
-            InclusiveData[AD]+=WeeklyData[AD+week*MaxDetectors];
+            InclusiveData[AD]+=(WeeklyData[AD+week*MaxDetectors]*FullTime[AD+week*MaxDetectors]*MuonEff[AD+week*MaxDetectors]*MultiEff[AD+week*MaxDetectors]*GetDetectorProtons(AD,0)/GetDetectorProtons(0,0));
         }
     }
 }

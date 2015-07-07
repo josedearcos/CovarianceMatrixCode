@@ -1150,6 +1150,8 @@ void CovarianceMatrix3 :: SaveSpectrum(Int_t sample, Int_t week)
             break;
     }
 
+    std::cout << "saving " << filenameSpec << std::endl;
+    
     TFile* SpectrumAndPredictionsF = TFile::Open(filenameSpec,optionN);
 
         for (Int_t far =0; far<MaxFar; far++)
@@ -1185,6 +1187,7 @@ void CovarianceMatrix3 :: LoadNominalPredictions(Int_t week)
             PredictionVisH[near][far]=(TH1D*)gDirectory->Get(Form("Combined Prediction AD%d from AD%d",far+1,near+1))->Clone(Form("Nominal Prediction AD%d from AD%d period%d",far+1,near+1,week));
         }
     }
+    // PredictionVisH has not backgrounds included, need to add them here
     
     //Far predictions:
     for (Int_t far =0; far<MaxFar; far++)
@@ -1208,7 +1211,8 @@ void CovarianceMatrix3 :: LoadAlteredPredictions(Int_t week)//  This could be ha
             AlteredPredictionVisH[near][far]->SetName(Form("Altered Prediction AD%d from AD%d period%d",far+1,near+1,week));
         }
     }
-    
+    // PredictionVisH has not backgrounds included, need to add them here
+
     //Far predictions:
     for (Int_t far =0; far<MaxFar; far++)
     {

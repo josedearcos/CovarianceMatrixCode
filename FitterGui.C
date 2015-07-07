@@ -330,7 +330,7 @@ void FitterGui::DoFitter()
     
     BinningBox = new TGComboBox(fFitterFrame2,-1,kHorizontalFrame | kSunkenFrame | kDoubleBorder | kOwnBackground);
     BinningBox->SetName("BinningBox");
-    BinningBox->AddEntry("LBNL Binning",0);
+    BinningBox->AddEntry("Variable Binning",0);
     BinningBox->AddEntry("Linear Binning",1);
     BinningBox->Connect("Selected(Int_t)", "FitterGui", this, "DoBinning()");
     BinningBox->Select(0);//LBNL Binning default for now
@@ -1257,10 +1257,10 @@ void FitterGui::DoToyMC()
     
     BinningBox = new TGComboBox(fToyMCFrame2,-1,kHorizontalFrame | kSunkenFrame | kDoubleBorder | kOwnBackground);
     BinningBox->SetName("BinningBox");
-    BinningBox->AddEntry("LBNL Binning",0);
+    BinningBox->AddEntry("Variable Binning",0);
     BinningBox->AddEntry("Linear Binning",1);
     BinningBox->Connect("Selected(Int_t)", "FitterGui", this, "DoBinning()");
-    BinningBox->Select(1);//LBNL Binning default for now
+    BinningBox->Select(0);//LBNL Binning default for now
     fToyMCFrame2->AddFrame(BinningBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
     BinningBox->MoveResize(367,126,118,22);
     
@@ -4615,6 +4615,15 @@ void FitterGui::GenerateToyMC()
     
     Int_t DataSet=2;//0 is Simulation, 2 is P12E
 
+    if(Analysis)
+    {
+        AnalysisString = "Hydrogen";
+        
+    }
+    else
+    {
+        AnalysisString = "Gadolinium";
+    }
     
     NominalData* NData = new NominalData(Analysis,DataSet);
     //Chose Data Set
@@ -4967,7 +4976,7 @@ void FitterGui::GenerateToyMC()
             }
         }
         
-        TFile* TreeF1 = new TFile(Form("./ToyMCTrees/ToyMCTreeCombined%d.root",CombineMode),"recreate");
+        TFile* TreeF1 = new TFile(("./ToyMCTrees/"+AnalysisString+Form("/ToyMCTreeCombined%d.root",CombineMode)).c_str(),"recreate");
         TNom->Write();
         delete TreeF1;
         delete TNom;
@@ -5102,7 +5111,7 @@ void FitterGui::GenerateToyMC()
                 }
             }
             
-            TFile* TreeF2 = new TFile(Form("./ToyMCTrees/VariationsToyMCTreeCombined%d.root",CombineMode),"recreate");
+            TFile* TreeF2 = new TFile(("./ToyMCTrees/"+AnalysisString+Form("/VariationsToyMCTreeCombined%d.root",CombineMode)).c_str(),"recreate");
             TVar->Write();
             delete TreeF2;
             delete TVar;
@@ -5204,7 +5213,7 @@ void FitterGui::GenerateToyMC()
                         }
                     }
                     
-                    TFile* FTreeF = new TFile(Form("./ToyMCTrees/FakeExperiments%d_Combined_%d.root",SystematicI,CombineMode),"recreate");
+                    TFile* FTreeF = new TFile(("./ToyMCTrees/"+AnalysisString+Form("FakeExperiments%d_Combined_%d.root",SystematicI,CombineMode)).c_str(),"recreate");
                         TFake->Write();
                     delete FTreeF;
                     delete TFake;
@@ -5291,8 +5300,8 @@ void FitterGui::GenerateToyMC()
                             }
                         }
                     }
-                    
-                    TFile* TreeF2 = new TFile(Form("./ToyMCTrees/Variations%d_ToyMCTreeCombined%d.root",SystematicI,CombineMode),"recreate");
+
+                    TFile* TreeF2 = new TFile(("./ToyMCTrees/"+AnalysisString+Form("/Variations%d_ToyMCTreeCombined%d.root",SystematicI,CombineMode)).c_str(),"recreate");
                     TVar->Write();
                     delete TreeF2;
                     delete TVar;

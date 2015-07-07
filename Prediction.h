@@ -24,6 +24,7 @@
 #include "TAxis.h"
 #include "TArrayD.h"
 #include "TTree.h"
+#include "TPaletteAxis.h"
 
 #define UseChristineReactorModel
 #define Produce_Antineutrino_Spectrum_For_FirstTime
@@ -786,12 +787,15 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
         {
             PredictionVisH[far][near] = new TH1D(Form("Far AD%d from AD%d sin_%f DM_%f",far+1,near+1,sin22t13,Dm2_ee),Form("Far AD%d from AD%d sin_%f DM_%f",far+1,near+1,sin22t13,Dm2_ee),n_evis_bins,evis_bins);
             
-            GetOscillationPrediction(far,near);
+            GetOscillationPrediction(far,near);//Here add individual bins, with no background, in full time and with AD effects.
+            
+
         }
     }
 
     delete Osc;
     
+    //Combine predictions and add background
     std::cout << "\t \t \t IN COMBINED PREDICTION:" << std::endl;
     std::cout << "\t \t \t MaxFarCombine" << MaxFarCombine<< std::endl;
     std::cout << "\t \t \t MaxNearCombine" << MaxNearCombine << std::endl;
@@ -826,10 +830,11 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
         }
     }
     //Statistical fluctuation has to be done in the far AD directly
-    if (StatisticalFluctuation&&mode)
-    {
-        ApplyStatisticalFluctuation(CombinedReactorPredictionVisH[0]);
-    }
+//    if (StatisticalFluctuation&&mode)
+//    {
+//        
+//        ApplyStatisticalFluctuation(CombinedReactorPredictionVisH[0]);//This histogram is only used in the covariance matrix generation, and does not require of statistical fluctuation
+//    }
     
     //Combine matrices in 9x9, 2x2 or 1x1 prediction
     if (Combine == 1)
@@ -966,6 +971,8 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
     delete PredictionF1;
 
     std::cout << "\t Saved done" << std::endl;
+    
+    //Print the loaded predictions:
 #ifdef PrintEps
     if((firstNominalPrediction==0||firstRandomPrediction==0))//To print only once
     {
@@ -980,7 +987,12 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
             {
                 CombC->cd(MaxFarCombine*near+far+1);
                 CombinedPredictionVisH[far][near]->SetStats(1);
-                CombinedPredictionVisH[far][near]->Draw();
+                CombinedPredictionVisH[far][near]->SetTitle(Form("Far prediction combined from EH%d data", near+1));
+                CombinedPredictionVisH[far][near]->GetXaxis()->SetTitle("E_{vis} (MeV)");
+                CombinedPredictionVisH[far][near]->GetXaxis()->SetTitleSize(0.04);
+                CombinedPredictionVisH[far][near]->GetYaxis()->SetTitleSize(0.04);
+                CombinedPredictionVisH[far][near]->GetYaxis()->SetTitle("Events/day");
+                CombinedPredictionVisH[far][near]->Draw("HIST");
                 CombC->Modified();
             }
         }
@@ -999,6 +1011,11 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
             {
                 PredictionC->cd(MaxNearLoadOscModel*far+near+1);
                 //                PredictionVisH[far][near]->SetStats(0);
+                PredictionVisH[far][near]->SetTitle(Form("Far prediction from EH%d", near+1));
+                PredictionVisH[far][near]->GetXaxis()->SetTitle("E_{vis} (MeV)");
+                PredictionVisH[far][near]->GetXaxis()->SetTitleSize(0.04);
+                PredictionVisH[far][near]->GetYaxis()->SetTitleSize(0.04);
+                PredictionVisH[far][near]->GetYaxis()->SetTitle("Events");
                 PredictionVisH[far][near]->Draw("HIST");
             }
         }
@@ -1034,6 +1051,12 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
                 PredictionVisH[far][near]->SetTitle(Form("Far AD%d",far+1));
                 PredictionVisH[far][near]->SetLineColor(near+1);
                 PredictionVisH[far][near]->SetLineWidth(1);
+                PredictionVisH[far][near]->SetTitle(Form("Far prediction from EH%d", near+1));
+                
+                PredictionVisH[far][near]->GetXaxis()->SetTitle("E_{vis} (MeV)");
+                PredictionVisH[far][near]->GetXaxis()->SetTitleSize(0.04);
+                PredictionVisH[far][near]->GetYaxis()->SetTitleSize(0.04);
+                PredictionVisH[far][near]->GetYaxis()->SetTitle("Events");
                 
                 PredictionVisH[far][near]->Draw("same");
                 if(far==1)
@@ -1059,27 +1082,32 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
         delete AllPredictionC;
         if(ToyMC)//ToyMC uses reactor prediction
         {
-        TCanvas* AllReactorPredC = new TCanvas("AllReactorPredC","AllReactorPredC",MaxFarLoadOscModel*400,400);
-        
-        AllReactorPredC->Divide(ADsEH1+ADsEH2,1);
-        
-        for (Int_t far=ADsEH1+ADsEH2; far<NADs; far++)
-        {
-            AllReactorPredC->cd(far-ADsEH1-ADsEH2+1);
-
+            TCanvas* AllReactorPredC = new TCanvas("AllReactorPredC","AllReactorPredC",MaxFarLoadOscModel*400,400);
+            
+            AllReactorPredC->Divide(ADsEH1+ADsEH2,1);
+            
+            for (Int_t far=ADsEH1+ADsEH2; far<NADs; far++)
+            {
+                AllReactorPredC->cd(far-ADsEH1-ADsEH2+1);
+                
                 ReactorPredictionVisH[far]->SetStats(1);
                 ReactorPredictionVisH[far]->SetTitle(Form("Far AD%d",far+1));
                 ReactorPredictionVisH[far]->SetLineColor(far-ADsEH1-ADsEH2+1);
                 ReactorPredictionVisH[far]->SetLineWidth(1);
+                
+                ReactorPredictionVisH[far]->GetXaxis()->SetTitle("E_{vis} (MeV)");
+                ReactorPredictionVisH[far]->GetXaxis()->SetTitleSize(0.04);
+                ReactorPredictionVisH[far]->GetYaxis()->SetTitleSize(0.04);
+                ReactorPredictionVisH[far]->GetYaxis()->SetTitle("Events");
                 ReactorPredictionVisH[far]->Draw("HIST");
-        }
-        AllReactorPredC->Print(("./Images/"+AnalysisString+"/FitterInputs/"+RandomString+"AllReactorPredictions.eps").c_str(),".eps");
-
-        delete AllReactorPredC;
+            }
+            AllReactorPredC->Print(("./Images/"+AnalysisString+"/FitterInputs/"+RandomString+"AllReactorPredictions.eps").c_str(),".eps");
+            
+            delete AllReactorPredC;
         }
     }
 #endif
-    
+
     for (Int_t far = 0; far<MaxFarLoadOscModel; far++)
     {
         for (Int_t near = 0; near<MaxNearLoadOscModel; near++)
@@ -1101,7 +1129,7 @@ void Prediction :: GetOscillationPrediction(Int_t far, Int_t near)
     
     for(Int_t j = 0; j < n_evis_bins; j++)
     {
-        CopyOriginalPredictionH = Osc->GetOscillatedADSpectrum(far,near,j);
+        CopyOriginalPredictionH = Osc->GetOscillatedADSpectrum(far,near,j);//given in days, with no AD effects and no backgrounds
         
         //Integrate back to visible energy:
         
@@ -1119,8 +1147,10 @@ void Prediction :: GetReactorOscillationPrediction(Int_t AD, Int_t week)
         {
             TH1D* CopyOriginalPredictionH;
 
-            CopyOriginalPredictionH = OscRea->GetReactorOscillatedADSpectrum(AD,week,idx,idy);    //Given in Visible Energy already;
-            
+            CopyOriginalPredictionH = OscRea->GetReactorOscillatedADSpectrum(AD,week,idx,idy);    //Given in Visible Energy already, with detector effects, in fulltime and with background included.
+
+//                CopyOriginalPredictionH->Scale((FullTime[AD][week]*MultiMuonEff[AD][week]*DetectorProtons[AD][idx][idy]/DetectorProtons[0][idx][idy])); //Add detector effects and make it full time.
+//
             if(idx==0&&idy==0)
             {
                 SumCopyOriginalPredictionH=(TH1D*)CopyOriginalPredictionH->Clone();
@@ -1310,7 +1340,7 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
         TFile* f;
         //        if(!StatisticalFluctuation)
         //        {
-        f = new TFile(Form("./ToyMCTrees/ToyMCTreeCombined%d.root",Combine));
+        f = new TFile(("./ToyMCTrees/"+AnalysisString+Form("/ToyMCTreeCombined%d.root",Combine)).c_str());
         //            f = new TFile("./ToyMCTrees/TreeOnesCombine2.root");//test
         
         T = (TTree*)f->Get("TNom");//change for TNom
@@ -1608,7 +1638,8 @@ void Prediction :: GenerateInverseMatrix(Double_t sen22t13,Double_t dm2_ee,Int_t
         
 //        if(!StatisticalFluctuation)
 //        {
-            f = new TFile(Form("./ToyMCTrees/ToyMCTreeCombined%d.root",Combine));
+            f = new TFile(("./ToyMCTrees/"+AnalysisString+Form("/ToyMCTreeCombined%d.root",Combine)).c_str());
+
             T = (TTree*)f->Get("TNom");
         
             T->SetBranchAddress("sin22t13",&Tsin22t13);
@@ -1885,10 +1916,14 @@ void Prediction :: GenerateStatisticalCovarianceMatrix()
     }
     
     #ifdef PrintEps
-        TCanvas* StatisticalCovarianceMatrixC = new TCanvas("StatisticalCovarianceMatrixC","Statistical Cov",400,400);
+        TCanvas* StatisticalCovarianceMatrixC = new TCanvas("StatisticalCovarianceMatrixC","Statistical Cov",500,500);
         StatisticalCovarianceMatrixH->SetStats(0);
+        StatisticalCovarianceMatrixH->GetXaxis()->SetTitle("Bin number");
+        StatisticalCovarianceMatrixH->GetXaxis()->SetTitleSize(0.04);
+        StatisticalCovarianceMatrixH->GetYaxis()->SetTitleSize(0.04);
+        StatisticalCovarianceMatrixH->GetYaxis()->SetTitle("Bin number");
+
         StatisticalCovarianceMatrixH->Draw("colz");
-        
         StatisticalCovarianceMatrixC->Print(("./Images/"+AnalysisString+"/StatisticalCovarianceMatrix.eps").c_str(),".eps");
         
         delete StatisticalCovarianceMatrixC;
@@ -2085,8 +2120,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             {
                 for (Int_t far=0; far<MaxFarCombine; far++)
                 {
-
-                    FarDataH[far][near]->Add(CombinedFarBackgroundSpectrumH[far]);//because the prediction is done without backgrounds, so add them here
+                    FarDataH[far][near]->Add(CombinedFarBackgroundSpectrumH[far]);//because the prediction is done without backgrounds, so add them here and remove after statistical fluctuation
                     
                     if (StatisticalFluctuation)
                     {
@@ -2118,7 +2152,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
                 }
             }
         }
-        else
+        else//Toy MC TREE
         {
             TFile* f[MaxSystematics];
           
@@ -2126,7 +2160,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             {
                 NExperiments = 1;//This will make the difference between running a big number of fake experiments for performance testing or just fitting a fake experiment for fitter fake data test.
                 
-                f[0] = new TFile(Form("./ToyMCTrees/ToyMCTreeCombined%d.root",Combine));
+                f[0] = new TFile(("./ToyMCTrees/"+AnalysisString+Form("/ToyMCTreeCombined%d.root",Combine)).c_str());
                 
                 T = (TTree*)f[0]->Get("TNom");
                 T->SetBranchAddress("sin22t13",&Tsin22t13);
@@ -2187,12 +2221,11 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
                         
                         std::cout << "USING 101x101 VARIATIONS TREE" << std::endl;
 
-                        f[SystematicI] = new TFile(Form("./ToyMCTrees/Variations%d_ToyMCTreeCombined%d.root",SystematicI,Combine));
+                        f[SystematicI] = new TFile(("./ToyMCTrees/"+AnalysisString+Form("/Variations%d_ToyMCTreeCombined%d.root",SystematicI,Combine)).c_str());
                         
                         T = (TTree*)f[SystematicI]->Get("TVar");
                         T->SetBranchAddress("sin22t13",&Tsin22t13);
                         T->SetBranchAddress("dm2_ee",&Tdm2_ee);
-                        T->SetBranchAddress("Experiment",&TExperiment);
                         
                         if(Combine == 1)
                         {
@@ -2214,9 +2247,18 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             
             std::cout << "Number of toys: " << T->GetEntries() << std::endl;
             
-            T->GetEntry(Experiment+NExperiments*((Sin22t13-s22t13start)/SinWidth)*DataSteps+((DM2_ee-dm2_eestart)/(DeltaWidth)));//Calculate entry number for choosen sin22t13 and dm2_ee. The tree contains 100*100 grid points, with MaxFarCombine*MaxNearCombine predictions in each point.
-            std::cout << "Data TREE ENTRY: " << Experiment << (Experiment+NExperiments*((Sin22t13-s22t13start)/SinWidth)*DataSteps+((DM2_ee-dm2_eestart)/(DeltaWidth))) << " " << (DM2_ee-dm2_eestart)/(DeltaWidth) << " " << (Sin22t13-s22t13start)/SinWidth << std::endl;
+            if(Fake_Experiments)
+            {
+                T->GetEntry(Experiment+NExperiments*((Sin22t13-s22t13start)/SinWidth)*DataSteps+((DM2_ee-dm2_eestart)/(DeltaWidth)));//Calculate entry number for choosen sin22t13 and dm2_ee. The tree contains 100*100 grid points, with MaxFarCombine*MaxNearCombine predictions in each point.
+                std::cout << "Data TREE ENTRY: " << Experiment << " " << (Experiment+NExperiments*((Sin22t13-s22t13start)/SinWidth)*DataSteps+((DM2_ee-dm2_eestart)/(DeltaWidth))) << " " << (DM2_ee-dm2_eestart)/(DeltaWidth) << " " << (Sin22t13-s22t13start)/SinWidth << std::endl;
             
+            }
+            else
+            {
+                T->GetEntry(((Sin22t13-s22t13start)/SinWidth)*DataSteps+((DM2_ee-dm2_eestart)/(DeltaWidth)));//Calculate entry number for choosen sin22t13 and dm2_ee. The tree contains 100*100 grid points, with MaxFarCombine*MaxNearCombine predictions in each point.
+                std::cout << "Data TREE ENTRY: " << (((Sin22t13-s22t13start)/SinWidth)*DataSteps+((DM2_ee-dm2_eestart)/(DeltaWidth))) << " " << (DM2_ee-dm2_eestart)/(DeltaWidth) << " " << (Sin22t13-s22t13start)/SinWidth << std::endl;
+                
+            }
             std::cout << "   Data Sin inside tree " << Tsin22t13 << std::endl << "   Data DM inside tree " << Tdm2_ee << std::endl << std::endl;
             
             if(std::abs(Tsin22t13-Sin22t13)>0.00000001||std::abs(Tdm2_ee-DM2_ee)>0.00000001)
@@ -2273,6 +2315,14 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             {
                 NearC->cd(near+1);
                 NearDataH[near]->SetStats(1);
+                NearDataH[near]->GetXaxis()->SetTitle("E_{vis} (MeV)");
+                NearDataH[near]->GetXaxis()->SetTitleSize(0.04);
+                NearDataH[near]->GetYaxis()->SetTitleSize(0.04);
+                NearDataH[near]->GetYaxis()->SetTitle("Events");
+                NearDataH[near]->GetYaxis()->SetTitleOffset(1.4);
+                
+                NearDataH[near]->SetTitle(Form("AD%d spectrum",near+1));
+
                 NearDataH[near]->Draw("HIST");
             }
             
@@ -2286,6 +2336,12 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
                 for(Int_t far = 0; far < MaxFarCombine; far++)
                 {
                     FarC->cd(MaxFarCombine*near+far+1);
+                    FarDataH[far][near]->GetXaxis()->SetTitle("E_{vis} (MeV)");
+                    FarDataH[far][near]->GetXaxis()->SetTitleSize(0.04);
+                    FarDataH[far][near]->GetYaxis()->SetTitleSize(0.04);
+                    FarDataH[far][near]->GetYaxis()->SetTitleOffset(1.4);
+                    FarDataH[far][near]->GetYaxis()->SetTitle("Events");
+                    FarDataH[far][near]->SetTitle(Form("Far combined from EH%d data",near+1));
                     FarDataH[far][near]->Draw("HIST");
                 }
             }
@@ -2389,14 +2445,14 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             
             if(analysis)
             {
-                //I need data with GdLs-Ls
+                //I need separate GdLs and Ls volumes data files
 
                 exit(EXIT_FAILURE);
             }
             else
             {
-                //This works for gadollinum, but nH has different volumes!
-                FarDataH[far][0]->Scale(1./(FullTime[far][week]*MultiMuonEff[far][week]*DetectorProtons[far][0][0]/DetectorProtons[0][0][0]));
+                //This works for gadollinum, but nH has different volumes!// Right now I am comparing the data and the prediction with the detector effects included, and the full data
+              //  FarDataH[far][0]->Scale(1./(FullTime[far+(ADsEH1+ADsEH2)][week]*MultiMuonEff[far+(ADsEH1+ADsEH2)][week]*DetectorProtons[far+(ADsEH1+ADsEH2)][0][0]/DetectorProtons[0][0][0]));//FullTime
             }
             if(DataSet!=2)//need to rebin files to LBNL binning
             {
@@ -2478,7 +2534,8 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             else
             {
                 //This works for gadollinum, but nH has different volumes!
-                NearDataH[near]->Scale(1./(FullTime[near][week]*MultiMuonEff[near][week]*DetectorProtons[near][0][0]/DetectorProtons[0][0][0]));
+                //I could take out the detector efficiencies from data and compare data and prediction this way, but if I do so, the data will be in events/day and the statistical fluctuations will be too small.
+             //   NearDataH[near]->Scale(1./(FullTime[near][week]*MultiMuonEff[near][week]*DetectorProtons[near][0][0]/DetectorProtons[0][0][0]));//Full time
             }
 
             //need to rebin files to LBNL binning
@@ -2710,21 +2767,25 @@ void Prediction :: LoadBackgrounds(Int_t week,bool mode)
 
     sprintf(backgroundC,("./RootOutputs/"+ AnalysisString+ "/Backgrounds/"+RandomString+"Backgrounds.root").c_str());
     
+    //Backgrounds are given in days and AD effect corrected, need to scale them here:
     TFile* BackgroundsF = TFile::Open(backgroundC);
     for(Int_t idx = 0; idx < XCellLimit; idx++)
     {
         for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
         {
             NearBackgroundSpectrumH[near][idx]=(TH1D*)gDirectory->Get((Form("Near AD%i_Volume%i ",near,idx)+RandomString+ Form(" Background Period%i",week)).c_str());
+//            NearBackgroundSpectrumH[near][idx]->Scale((FullTime[near][week]*MultiMuonEff[near][week]*DetectorProtons[near][idx][0]/DetectorProtons[0][idx][0]));
+
         }
         for (Int_t far = 0; far < ADsEH3; far++)
         {
             FarBackgroundSpectrumH[far][idx]=(TH1D*)gDirectory->Get((Form("Far AD%i_Volume%i ",far,idx)+RandomString+ Form(" Background Period%i",week)).c_str());
+//            NearBackgroundSpectrumH[far][idx]->Scale((FullTime[far+(ADsEH1+ADsEH2)][week]*MultiMuonEff[far+(ADsEH1+ADsEH2)][week]*DetectorProtons[far+(ADsEH1+ADsEH2)][idx][0]/DetectorProtons[0][idx][0]));
         }
     }
     
     BackgroundsF->Close();
-
+    
     for (Int_t near = 0; near < ADsEH1+ADsEH2; near++)
     {
         CombinedNearBackgroundSpectrumH[near]=(TH1D*)NearBackgroundSpectrumH[near][0]->Clone();
@@ -3352,9 +3413,13 @@ void Prediction :: SaveCovarianceMatrices(Int_t week)
             {
                 if(TMath::Abs(UnityH->GetBinContent(i+1,j+1)-1)>=0.000000001)
                 {
+                    std::cout << " In bin " << i << std::endl;
+                    
                     std::cout << " INVERSE HAS NOT BEEN CALCULATED PROPERLY:" << UnityH->GetBinContent(i+1,j+1) << std::endl;
                     
-                    exit(EXIT_FAILURE);
+                    std::cout << " and the error is " << TMath::Abs(UnityH->GetBinContent(i+1,j+1)-1) << std::endl;
+                    
+                //    exit(EXIT_FAILURE);
                 }
             }
         }
@@ -4132,7 +4197,7 @@ void Prediction :: ApplyStatisticalFluctuation(TH1D* Histo)
 {
     for(Int_t VisibleEnergyIndex=1;VisibleEnergyIndex<=Histo->GetXaxis()->GetNbins();VisibleEnergyIndex++)
     {
-        rand->SetSeed(0);
+        rand->SetSeed(0);//The mean is the width of the bin * events in that bin, then we need to divide over the binwidth
         Histo->SetBinContent(VisibleEnergyIndex,(Double_t)(rand->PoissonD(Histo->GetBinContent(VisibleEnergyIndex)*Histo->GetXaxis()->GetBinWidth(VisibleEnergyIndex))/Histo->GetXaxis()->GetBinWidth(VisibleEnergyIndex)));
     }
 }

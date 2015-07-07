@@ -7,6 +7,7 @@
 #include "TString.h"
 using namespace std;
 
+#define TestSimpleCase
 int CreateFakeDataFile(){
     
     const Int_t NADs =6;
@@ -54,7 +55,15 @@ int CreateFakeDataFile(){
                 
                 if(column==1) row=atoi(sub.c_str());
                 
-                if(column>1 && sub!="") readvals[row][column-2]=atof(sub.c_str());
+                if(column>1 && sub!="")
+                {
+                    readvals[row][column-2]=atof(sub.c_str());
+                    
+#ifdef TestSimpleCase
+                    readvals[row][column-2]=10;
+#endif
+                }
+
                 column+=1;
             }//looping over columns
         }
