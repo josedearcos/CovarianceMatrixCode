@@ -2552,19 +2552,7 @@ void FitterGui::PlotErrorBudget()
 
 void FitterGui:: PlotTurnOnBudget()
 {
-    const char *dirnameOn;
-    
-    if(FitSin22t13)
-    {
-        dirnameOn= ("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/S2/",CombineMode)).c_str();
-    }
-    else
-    {
-        dirnameOn = ("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/DM/",CombineMode)).c_str();
-    }
-    
-    char *ext= Form(".root");
-    
+
     Int_t DataSet=2;//0 is Simulation, 2 is P12E
     
     NominalData* Data = new NominalData(Analysis,DataSet);
@@ -2590,8 +2578,21 @@ void FitterGui:: PlotTurnOnBudget()
     Int_t num = 0;
     TString fname[50];
     
+    const char *dirnameOn = ("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/S2/",CombineMode)).c_str();
+    
+    if(!FitSin22t13)
+    {
+        dirnameOn = ("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/DM/",CombineMode)).c_str();
+    }
+    
+    char *ext= Form(".root");
+    
+    std::cout << dirnameOn << ext << std::endl;
+
     TSystemDirectory dir(dirnameOn, dirnameOn);
     TList *files = dir.GetListOfFiles();
+    
+    
     
     if(files)
     {
@@ -2708,20 +2709,6 @@ void FitterGui:: PlotTurnOnBudget()
 
 void FitterGui:: PlotTurnOffBudget()
 {
-    const char *dirname;
-    
-    if(FitSin22t13)
-    {
-        dirname= ("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/S2/",CombineMode)).c_str();
-    }
-    else
-    {
-        dirname = ("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/DM/",CombineMode)).c_str();
-    }
-    
-    std::cout << dirname << std::endl;
-    char *ext= (Form(".root"));
-    
     BudgetCanvas->Clear();
     BudgetCanvas->Resize();
     
@@ -2746,6 +2733,16 @@ void FitterGui:: PlotTurnOffBudget()
     Double_t maxX=10;
     Int_t num = 0;
     TString fname[30];
+    
+    const char *dirname = ("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/S2/",CombineMode)).c_str();
+    
+    if(!FitSin22t13)
+    {
+        dirname = ("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/DM/",CombineMode)).c_str();
+    }
+    
+    std::cout << dirname << std::endl;
+    char *ext= (Form(".root"));
     
     TSystemDirectory dir(dirname, dirname);
     TList *files = dir.GetListOfFiles();
