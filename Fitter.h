@@ -798,7 +798,7 @@ void Fitter :: SaveSin1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
             ASinChiSquareH[week]->GetYaxis()->SetTitleSize(0.25);
             ASinChiSquareH[week]->GetYaxis()->SetTitle("#chi^{2}");
 
-            ASinChiSquareH[week]->SetStats(0);
+            ASinChiSquareH[week]->SetStats(ShowStatBoxInPlots);
             ASinChiSquareH[week]->GetFunction("fitpol2")->SetBit(TF1::kNotDraw);
             ASinChiSquareH[week]->Draw();
             
@@ -1096,7 +1096,7 @@ void Fitter :: SaveDM1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
             ADeltaChiSquareH[week]->GetXaxis()->SetTitle("#Delta^{2}m_{23}");
             ADeltaChiSquareH[week]->GetYaxis()->SetTitleSize(0.25);
             ADeltaChiSquareH[week]->GetYaxis()->SetTitle("#chi^{2}");
-            ADeltaChiSquareH[week]->SetStats(0);
+            ADeltaChiSquareH[week]->SetStats(ShowStatBoxInPlots);
             ADeltaChiSquareH[week]->GetFunction("fitpol1")->SetBit(TF1::kNotDraw);
             ADeltaChiSquareH[week]->Draw();
             
@@ -1206,7 +1206,7 @@ void Fitter :: Save2DFit(Int_t sample)
         #ifdef PrintEps
             TCanvas* Fit2DC = new TCanvas("2DC","2DC");
 
-            ChiSquare2DH[week]->SetStats(0);
+            ChiSquare2DH[week]->SetStats(ShowStatBoxInPlots);
             ChiSquare2DH[week]->Draw("colz");
             
             

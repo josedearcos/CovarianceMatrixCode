@@ -34,9 +34,13 @@
 
 //#define TestExternalInputs
 #define PrintOnConsole
-//To interpolate the chi2 curves
-const Int_t InterpolationFactor = 100;
+
+//To plot the stat box:
 const Int_t SetStats = 1111001;//neimr or 1111001 to show integral in statbox, 0 to don't show stats in the plots
+
+//To interpolate the chi2 curves
+
+const Int_t InterpolationFactor = 100;
 
 TH1D* RatioH[MaximumSamples][MaxFarDetectors][MaxNearDetectors];
 TH1D* SpectrumH[MaximumSamples][MaxFarDetectors][MaxNearDetectors];
@@ -2659,7 +2663,7 @@ void FitterGui:: PlotTurnOnBudget()
         legend->SetTextSize(0.01);
         
         InterpolateHisto[0]->SetMaximum(2.5);
-        InterpolateHisto[0]->SetStats(0);
+        InterpolateHisto[0]->SetStats(ShowStatBoxInPlots);
         InterpolateHisto[0]->GetXaxis()->SetTitleOffset(1.3);
         InterpolateHisto[0]->GetXaxis()->SetTitleSize(0.03);
         InterpolateHisto[0]->GetXaxis()->SetLabelSize(0.025);
@@ -2817,7 +2821,7 @@ void FitterGui:: PlotTurnOffBudget()
         legend->SetTextFont(72);
         legend->SetTextSize(0.01);
         
-        InterpolateHisto[0]->SetStats(0);
+        InterpolateHisto[0]->SetStats(ShowStatBoxInPlots);
         InterpolateHisto[0]->SetTitle("");
         InterpolateHisto[0]->GetXaxis()->SetLabelSize(0.025);
         InterpolateHisto[0]->GetXaxis()->SetTitleOffset(1.3);
@@ -3175,14 +3179,39 @@ void FitterGui::PlotNear()
     FractionCanvas->Divide(Reactors,NearADs);
     
     TH1D* NearH[NearADs][Reactors];
-    
+    Char_t filenamenear[100];
+
     TFile* NearF = new TFile(("./RootOutputs/"+AnalysisString+"/Spectra/NearSpectrumFraction.root").c_str());
+    
     
     for(Int_t i = 0; i < NearADs; i++)//6 = reactors
     {
         for(Int_t r = 0; r < Reactors; r++)//6 = reactors
         {
-            NearH[i][r] = (TH1D*)NearF->Get(Form("AD%d Near Spectrum fraction from Reactor%d Vis%d",i+1,r+1,PlotBin+1));
+            if(Analysis)
+            {
+                if(Period==1)
+                {
+                    sprintf(filenamenear,"AD%i Near Spectrum fraction from Reactor%i Vis%i Cell%i,%i", i+1, r+1,PlotBin+1,1,0);
+                }
+                else
+                {
+                    sprintf(filenamenear,"AD%i Near Spectrum fraction from Reactor%i, Week%i Vis%i Cell%i,%i", i+1, r+1, 0+1,PlotBin+1,1,0);
+                }
+            }
+            else
+            {
+                if(Period==1)
+                {
+                    sprintf(filenamenear,"AD%i Near Prediction Vis%i, Cell%i,%i", i+1,PlotBin+1,0,0);
+                }
+                else
+                {
+                    sprintf(filenamenear,"AD%i Near Prediction, Week%i Vis%i, Cell%i,%i", i+1,0+1,PlotBin+1,0,0);
+                }
+            }
+            
+            NearH[i][r] = (TH1D*)NearF->Get(filenamenear);
         }
     }
     
@@ -3283,7 +3312,8 @@ void FitterGui::PlotNearADTrue()
     
     TFile* NearF = new TFile(("./RootOutputs/"+AnalysisString+"/Spectra/NearSpectrumFraction.root").c_str());
     
-    TH1D* NbinsH = (TH1D*)NearF->Get(Form("AD%d Near Spectrum fraction from Reactor%d Vis%d",1,1,1));
+    TH1D* NbinsH = (TH1D*)NearF->Get(Form("AD%d Near Spectrum fraction from Reactor%d Vis%d Cell0,0",1,1,1));
+    Char_t filenamenear2[100];
     
     for(Int_t i = 0; i < NearADs; i++)
     {
@@ -3291,7 +3321,30 @@ void FitterGui::PlotNearADTrue()
         {
             for(Int_t Bin = 0; Bin < NbinsH->GetXaxis()->GetNbins(); Bin++)
             {
-                NearFractionH[i][r] = (TH1D*)NearF->Get(Form("AD%d Near Spectrum fraction from Reactor%d Vis%d",i+1,r+1,Bin+1));
+                if(Analysis)
+                {
+                    if(Period==1)
+                    {
+                        sprintf(filenamenear2,"AD%i Near Spectrum fraction from Reactor%i Vis%i Cell%i,%i", i+1, r+1,Bin+1,1,0);
+                    }
+                    else
+                    {
+                        sprintf(filenamenear2,"AD%i Near Spectrum fraction from Reactor%i, Week%i Vis%i Cell%i,%i", i+1, r+1, 0+1,Bin+1,1,0);
+                    }
+                }
+                else
+                {
+                    if(Period==1)
+                    {
+                        sprintf(filenamenear2,"AD%i Near Prediction Vis%i, Cell%i,%i", i+1,Bin+1,0,0);
+                    }
+                    else
+                    {
+                        sprintf(filenamenear2,"AD%i Near Prediction, Week%i Vis%i, Cell%i,%i", i+1,0+1,Bin+1,0,0);
+                    }
+                }
+                
+                NearFractionH[i][r] = (TH1D*)NearF->Get(filenamenear2);
                 if(Bin==0)
                 {
                     NearTrueH[i][r] = (TH1D*)NearFractionH[i][r]->Clone();
@@ -3315,7 +3368,7 @@ void FitterGui::PlotNearADTrue()
         for(Int_t r = 0; r < Reactors; r++)//6 = reactors
         {
             ADTrueCanvas->cd(r+Reactors*i+1);
-            NearTrueH[i][r]->SetStats(kTRUE);
+            NearTrueH[i][r]->SetStats(ShowStatBoxInPlots);
             NearTrueH[i][r]->Draw();
         }
     }
@@ -3360,22 +3413,23 @@ void FitterGui::PlotFarADTrue()
     TH1D* FarTrueH[FarADs][Reactors];
     
     TFile* FarF = new TFile(("./RootOutputs/"+AnalysisString+"/Spectra/FarSpectrumFraction.root").c_str());
-    
+
     TH1D* NbinsH = (TH1D*)FarF->Get(Form("AD%i Far Spectrum fraction from Reactor%i and near AD%i, Week%i Vis%i",NearADs+1,1,1,1,1));
-    
-    for(Int_t j = 0; j < NearADs; j++)
+
+    for(Int_t j = 0; j < FarADs; j++)
     {
         for(Int_t r = 0; r < Reactors; r++)//6 = reactors
         {
             for(Int_t Bin = 0; Bin < NbinsH->GetXaxis()->GetNbins(); Bin++)
             {
-                FarH[j][r] = (TH1D*)FarF->Get(Form("AD%i Far Spectrum fraction from Reactor%i and near AD%i, Vis%i, Cell0,0", j+(NearADs)+1, r+1, NearTrueIndex+1,Bin+1));
+                FarH[j][r] = (TH1D*)FarF->Get(Form("AD%i Far Spectrum fraction from Reactor%i and near AD%i, Week%i Vis%i", j+(NearADs)+1, r+1, NearTrueIndex+1,1,Bin+1));
                 
                 if(Bin==0)
                 {
                     FarTrueH[j][r] = (TH1D*)FarH[j][r]->Clone();
-                    FarTrueH[j][r]->SetTitle(Form("Far AD%d Prediction from near AD%i Reactor%d fraction",j+1,NearTrueIndex+1,r+1));
+                    FarTrueH[j][r]->SetTitle(Form("AD%i Far Spectrum prediction from near AD%i Vis%i",j+1,NearTrueIndex+1,Bin+1));
                 }
+                
                 else
                 {
                     FarTrueH[j][r]->Add(FarH[j][r]);
@@ -3651,6 +3705,15 @@ void FitterGui:: ChoosePlotRatioVariations()
         deleteFlag = 0;
     }
     
+    Int_t LocalNSamples = NSamples;
+    if(VariationsPlotBox->GetSelected()>8)
+    {
+        if(Analysis)
+        {
+            LocalNSamples = 1;
+        }
+    }
+    
     TFile* VarF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/Spectrum/",CombineMode)+VarString+".root").c_str());
     
     VCanvas->Clear();
@@ -3680,7 +3743,7 @@ void FitterGui:: ChoosePlotRatioVariations()
         {
             for(Int_t near = 0; near< MaxNear; near++)
             {
-                for(Int_t sample = 0; sample< NSamples; sample++)
+                for(Int_t sample = 0; sample< LocalNSamples; sample++)
                 {
                     RatioH[sample][far][near] = (TH1D*)VarF->Get(Form("Relative error Far AD%d from Near AD%d Spectra Sample%i Period%d",far,near, sample,Period-1));
                 }
@@ -3700,6 +3763,7 @@ void FitterGui:: ChoosePlotRatioVariations()
 //    {
         MaxPlotNear=MaxNear;
 //    }
+ 
     
     for(Int_t far = 0; far< MaxFar; far++)
     {
@@ -3710,7 +3774,7 @@ void FitterGui:: ChoosePlotRatioVariations()
             RatioH[0][far][near]->SetTitle((VarString+" Ratio").c_str());
             RatioH[0][far][near]->GetYaxis()->SetRangeUser(-0.5,0.5);
             
-            for(Int_t sample = 0; sample< NSamples; sample++)
+            for(Int_t sample = 0; sample< LocalNSamples; sample++)
             {
                 RatioH[sample][far][near]->Draw("HIST same");
             }
@@ -3753,6 +3817,16 @@ void FitterGui:: ChoosePlotSpectrumVariations()
 //        MaxNear = 1;
 //    }
     
+    
+    Int_t LocalNSamples = NSamples;
+    if(VariationsPlotBox->GetSelected()>8)
+    {
+        if(Analysis)
+        {
+            LocalNSamples = 1;
+        }
+    }
+    
     if(deleteFlagSpec == 1)
     {
         for(Int_t far = 0; far< MaxFar; far++)
@@ -3761,7 +3835,7 @@ void FitterGui:: ChoosePlotSpectrumVariations()
             {
                 delete NominalSpectrumH[far][near];
                 
-                for(Int_t sample = 0; sample< NSamples; sample++)
+                for(Int_t sample = 0; sample< LocalNSamples; sample++)
                 {
                     delete SpectrumH[sample][far][near];
                 }
@@ -3800,14 +3874,14 @@ void FitterGui:: ChoosePlotSpectrumVariations()
 //    {
         VCanvas->SetCanvasSize(frame_height*MaxNear,frame_height*MaxFar);
         VCanvas->Divide(MaxNear,MaxFar);
-        
+
         for(Int_t far = 0; far< MaxFar; far++)
         {
             for(Int_t near = 0; near< MaxNear; near++)
             {
                 NominalSpectrumH[far][near] = (TH1D*)VarF->Get(Form("Nominal Far AD%d prediction from Near AD%d VisH Sample0 Period%d",far, near, Period-1));
                 
-                for(Int_t sample = 0; sample< NSamples; sample++)
+                for(Int_t sample = 0; sample< LocalNSamples; sample++)
                 {
                     SpectrumH[sample][far][near] = (TH1D*)VarF->Get(Form("Varied Far AD%d prediction from Near AD%d VisH Sample%i Period%d",far, near,sample, Period-1));
                 }
@@ -3836,7 +3910,7 @@ void FitterGui:: ChoosePlotSpectrumVariations()
         {
             VCanvas->cd(near+far*MaxPlotNear+1);
             
-            for(Int_t sample = 0; sample< NSamples; sample++)
+            for(Int_t sample = 0; sample< LocalNSamples; sample++)
             {
                 SpectrumH[sample][far][near]->Draw("HIST same");
             }
@@ -4017,7 +4091,7 @@ void FitterGui::ChoosePlotCov()
     centerpad->Draw();
     centerpad->cd();
 
-    CovMatrix2H->SetStats(kFALSE);
+    CovMatrix2H->SetStats(ShowStatBoxInPlots);
     if(PlotCovariance&&CombineMode!=0)
     {
         CovMatrix2H->GetYaxis()->SetRange(1,bins);
@@ -4025,8 +4099,8 @@ void FitterGui::ChoosePlotCov()
     }
     
     CovMatrix2H->Draw("colz");
-    CovMatrix2H->Draw("colz");
-    CovMatrix2H->Draw("colz");
+    //CovMatrix2H->Draw("colz");
+    //CovMatrix2H->Draw("colz");
     CovMatrix2H->SetTitle("");
     
     centerpad->Update();
@@ -4084,7 +4158,7 @@ void FitterGui::ChoosePlotCov()
 //                    delSpaces(TCorName);
 //                }
 //            }
-//            h->SetStats(0);
+//            h->SetStats(ShowStatBoxInPlots);
 //            h->SetTitle("");
 //            h->Draw("colz");
 //
@@ -4521,7 +4595,8 @@ void FitterGui::PlotChi()
     
     if(Fit2D)
     {
-        ChiH->Draw("colz");
+        gPad->SetLogz();
+        ChiH->Draw("CONTZ");
         ChiCanvas->Print(("./Images/"+AnalysisString+"/ChiSquareResults/2DFit.eps").c_str(),".eps");
     }
     else
@@ -4553,7 +4628,7 @@ void FitterGui::DoChangeSinSquareOscillationParameter()
     
     Histo1D = Histo->ProjectionX("SinSlice",Sin22t13SliderValue+1,Sin22t13SliderValue+1);
     
-    Histo1D->SetStats(kFALSE);
+    Histo1D->SetStats(ShowStatBoxInPlots);
     Histo1D->Draw();
     
     ChiCanvas->Update();
@@ -4572,7 +4647,7 @@ void FitterGui::DoChangeDeltaSquareOscillationParameter()
     
     Histo1D = Histo->ProjectionY("DeltaSlice",DeltaMSilderValue+1,DeltaMSilderValue+1);
     
-    Histo1D->SetStats(kFALSE);
+    Histo1D->SetStats(ShowStatBoxInPlots);
     Histo1D->Draw();
     
     ChiCanvas->Update();
@@ -5423,7 +5498,7 @@ void FitterGui :: CalculateBinning()
         }
         else
         {
-            visible_bins=37;//Using same binning for nH
+            visible_bins=34;
         }
     }
     

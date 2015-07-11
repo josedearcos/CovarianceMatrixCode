@@ -720,7 +720,7 @@ void CreateEnergyMatrix :: GenerateEnergyMatrix(Double_t sin22t13, Double_t dm2_
 
         TCanvas* EnergyC = new TCanvas("EnergyC","EnergyC");
         EnergyC->SetLogz();
-        EnergyMatrixH->SetStats(0);
+        EnergyMatrixH->SetStats(ShowStatBoxInPlots);
         EnergyMatrixH->SetTitle("E_{vis} - E_{#nu}");
         EnergyMatrixH->Draw("colz");
         

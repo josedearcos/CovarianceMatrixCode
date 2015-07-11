@@ -180,7 +180,7 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
         
 #ifdef PrintEps
         TCanvas* originalcrossc = new TCanvas("OriginalCrossC","OriginalCrossC");
-        OriginalCrossSectionH->SetStats(0);
+        OriginalCrossSectionH->SetStats(ShowStatBoxInPlots);
         OriginalCrossSectionH->SetYTitle("Cross section / s / cm^{2}");
         OriginalCrossSectionH->SetXTitle("Energy [MeV]");
         OriginalCrossSectionH->Draw();
@@ -236,7 +236,7 @@ void AntineutrinoSpectrum :: LoadCrossSectionFile()
     
     #ifdef PrintEps
         TCanvas* crossc = new TCanvas("CrossC","CrossC");
-        CrossSectionH->SetStats(0);
+        CrossSectionH->SetStats(ShowStatBoxInPlots);
         CrossSectionH->SetYTitle("Cross section / year / km^{2}");
         CrossSectionH->SetXTitle("Energy [MeV]");
         CrossSectionH->Draw();
@@ -266,7 +266,7 @@ void AntineutrinoSpectrum :: AntineutrinoSpectrumMain(bool mode)
     for(Int_t reactor=0; reactor<NReactors;reactor++)
     {
         TotalReactorSpectrumH[reactor] = (TH1D*)gDirectory->Get(Form("SpectrumFromReactor%i", reactor+1));
-        TotalReactorSpectrumH[reactor]->SetStats(0);
+        TotalReactorSpectrumH[reactor]->SetStats(ShowStatBoxInPlots);
         TotalReactorSpectrumH[reactor]->GetXaxis()->SetTitle("E [MeV]");
         TotalReactorSpectrumH[reactor]->GetYaxis()->SetTitle("#bar{#nu_{e}} [MeV^{-1} fissions^{-1}]");
         TotalReactorSpectrumH[reactor]->SetTitle("#nu spectrum");

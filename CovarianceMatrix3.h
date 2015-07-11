@@ -1104,6 +1104,8 @@ void CovarianceMatrix3 :: SaveSpectrum(Int_t sample, Int_t week)
             sprintf(filenameSpec,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/Spectrum/Nominal.root").c_str(),Combine);
             break;
     }
+    if(SystematicE>0)
+    {
     switch (SystematicE)
     {
         case 0://Vary Reactor
@@ -1149,7 +1151,7 @@ void CovarianceMatrix3 :: SaveSpectrum(Int_t sample, Int_t week)
             sprintf(filenameSpec,("./CovarianceMatrices/"+AnalysisString+ "/Combine%d/Spectrum/Nominal.root").c_str(),Combine);
             break;
     }
-
+    }
     std::cout << "saving " << filenameSpec << std::endl;
     
     TFile* SpectrumAndPredictionsF = TFile::Open(filenameSpec,optionN);

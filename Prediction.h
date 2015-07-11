@@ -986,7 +986,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
             for (Int_t far =0; far<MaxFarCombine; far++)
             {
                 CombC->cd(MaxFarCombine*near+far+1);
-                CombinedPredictionVisH[far][near]->SetStats(1);
+                CombinedPredictionVisH[far][near]->SetStats(ShowStatBoxInPlots);
                 CombinedPredictionVisH[far][near]->SetTitle(Form("Far prediction combined from EH%d data", near+1));
                 CombinedPredictionVisH[far][near]->GetXaxis()->SetTitle("E_{vis} (MeV)");
                 CombinedPredictionVisH[far][near]->GetXaxis()->SetTitleSize(0.04);
@@ -1011,7 +1011,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
             for (Int_t near = 0; near < MaxNearLoadOscModel; near++)
             {
                 PredictionC->cd(MaxNearLoadOscModel*far+near+1);
-                //                PredictionVisH[far][near]->SetStats(0);
+                PredictionVisH[far][near]->SetStats(ShowStatBoxInPlots);
                 PredictionVisH[far][near]->SetTitle(Form("Far prediction from EH%d", near+1));
                 PredictionVisH[far][near]->GetXaxis()->SetTitle("E_{vis} (MeV)");
                 PredictionVisH[far][near]->GetXaxis()->SetTitleSize(0.04);
@@ -1049,7 +1049,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
             
             for (Int_t near = 0; near < MaxNearLoadOscModel; near++)
             {
-                PredictionVisH[far][near]->SetStats(1);
+                PredictionVisH[far][near]->SetStats(ShowStatBoxInPlots);
                 PredictionVisH[far][near]->SetTitle(Form("Far AD%d",far+1));
                 PredictionVisH[far][near]->SetLineColor(near+1);
                 PredictionVisH[far][near]->SetLineWidth(1);
@@ -1093,7 +1093,7 @@ void Prediction :: MakePrediction(Double_t sin22t13, Double_t dm2_ee, bool mode,
             {
                 AllReactorPredC->cd(far-ADsEH1-ADsEH2+1);
                 
-                ReactorPredictionVisH[far]->SetStats(1);
+                ReactorPredictionVisH[far]->SetStats(ShowStatBoxInPlots);
                 ReactorPredictionVisH[far]->SetTitle(Form("Far AD%d",far+1));
                 ReactorPredictionVisH[far]->SetLineColor(far-ADsEH1-ADsEH2+1);
                 ReactorPredictionVisH[far]->SetLineWidth(1);
@@ -1926,7 +1926,7 @@ void Prediction :: GenerateStatisticalCovarianceMatrix()
     centerpad->Draw();
     centerpad->cd();
     
-    StatisticalCovarianceMatrixH->SetStats(0);
+    StatisticalCovarianceMatrixH->SetStats(ShowStatBoxInPlots);
     StatisticalCovarianceMatrixH->GetXaxis()->SetTitle("Bin number");
     StatisticalCovarianceMatrixH->GetXaxis()->SetTitleSize(0.04);
     StatisticalCovarianceMatrixH->GetYaxis()->SetTitleSize(0.04);
@@ -2119,6 +2119,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             
             if (StatisticalFluctuation)
             {
+                rand->SetSeed(1+near);
                 ApplyStatisticalFluctuation(NearDataH[near]);
             }
         }
@@ -2149,6 +2150,8 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
                     
                     if (StatisticalFluctuation)
                     {
+                        rand->SetSeed(6+near*MaxFarCombine+far);
+                        
                         ApplyStatisticalFluctuation(FarDataH[far][near]);
                     }
                 }
@@ -2339,7 +2342,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
             {
                 NearC->cd(near+1);
-                NearDataH[near]->SetStats(1);
+                NearDataH[near]->SetStats(ShowStatBoxInPlots);
                 NearDataH[near]->GetXaxis()->SetTitle("E_{vis} (MeV)");
                 NearDataH[near]->GetXaxis()->SetTitleSize(0.04);
                 NearDataH[near]->GetYaxis()->SetTitleSize(0.04);
@@ -2361,12 +2364,13 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
                 for(Int_t far = 0; far < MaxFarCombine; far++)
                 {
                     FarC->cd(MaxFarCombine*near+far+1);
+                    FarDataH[far][near]->SetStats(ShowStatBoxInPlots);
                     FarDataH[far][near]->GetXaxis()->SetTitle("E_{vis} (MeV)");
                     FarDataH[far][near]->GetXaxis()->SetTitleSize(0.04);
                     FarDataH[far][near]->GetYaxis()->SetTitleSize(0.04);
                     FarDataH[far][near]->GetYaxis()->SetTitleOffset(1.5);
                     FarDataH[far][near]->GetYaxis()->SetTitle("Events");
-                    FarDataH[far][near]->SetTitle(Form("Far combined from EH%d data",near+1));
+                    FarDataH[far][near]->SetTitle(Form("Far prediction combined from EH%d data",near+1));
                     FarDataH[far][near]->Draw("HIST");
                 }
             }
@@ -2603,7 +2607,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
         for(Int_t near = 0; near < ADsEH1+ADsEH2; near++)
         {
             NearDataC->cd(near+1);
-            NearDataH[near]->SetStats(1);
+            NearDataH[near]->SetStats(ShowStatBoxInPlots);
             NearDataH[near]->Draw("HIST");
         }
         
@@ -2718,7 +2722,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
         {
             CombinedNearC->cd(near+1);
             
-            CombinedNearDataH[near]->SetStats(1);
+            CombinedNearDataH[near]->SetStats(ShowStatBoxInPlots);
             CombinedNearDataH[near]->Draw("HIST");
         }
         
@@ -4222,7 +4226,7 @@ void Prediction :: ApplyStatisticalFluctuation(TH1D* Histo)
 {
     for(Int_t VisibleEnergyIndex=1;VisibleEnergyIndex<=Histo->GetXaxis()->GetNbins();VisibleEnergyIndex++)
     {
-        rand->SetSeed(500+VisibleEnergyIndex);//The mean is the width of the bin * events in that bin, then we need to divide over the binwidth
+        //The mean is the width of the bin * events in that bin, then we need to divide over the binwidth
         Histo->SetBinContent(VisibleEnergyIndex,(Double_t)(rand->PoissonD(Histo->GetBinContent(VisibleEnergyIndex)*Histo->GetXaxis()->GetBinWidth(VisibleEnergyIndex))/Histo->GetXaxis()->GetBinWidth(VisibleEnergyIndex)));
     }
 }
@@ -4293,13 +4297,13 @@ void Prediction :: InvertMatrix(Int_t week)
         TCanvas* unityC = new TCanvas("unityC","unityC",1200,400);
         unityC->Divide(3,1);
         unityC->cd(1);
-        TotalCovarianceMatrixH->SetStats(kFALSE);
+        TotalCovarianceMatrixH->SetStats(ShowStatBoxInPlots);
         TotalCovarianceMatrixH->Draw("colz");
         unityC->cd(2);
-        InvTotalCovarianceMatrixH->SetStats(kFALSE);
+        InvTotalCovarianceMatrixH->SetStats(ShowStatBoxInPlots);
         InvTotalCovarianceMatrixH->Draw("colz");
         unityC->cd(3);
-        UnityH->SetStats(kFALSE);
+        UnityH->SetStats(ShowStatBoxInPlots);
         UnityH->SetTitle("Unity Matrix");
         UnityH->Draw("colz");
         unityC->Update();

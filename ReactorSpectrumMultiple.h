@@ -388,7 +388,7 @@ void ReactorSpectrumMultiple :: MultipleReactorSpectrumMain(bool mode)
             legend->AddEntry(NominalSpectra[reactor],Form("Core #%d",reactor),"l");
             
             SaveReactor->cd((NReactors+reactor)+1);
-            NominalSpectra[reactor]->SetStats(0);
+            NominalSpectra[reactor]->SetStats(ShowStatBoxInPlots);
             NominalSpectra[reactor]->SetTitle("");
             NominalSpectra[reactor]->SetLineColor(reactor+1);
             NominalSpectra[reactor]->GetXaxis()->SetTitle("E_{true} (MeV)");

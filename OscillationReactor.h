@@ -1187,7 +1187,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         for (Int_t AD = 0; AD <NADs; AD++)
         {
             AntineutrinoSpectrumC->cd(AD+1);
-            
+            TotalOscillatedSpectrumAD[AD]->SetStats(ShowStatBoxInPlots);
             TotalOscillatedSpectrumAD[AD]->GetXaxis()->SetTitle("E_{true} (MeV)");
             TotalOscillatedSpectrumAD[AD]->GetXaxis()->SetTitleSize(0.04);
             TotalOscillatedSpectrumAD[AD]->GetYaxis()->SetTitleSize(0.04);
@@ -1211,6 +1211,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
             for (Int_t AD = 0; AD <NADs; AD++)
             {
                 ScaledOscillatedC->cd(AD+idx*NADs+1);
+                ScaledOscillatedSpectrumAD[AD][idx][idy]->SetStats(ShowStatBoxInPlots);
                 ScaledOscillatedSpectrumAD[AD][idx][idy]->GetXaxis()->SetTitle("E_{true} (MeV)");
                 ScaledOscillatedSpectrumAD[AD][idx][idy]->GetXaxis()->SetTitleSize(0.04);
                 ScaledOscillatedSpectrumAD[AD][idx][idy]->GetYaxis()->SetTitleSize(0.04);
@@ -1263,26 +1264,26 @@ void OscillationReactor :: GenerateVisibleSpectrum()
                 TCanvas* CheckC = new TCanvas("CheckC","CheckC",1600,1600);
                 CheckC->Divide(2,2);
                 CheckC->cd(1);
-                ShiftHisto->SetStats(0);
+                ShiftHisto->SetStats(ShowStatBoxInPlots);
                 ShiftHisto->SetTitle("IBD Kinematics");
                 //            ShiftHisto->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());//Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
                 
                 ShiftHisto->Draw();
                 CheckC->cd(2);
-                IAVHisto->SetStats(0);
+                IAVHisto->SetStats(ShowStatBoxInPlots);
                 IAVHisto->SetTitle("IAV correction");
                 //            IAVHisto->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());//Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
                 
                 IAVHisto->Draw();
                 
                 CheckC->cd(3);
-                NLHisto->SetStats(0);
+                NLHisto->SetStats(ShowStatBoxInPlots);
                 NLHisto->SetTitle("Non-linearity correction");
                 //            NLHisto->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());//Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
                 
                 NLHisto->Draw();
                 CheckC->cd(4);
-                VisibleHisto[AD][0][0]->SetStats(0);
+                VisibleHisto[AD][0][0]->SetStats(ShowStatBoxInPlots);
                 VisibleHisto[AD][0][0]->SetTitle("Visible energy");
                 //            VisibleHisto[AD]->Scale(IBDEvents[AD][week]/VisibleHisto[AD]->Integral());//Here AD effects are included! CORRECT FOR EFFICIENCIES IN OSCILLATION
                 VisibleHisto[AD][0][0]->Draw();
@@ -1488,7 +1489,7 @@ void OscillationReactor :: GenerateVisibleSpectrum()
     }
     
     #ifdef PrintEps
-    TCanvas* PredictionC = new TCanvas("PredictionC","PredictionC");
+    TCanvas* PredictionC = new TCanvas("PredictionC","PredictionC",700*(NADs/2),500*(XCellLimit*YCellLimit*2));
 
     PredictionC->Divide(NADs/2,XCellLimit*YCellLimit*2);
     
@@ -1498,10 +1499,10 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         {
             for(Int_t AD = 0; AD<NADs; AD++)
             {
-                VisibleHisto[AD][idx][idy]->SetStats(1);
+                VisibleHisto[AD][idx][idy]->SetStats(ShowStatBoxInPlots);
                 
                 PredictionC->cd(AD+idy*NADs+NADs*YCellLimit*idx+1);
-                
+                VisibleHisto[AD][idx][idy]->SetStats(ShowStatBoxInPlots);
                 VisibleHisto[AD][idx][idy]->SetTitle((Form("Spectrum in AD%d, ",AD+1) + VolumeString[idx]).c_str());
 
                 VisibleHisto[AD][idx][idy]->GetXaxis()->SetTitle("E_{vis} (MeV)");
@@ -1581,12 +1582,12 @@ void OscillationReactor :: GenerateVisibleSpectrum()
         {
             for(Int_t AD = 0; AD<NADs; AD++)
             {
-                VisibleHisto[AD][idx][idy]->SetStats(1);
+                VisibleHisto[AD][idx][idy]->SetStats(ShowStatBoxInPlots);
                 
                 PredictionC2->cd(AD+idy*NADs+NADs*YCellLimit*idx+1);
                 
                 VisibleHisto[AD][idx][idy]->SetTitle((Form("Spectrum in AD%d, ",AD+1) + VolumeString[idx]).c_str());
-                
+                VisibleHisto[AD][idx][idy]->SetStats(ShowStatBoxInPlots);
                 VisibleHisto[AD][idx][idy]->GetXaxis()->SetTitle("E_{vis} (MeV)");
                 VisibleHisto[AD][idx][idy]->GetXaxis()->SetTitleSize(0.04);
                 VisibleHisto[AD][idx][idy]->GetYaxis()->SetTitleSize(0.04);
@@ -1938,7 +1939,7 @@ void OscillationReactor :: RandomIAVMatrix()
         TCanvas* IAVC = new TCanvas("IAVC","IAVC");
         IAVC->SetLogz();
         
-        NominalIAVMatrixH->SetStats(0);
+        NominalIAVMatrixH->SetStats(ShowStatBoxInPlots);
         NominalIAVMatrixH->SetTitle("");
         NominalIAVMatrixH->Draw("colz");
         

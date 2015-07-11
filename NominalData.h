@@ -16,6 +16,8 @@
 
 #include <assert.h>
 
+const Bool_t ShowStatBoxInPlots = kFALSE;//kTRUE
+
 #define UseVolumes //To use 2 volumes, otherwise 100 cells.
 //#define EREC_COMPARISON // To calculate the response matrices using ERec, and check the fit result of theta 13 using ERec data and prediction.
 
@@ -31,7 +33,7 @@
 
 #define PrintEps//To save results in .eps files
 //#define BlindedAnalysis // To use blinded reactor model and distances. Not all the files are operative (only those coming from Christine's reactor model)
-const bool DeltaMee = 0;//Use Δm^2ee instead of Δm32 and Δm31 values
+const bool DeltaMee = 1;//Use Δm^2ee instead of Δm32 and Δm31 values
 
 const bool ADSimple = 1;
 

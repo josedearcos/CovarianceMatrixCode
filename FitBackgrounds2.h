@@ -290,7 +290,7 @@ void FitBackgrounds2 :: ReadHBackgrounds()
     {
         BGNDC->cd(AD+1);
         // AccidentalsH[AD]->Draw();
-        BackgroundsH[AD]->Draw();
+        BackgroundsH[AD]->Draw("HIST");
     }
     BGNDC->Print("./Images/Hydrogen/BackgroundVariations/HydrogenBackgrounds.eps");
     
@@ -366,17 +366,17 @@ void FitBackgrounds2 :: ReadGdBackgrounds()
         TCanvas* GdAmCC = new TCanvas ("AmCC","AmCC");
         GdAmCFunc->SetTitle("AmC Background");
         GdAmCFunc->SetLineColor(kBlue);
-        GdAmCFunc->Draw();
+        GdAmCFunc->Draw("HIST");
         GdAmCC->Print("./Images/Gadolinium/BackgroundVariations/LinearBinningAmC.eps");
         delete GdAmCC;
         
         TCanvas* GdFNC = new TCanvas ("FNC","FNC");
-        BackgroundsH[NADs+1]->Draw();
+        BackgroundsH[NADs+1]->Draw("HIST");
         GdFNC->Print("./Images/Gadolinium/BackgroundVariations/LinearBinningFN.eps");
         delete GdFNC;
         
         TCanvas* GdLiHeC = new TCanvas ("LiHeC","LiHeC");
-        BackgroundsH[NADs]->Draw();
+        BackgroundsH[NADs]->Draw("HIST");
         GdLiHeC->Print("./Images/Gadolinium/BackgroundVariations/LinearBinningLiHe.eps");
         delete GdLiHeC;
     #endif
@@ -681,7 +681,7 @@ void FitBackgrounds2::PrintBackgrounds()
                     for (Int_t AD = 0; AD<NADs; AD++)
                     {
                         AccidentalC->cd(AD+NADs*idy+NADs*YCellLimit*idx+1);
-                        FinalAccidentalsH[AD][week][idx][idy]->SetStats(0);
+                        FinalAccidentalsH[AD][week][idx][idy]->SetStats(ShowStatBoxInPlots);
                         FinalAccidentalsH[AD][week][idx][idy]->SetTitle(Form("Accidentals AD%i Volume%i",AD+1,idx));
                         if(!LoganBinning)
                         {
@@ -710,7 +710,7 @@ void FitBackgrounds2::PrintBackgrounds()
                     for (Int_t AD = 0; AD<NADs; AD++)
                     {
                         LiHeC->cd(AD+NADs*idy+NADs*YCellLimit*idx+1);
-                        FinalLiHeH[AD][week][idx][idy]->SetStats(0);
+                        FinalLiHeH[AD][week][idx][idy]->SetStats(ShowStatBoxInPlots);
                         FinalLiHeH[AD][week][idx][idy]->SetTitle(Form("Li He AD%i Volume%i",AD+1,idx));
                         if(!LoganBinning)
                         {
@@ -738,7 +738,7 @@ void FitBackgrounds2::PrintBackgrounds()
                     for (Int_t AD = 0; AD<NADs; AD++)
                     {
                         FastC->cd(AD+NADs*idy+NADs*YCellLimit*idx+1);
-                        FinalFastNeutronsH[AD][week][idx][idy]->SetStats(0);
+                        FinalFastNeutronsH[AD][week][idx][idy]->SetStats(ShowStatBoxInPlots);
                         FinalFastNeutronsH[AD][week][idx][idy]->SetTitle(Form("Fast Neutrons AD%i Volume%i",AD+1,idx));
                         if(!LoganBinning)
                         {
@@ -766,7 +766,7 @@ void FitBackgrounds2::PrintBackgrounds()
                     for (Int_t AD = 0; AD<NADs; AD++)
                     {
                         AmCC->cd(AD+NADs*idy+NADs*YCellLimit*idx+1);
-                        FinalAmCH[AD][week][idx][idy]->SetStats(0);
+                        FinalAmCH[AD][week][idx][idy]->SetStats(ShowStatBoxInPlots);
                         FinalAmCH[AD][week][idx][idy]->SetTitle(Form("AmC AD%i Volume%i",AD+1,idx));
                         if(!LoganBinning)
                         {

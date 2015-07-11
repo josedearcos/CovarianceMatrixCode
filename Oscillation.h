@@ -16,7 +16,7 @@
 //Comment the plot options to speed it up.
 
 //#define PlotOscillationFunctions
-//#define PlotExtrapolationFactors
+#define PlotExtrapolationFactors
 
 #define UseLiHeToyMC
 // Originally: Given a reactor antineutrino spectrum I output the respective spectra for each AD after oscillation.
@@ -999,7 +999,7 @@ void Oscillation :: PrintFluxFraction()
                         FluxFractionH[near][reactor][idx][idy]->Draw();
                     }
                     FluxFractionH[near][reactor][idx][idy]->Draw("same");
-                    if(near==0&&idx==0)
+                    if(near==0&&idx==0&&idy==0)
                     {
                         leg->AddEntry(FluxFractionH[near][reactor][idx][idy],labels[reactor].c_str(),"l");
                         leg->Draw("same");
@@ -1020,8 +1020,8 @@ void Oscillation :: NearSpectrumFraction(Int_t idx, Int_t idy)
     Char_t filenameNear[100];
     Char_t filenameFrac[100];
     
-    if(!Analysis)
-    {
+//    if(!Analysis)
+//    {
         Char_t OptionSave[20];
         if(idx==0&&idy==0)
         {
@@ -1034,7 +1034,7 @@ void Oscillation :: NearSpectrumFraction(Int_t idx, Int_t idy)
         
         NearSpectrumF = new TFile(("./RootOutputs/"+ AnalysisString+ "/Spectra/NearSpectrumFraction.root").c_str(),OptionSave);
 
-    }
+//    }
 #ifdef CheckSumTrueSpectrum
     if(idx==Int_t(XCellLimit/2)&&idy==Int_t(YCellLimit/2))
     {
@@ -1062,8 +1062,8 @@ void Oscillation :: NearSpectrumFraction(Int_t idx, Int_t idy)
 
         for (Int_t near = 0; near<ADsEH1+ADsEH2; near++)
         {
-            if(!Analysis)
-            {
+//            if(!Analysis)
+//            {
                 if(Nweeks==1)
                 {
                     sprintf(filenameNear,"AD%i Near Prediction Vis%i, Cell%i,%i", near+1,j+1,idx,idy);
@@ -1072,7 +1072,7 @@ void Oscillation :: NearSpectrumFraction(Int_t idx, Int_t idy)
                 {
                     sprintf(filenameNear,"AD%i Near Prediction, Week%i Vis%i, Cell%i,%i", near+1,week+1,j+1,idx,idy);
                 }
-            }
+//            }
             NearSpectrumH[near][j] = (TH1D*) TrueADSpectrumH[near][j][idx][idy]->Clone();
             NearSpectrumH[near][j]->Reset();
             
@@ -1091,8 +1091,8 @@ void Oscillation :: NearSpectrumFraction(Int_t idx, Int_t idy)
                 
                 NearSpectrumH[near][j]->Add(NearSpectrumFractionH[near][reactor][j][idx][idy]);//sum over cores
                 
-                if(!Analysis)
-                {
+//                if(!Analysis)
+//                {
                     if(Nweeks==1)
                     {
                         sprintf(filenameFrac,"AD%i Near Spectrum fraction from Reactor%i Vis%i Cell%i,%i", near+1, reactor+1,j+1,idx,idy);
@@ -1105,7 +1105,7 @@ void Oscillation :: NearSpectrumFraction(Int_t idx, Int_t idy)
                     NearSpectrumFractionH[near][reactor][j][idx][idy]->SetTitle(filenameFrac);
                     
                     NearSpectrumFractionH[near][reactor][j][idx][idy]->Write(filenameFrac);
-                }
+//                }
                 
 #ifdef CheckSumTrueSpectrum
                 if(idx==Int_t(XCellLimit/2)&&idy==Int_t(YCellLimit/2))
@@ -1145,10 +1145,10 @@ void Oscillation :: NearSpectrumFraction(Int_t idx, Int_t idy)
             delete NearSpectrumH[near][j];
         }
     }
-    if(!Analysis)
-    {
+//    if(!Analysis)
+//    {
         delete NearSpectrumF;
-    }
+//    }
 
 #ifdef CheckSumTrueSpectrum
     if(idx==Int_t(XCellLimit/2)&&idy==Int_t(YCellLimit/2))
@@ -1178,6 +1178,9 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
 
     c2 = new TCanvas("Extrapolation","Extrapolation",900,900);
     c2->Divide(3,3);
+//    TLegend *leg2 = new TLegend(0.1,0.1,0.4,0.5);
+//    leg2->SetBorderSize(0);
+//    leg2->SetFillColor(0);
     cont=0;
     
 #endif
@@ -1235,13 +1238,18 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
                 sprintf(name,"e_{%ij,%i}",near+1,far+1);
                 
                 ExtrapolationH[near][reactor][far]->GetYaxis()->SetTitle(name);
-                
                 if(reactor==0)
                 {
                     ExtrapolationH[near][reactor][far]->GetYaxis()->SetRangeUser(0,0.885);
                     ExtrapolationH[near][reactor][far]->Draw();
                 }
                 ExtrapolationH[near][reactor][far]->Draw("same");
+                
+//                if(near==0&&far==0)
+//                {
+//                    leg2->AddEntry(ExtrapolationH[near][reactor][far],labels[reactor].c_str(),"l");
+//                    leg2->Draw("same");
+//                }
                 //ExtrapolationH[near][reactor][far]->Write();
                 delete ExtrapolationH[near][reactor][far];
 #endif
@@ -1262,7 +1270,7 @@ void Oscillation :: GetExtrapolation(Int_t idx, Int_t idy)
     
     //just to check that they are identical, (they should)
     delete c2;
-    
+//    delete leg2;
     #endif
     
     //delete FactorF;
@@ -1277,8 +1285,8 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
     Char_t filenameFar[100];
     TFile* FarSpectrumFractionF;
     
-    if(!Analysis)
-    {
+//    if(!Analysis)
+//    {
         Char_t OptionFarSave[20];
         
         if(idx==0&&idy==0)
@@ -1291,7 +1299,7 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
         }
         
         FarSpectrumFractionF = new TFile(("./RootOutputs/"+ AnalysisString+ "/Spectra/FarSpectrumFraction.root").c_str(),OptionFarSave);
-    }
+//    }
 #ifdef PrintEps
     TCanvas* FarSpectrumFractionC;
 #endif
@@ -1315,8 +1323,8 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
                 FarHallCellSpectrumH[far][near][j][idx][idy] = (TH1D*) TrueADSpectrumH[near][0][0][0]->Clone();
                 FarHallCellSpectrumH[far][near][j][idx][idy]->Reset();
                 
-                if(!Analysis)//Write without overloading the process
-                {
+//                if(!Analysis)//Write without overloading the process
+//                {
                     if(Nweeks==1)
                     {
                         sprintf(filenameCellFar,"AD%i Far Spectrum prediction from near AD%i Vis %d, Cell%i,%i", far+1, near+1,j+1,idx,idy);
@@ -1325,7 +1333,7 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
                     {
                         sprintf(filenameCellFar,"AD%i Far Spectrum prediction from near AD%i, Week%i Vis%d, Cell%i,%i", far+1, near+1,week+1,j+1,idx,idy);
                     }
-                }
+//                }
                 
                 for (Int_t reactor = 0; reactor<NReactors; reactor++)
                 {
@@ -1344,12 +1352,14 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
                     }
                     
                     // Save predictions:
-                    if(!Analysis)//Write without overloading the process
-                    {
+//                    if(!Analysis)//Write without overloading the process
+//                    {
                         FarHallSpectrumFractionH[near][reactor][far][j][idx][idy]->SetTitle(filenameFraction);
-
-                        FarHallSpectrumFractionH[near][reactor][far][j][idx][idy]->Write(filenameCellFar);
-                    }
+                        if(idx==0)
+                        {
+                            FarHallSpectrumFractionH[near][reactor][far][j][idx][idy]->Write(filenameFraction);
+                        }
+//                    }
                     
                     FarHallCellSpectrumH[far][near][j][idx][idy]->Add(FarHallSpectrumFractionH[near][reactor][far][j][idx][idy]);//sum over cores
                     
@@ -1369,8 +1379,8 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
                 FarHallSpectrumH[far][near][j]->Add(FarHallCellSpectrumH[far][near][j][idx][idy]);//sum over cells
 
                 
-                if(!Analysis)//Write without overloading the process
-                {
+//                if(!Analysis)//Write without overloading the process
+//                {
                     FarHallCellSpectrumH[far][near][j][idx][idy]->SetTitle(filenameCellFar);
                     FarHallCellSpectrumH[far][near][j][idx][idy]->Write();
 
@@ -1384,7 +1394,7 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
                     }
                     FarHallSpectrumH[far][near][j]->SetTitle(filenameCellFar);
                     FarHallSpectrumH[far][near][j]->Write(filenameFar);
-                }
+//                }
                 
                 #ifdef PrintEps
                 if(idx==0&&idy==0)
@@ -1409,10 +1419,10 @@ void Oscillation :: FarSpectrumPrediction(Int_t idx, Int_t idy)
 
     }//evis bins
     
-    if(!Analysis)
-    {
+//    if(!Analysis)
+//    {
         delete FarSpectrumFractionF;
-    }
+//    }
     std::cout << " Far Spectrum calculation ended" << idx << idy << std::endl;
 }
 
@@ -1493,6 +1503,7 @@ void Oscillation :: LoadToyHistograms(Int_t week)
         {
             cr->cd(near+1);
             
+            ADSpectrumVisH[near][0][0]->SetStats(ShowStatBoxInPlots);
             ADSpectrumVisH[near][0][0]->GetXaxis()->SetTitle("E_{true} (MeV)");
             ADSpectrumVisH[near][0][0]->GetXaxis()->SetTitleSize(0.04);
             ADSpectrumVisH[near][0][0]->GetYaxis()->SetTitleSize(0.04);
