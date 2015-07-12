@@ -1468,40 +1468,39 @@ Double_t Prediction :: CalculateChi2(Double_t sen22t13,Double_t dm2_ee, Int_t we
     }
     
     //Prediction difference test:
-    
-    #ifdef PrintEps
-      /*  TH1D* DifferenceH2;
-        TCanvas* DifferenceC2 = new TCanvas("diffenreceC2","differenceC2");
-        DifferenceC2->Divide(MaxNearCombine,1);
-        for (Int_t near=0; near<MaxNearCombine; near++)
-        {
-            for (Int_t far=0; far<MaxFarCombine; far++)
-            {
-                DifferenceH2 = (TH1D*)PredictionH[far][near]->Clone();
-                DifferenceH2->Add(PredictionDataH[far][near],-1);
-                DifferenceC2->cd(far+near*MaxFarCombine+1);
-                DifferenceH2->Draw();
-            }
-        }
-        DifferenceC2->Print(("./Images/"+AnalysisString+"/NominalVsDataDifference.eps").c_str());
-        delete DifferenceC2;
-        delete DifferenceH2;*/ //Just to check that it was working.
-
-        if(Combine==2)
-        {
-            TH1D* DifferenceH;
-            
-            DifferenceH = (TH1D*)PredictionH[0][0]->Clone();
-            DifferenceH->Add(PredictionH[0][1],-1);
-            DifferenceH->Divide(PredictionH[0][0]);
-            
-            TCanvas* DifferenceC = new TCanvas("diffenreceC","differenceC");
-            DifferenceH->Draw();
-            DifferenceC->Print(("./Images/"+AnalysisString+"/PredictionDifference.eps").c_str());
-            delete DifferenceC;
-            delete DifferenceH;
-        }
-    #endif
+//    #ifdef PrintEps
+//      /*  TH1D* DifferenceH2;
+//        TCanvas* DifferenceC2 = new TCanvas("diffenreceC2","differenceC2");
+//        DifferenceC2->Divide(MaxNearCombine,1);
+//        for (Int_t near=0; near<MaxNearCombine; near++)
+//        {
+//            for (Int_t far=0; far<MaxFarCombine; far++)
+//            {
+//                DifferenceH2 = (TH1D*)PredictionH[far][near]->Clone();
+//                DifferenceH2->Add(PredictionDataH[far][near],-1);
+//                DifferenceC2->cd(far+near*MaxFarCombine+1);
+//                DifferenceH2->Draw();
+//            }
+//        }
+//        DifferenceC2->Print(("./Images/"+AnalysisString+"/NominalVsDataDifference.eps").c_str());
+//        delete DifferenceC2;
+//        delete DifferenceH2;*/ //Just to check that it was working.
+//
+//        if(Combine==2)
+//        {
+//            TH1D* DifferenceH;
+//            
+//            DifferenceH = (TH1D*)PredictionH[0][0]->Clone();
+//            DifferenceH->Add(PredictionH[0][1],-1);
+//            DifferenceH->Divide(PredictionH[0][0]);
+//            
+//            TCanvas* DifferenceC = new TCanvas("diffenreceC","differenceC");
+//            DifferenceH->Draw();
+//            DifferenceC->Print(("./Images/"+AnalysisString+"/PredictionDifference.eps").c_str());
+//            delete DifferenceC;
+//            delete DifferenceH;
+//        }
+//    #endif
     
     if(!Rate)
     {

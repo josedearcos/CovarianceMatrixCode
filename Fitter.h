@@ -679,7 +679,7 @@ void Fitter :: SaveSin1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
         }
         else
         {
-            sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/S2/OnlyStatChiSquare.root",Combine)).c_str());
+            sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/S2/XOnlyStatChiSquare.root",Combine)).c_str());
         }
     }
     else if(TurnOffBudget)
@@ -770,7 +770,7 @@ void Fitter :: SaveSin1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
         }
         else
         {
-            sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/S2/EverythingChiSquare.root",Combine)).c_str());
+            sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/S2/XEverythingChiSquare.root",Combine)).c_str());
         }
     }
     else
@@ -979,7 +979,7 @@ void Fitter :: SaveDM1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
         }
         else
         {
-            sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/DM/OnlyStatChiSquare.root",Combine)).c_str());
+            sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/DM/XOnlyStatChiSquare.root",Combine)).c_str());
         }
     }
     else if(TurnOffBudget)
@@ -1064,9 +1064,13 @@ void Fitter :: SaveDM1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
         {
             sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/DM/BackgroundChiSquare.root",Combine)).c_str());
         }
-        if(TotalBudget)
+        else if(TotalBudget)
         {
             sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/DM/TotalChiSquare.root",Combine)).c_str());
+        }
+        else
+        {
+            sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/DM/XEverythingChiSquare.root",Combine)).c_str());
         }
         
     }
