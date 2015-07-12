@@ -81,6 +81,7 @@ private:
     bool IsotopeBudget;
     bool ReactorPowerBudget;
     bool IAVBudget;
+    bool OAVBudget;
     bool NLBudget;
     bool ResolutionBudget;
     bool RelativeEnergyScaleBudget;
@@ -185,6 +186,7 @@ Fitter :: Fitter()
     AbsoluteEnergyScaleBudget = Nom->GetAbsoluteEnergyScaleBudget();
     AbsoluteEnergyOffsetBudget = Nom->GetAbsoluteEnergyOffsetBudget();
     IAVBudget = Nom->GetIAVBudget();
+    OAVBudget = Nom->GetOAVBudget();
     NLBudget = Nom->GetNLBudget();
     ResolutionBudget = Nom->GetResolutionBudget();
     Sin22t12Budget = Nom->GetSin22t12Budget();
@@ -241,6 +243,7 @@ Fitter :: Fitter(NominalData* Data)
     AbsoluteEnergyScaleBudget = Data->GetAbsoluteEnergyScaleBudget();
     AbsoluteEnergyOffsetBudget = Data->GetAbsoluteEnergyOffsetBudget();
     IAVBudget = Data->GetIAVBudget();
+    OAVBudget = Data->GetOAVBudget();
     NLBudget = Data->GetNLBudget();
     ResolutionBudget = Data->GetResolutionBudget();
     Sin22t12Budget = Data->GetSin22t12Budget();
@@ -649,6 +652,10 @@ void Fitter :: SaveSin1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
         {
             sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/S2/IAVChiSquare.root",Combine)).c_str());
         }
+        else if(Analysis&&OAVBudget)
+        {
+            sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/S2/OAVChiSquare.root",Combine)).c_str());
+        }
         else if(NLBudget)
         {
             sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/S2/NLChiSquare.root",Combine)).c_str());
@@ -739,6 +746,10 @@ void Fitter :: SaveSin1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
         else if(IAVBudget)
         {
             sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/S2/IAVChiSquare.root",Combine)).c_str());
+        }
+        else if(Analysis&&OAVBudget)
+        {
+            sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/S2/OAVChiSquare.root",Combine)).c_str());
         }
         else if(NLBudget)
         {
@@ -949,6 +960,10 @@ void Fitter :: SaveDM1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
         {
             sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/DM/IAVChiSquare.root",Combine)).c_str());
         }
+        else if(Analysis&&OAVBudget)
+        {
+            sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/DM/OAVChiSquare.root",Combine)).c_str());
+        }
         else if(NLBudget)
         {
             sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOnBudget/DM/NLChiSquare.root",Combine)).c_str());
@@ -1039,6 +1054,10 @@ void Fitter :: SaveDM1DFit(Int_t sample, bool TurnOnBudget, bool TurnOffBudget)
         else if(IAVBudget)
         {
             sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/DM/IAVChiSquare.root",Combine)).c_str());
+        }
+        else if(Analysis&&OAVBudget)
+        {
+            sprintf(FileName,("./ChiSquare/"+AnalysisString+Form("/Combine%d/TurnOffBudget/DM/OAVChiSquare.root",Combine)).c_str());
         }
         else if(NLBudget)
         {

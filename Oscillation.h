@@ -2322,6 +2322,8 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             delete HF;//10%
             
             Double_t FractionError = 0.2;//This number is provisional
+            rand->SetSeed(0);
+
             Double_t DistortLiHeError = FractionError*rand->Gaus(0,1);
            
             if((.9+DistortLiHeError)>1)
@@ -2335,6 +2337,7 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             
             std::cout << LiHeError << std::endl;
             
+        
             for(Int_t idx=0; idx<XCellLimit; idx++)
             {
                 for(Int_t idy=0; idy<YCellLimit; idy++)
@@ -2342,11 +2345,20 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
                     for(Int_t AD=0;AD<NADs;AD++)
                     {
                         //RandomLiHeH[AD][idx][idy] = new TH1D(Form("LiHe_AD%d_volume%d",AD,idx),Form("LiHe_AD%d_volume%d",AD,idx),n_evis_bins,evis_bins);
-                        
-                        for (Int_t visbin = 1; visbin <= n_evis_bins; visbin++)
+                        TH1D* LinearRandomLiHe = new TH1D("LinearRandomLiHe","LinearRandomLiHe",MatrixBins,0,12);
+
+                        for (Int_t visbin = 1; visbin <= MatrixBins; visbin++)
                         {
-                            RandomLiHeH[AD][idx][idy]->SetBinContent(visbin,(.9+DistortLiHeError)*LithiumH->Interpolate(RandomLiHeH[AD][idx][idy]->GetXaxis()->GetBinCenter(visbin))+(.1-DistortLiHeError)*HeliumH->Interpolate(RandomLiHeH[AD][idx][idy]->GetXaxis()->GetBinCenter(visbin)));
+                            LinearRandomLiHe->SetBinContent(visbin,(.9+DistortLiHeError)*LithiumH->Interpolate(LinearRandomLiHe->GetXaxis()->GetBinCenter(visbin))+(.1-DistortLiHeError)*HeliumH->Interpolate(LinearRandomLiHe->GetXaxis()->GetBinCenter(visbin)));
                         }
+                        
+                        RandomLiHeH[AD][idx][idy] = (TH1D*)LinearRandomLiHe->Rebin(n_evis_bins,Form("Rebinned LiHe"),evis_bins);
+                        
+                        delete LinearRandomLiHe;
+//                        for (Int_t visbin = 1; visbin <= n_evis_bins; visbin++)
+//                        {
+//                            RandomLiHeH[AD][idx][idy]->SetBinContent(visbin,(.9+DistortLiHeError)*LithiumH->Interpolate(RandomLiHeH[AD][idx][idy]->GetXaxis()->GetBinCenter(visbin))+(.1-DistortLiHeError)*HeliumH->Interpolate(RandomLiHeH[AD][idx][idy]->GetXaxis()->GetBinCenter(visbin)));
+//                        }
                     }
                     for(Int_t AD=0;AD<NADs;AD++)
                     {
@@ -2493,7 +2505,8 @@ void Oscillation :: FluctuateBackgrounds(Int_t week)
             func_FN3 = new TF1("func_FN3","pow(x,[0])",InitialVisibleEnergy,FinalVisibleEnergy);
 
             Double_t FNError;
-            
+            rand->SetSeed(0);
+
             FNError = 0.036*rand->Gaus(0,1);
             func_FN1->SetParameter(0,-0.639+FNError);//From Xiang Pan Fast Neutron = E^{-P} where P = 0.639±0.036
             

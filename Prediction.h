@@ -37,7 +37,7 @@ const bool PlotCorrelation = 1;
 //  To test the LBNL Covariance Matrices:
 const bool Rate =0;//Provisional, need to study how to do the rate analysis in the fitter.
 
-const Int_t MaxSystematics =9;//(8)Systematics + Total Systematic
+const Int_t MaxSystematics =10;//(8)Systematics + Total Systematic
 
 class Prediction
 {
@@ -148,7 +148,8 @@ private:
     
     Int_t hall;
     bool analysis;
-    
+    Int_t VariableMaxSystematics;
+
     //Binning parameters:
     Int_t n_evis_bins;
     Double_t evis_bins[MaxNbins+1]; // Single bins between 0.7 and 1.0 MeV. 0.2 MeV bins from 1.0 to 8.0 MeV. Single bin between 8.0 and 12 MeV. total 37 bins +1 for the 12MeV limit.
@@ -199,6 +200,7 @@ private:
     //    TH2D* AbsoluteEnergyScaleCovarianceMatrixH;
     //    TH2D* AbsoluteEnergyOffsetCovarianceMatrixH;
     TH2D* IAVCovarianceMatrixH;
+    TH2D* OAVCovarianceMatrixH;
     TH2D* NLCovarianceMatrixH;
     TH2D* ResolutionCovarianceMatrixH;
     TH2D* Sin22t12CovarianceMatrixH;
@@ -211,6 +213,7 @@ private:
     //    TH2D* RenormAbsoluteEnergyScaleCovarianceMatrixH;
     //    TH2D* RenormAbsoluteEnergyOffsetCovarianceMatrixH;
     TH2D* RenormIAVCovarianceMatrixH;
+    TH2D* RenormOAVCovarianceMatrixH;
     TH2D* RenormNLCovarianceMatrixH;
     TH2D* RenormResolutionCovarianceMatrixH;
     TH2D* RenormSin22t12CovarianceMatrixH;
@@ -240,6 +243,7 @@ private:
     //    Double_t RelativeEnergyOffsetCovarianceMatrixM[9*MaxNbins][9*MaxNbins];
     //    Double_t AbsoluteEnergyOffsetCovarianceMatrixM[9*MaxNbins][9*MaxNbins];
     Double_t IAVCovarianceMatrixM[9*MaxNbins][9*MaxNbins];
+    Double_t OAVCovarianceMatrixM[9*MaxNbins][9*MaxNbins];
     Double_t NLCovarianceMatrixM[9*MaxNbins][9*MaxNbins];
     Double_t ResolutionCovarianceMatrixM[9*MaxNbins][9*MaxNbins];
     Double_t Sin22t12CovarianceMatrixM[9*MaxNbins][9*MaxNbins];
@@ -252,6 +256,7 @@ private:
     //    Double_t RenormAbsoluteEnergyScaleCovarianceMatrixM[9*MaxNbins][9*MaxNbins];
     //    Double_t RenormAbsoluteEnergyOffsetCovarianceMatrixM[9*MaxNbins][9*MaxNbins];
     Double_t RenormIAVCovarianceMatrixM[9*MaxNbins][9*MaxNbins];
+    Double_t RenormOAVCovarianceMatrixM[9*MaxNbins][9*MaxNbins];
     Double_t RenormNLCovarianceMatrixM[9*MaxNbins][9*MaxNbins];
     Double_t RenormResolutionCovarianceMatrixM[9*MaxNbins][9*MaxNbins];
     Double_t RenormSin22t12CovarianceMatrixM[9*MaxNbins][9*MaxNbins];
@@ -285,6 +290,7 @@ private:
     Double_t RateChiSquare(Int_t);
     void GenerateFluxCorrectedHistograms(NominalData*);
     void AddBackgroundsToReactorPrediction();
+
 public:
     Prediction();
     Prediction(NominalData*);
@@ -314,10 +320,12 @@ public:
     void ProduceCovToyMCSample(Int_t,TH1D**);
     
     void SetExperiment(Int_t);
+    
 };
 
 Prediction :: ~Prediction()
 {
+
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //                                               Clean up the dust
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -348,7 +356,7 @@ Prediction :: ~Prediction()
     }
     if(flag_delete_ToyMCSample)
     {
-        for(Int_t i = 0; i<MaxSystematics; i++)
+        for(Int_t i = 0; i<VariableMaxSystematics; i++)
         {
             delete VariationHistoH[i];
         }
@@ -392,7 +400,7 @@ Prediction :: Prediction()
     StatisticalFluctuation = Data->GetStatisticalFluctuation();
     
     analysis = Data->GetAnalysis();
-    
+
     if(analysis)
     {
         AnalysisString = "Hydrogen";
@@ -401,6 +409,7 @@ Prediction :: Prediction()
     }
     else
     {
+        VariableMaxSystematics = MaxSystematics-1;
         AnalysisString = "Gadolinium";
         XCellLimit = 1;
         YCellLimit = 1;
@@ -526,6 +535,7 @@ Prediction :: Prediction(NominalData* data)
     }
     else
     {
+        VariableMaxSystematics = MaxSystematics-1;
         AnalysisString = "Gadolinium";
         XCellLimit = 1;
         YCellLimit = 1;
@@ -617,7 +627,7 @@ Prediction :: Prediction(NominalData* data)
 #else
                     if((idy==0||idy==(YCellLimit-1)||idx>=(XCellLimit-4)))//nH LS
                     {
-                        if(Analysis)//Hydrogen LS
+                        if(analysis)//Hydrogen LS
                         {
                             DetectorProtons[AD][idx][idy] = Data->GetDetectorProtons(AD,1)/(XCellLimit+YCellLimit+(YCellLimit-2)*4);//52 cells (10+10+(10-2)+(10-2)+(10-2)+(10-2)) Share uniformly the mass
                             
@@ -2213,7 +2223,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             }
             else
             {
-                for(Int_t SystematicI = 8; SystematicI < MaxSystematics; SystematicI++)
+                for(Int_t SystematicI = VariableMaxSystematics-1; SystematicI < VariableMaxSystematics; SystematicI++)
                 {
                     //SystematicI = 8 to use all variations. Otherwise select accordingly
                     
@@ -2327,7 +2337,7 @@ void Prediction :: LoadData(Int_t week,bool ToyMC,Int_t DataSteps,bool Mode)//Ca
             }
             else
             {
-                for(Int_t SystematicI = 8; SystematicI < MaxSystematics; SystematicI++)
+                for(Int_t SystematicI = VariableMaxSystematics-1; SystematicI < VariableMaxSystematics; SystematicI++)
                 {
                     delete f[SystematicI];
                 }
@@ -2982,6 +2992,15 @@ void Prediction :: LoadRootCovarianceMatrices(Int_t week)
     IAVCovarianceMatrixH->SetName("IAV Matrix");
     IAVCovarianceMatrixF->Close();
     
+    if(analysis)
+    {
+        sprintf(RootC,("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/CovarianceMatricesRoot/OAV.root",Combine)).c_str());
+        TFile* OAVCovarianceMatrixF = new TFile(RootC);
+        OAVCovarianceMatrixH = (TH2D*)gDirectory->Get(Form("Covariance Matrix%d",week));
+        OAVCovarianceMatrixH->SetName("OAV Matrix");
+        OAVCovarianceMatrixF->Close();
+    }
+    
     sprintf(RootC,("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/CovarianceMatricesRoot/NL.root",Combine)).c_str());
     TFile* NLCovarianceMatrixF = new TFile(RootC);
     NLCovarianceMatrixH = (TH2D*)gDirectory->Get(Form("Covariance Matrix%d",week));
@@ -3012,6 +3031,10 @@ void Prediction :: LoadRootCovarianceMatrices(Int_t week)
     ReactorPowerCovarianceMatrixH->Write();
     RelativeEnergyScaleCovarianceMatrixH->Write();
     IAVCovarianceMatrixH->Write();
+    if(analysis)
+    {
+        OAVCovarianceMatrixH->Write();
+    }
     NLCovarianceMatrixH->Write();
     ResolutionCovarianceMatrixH->Write();
     Sin22t12CovarianceMatrixH->Write();
@@ -3122,7 +3145,18 @@ void Prediction :: LoadTxtCovarianceMatrices(Int_t week)
             covfile_iav >> IAVCovarianceMatrixM[i][j];
         }
     }
-    
+    if(analysis)
+    {
+    sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/CovarianceMatricesTxT/OAVPeriod%d.txt",Combine,week)).c_str());
+    ifstream covfile_iav(filenameCov);
+    for (Int_t i = 0; i < MaxBins; i++)
+    {
+        for (Int_t j = 0; j <MaxBins; j++)
+        {
+            covfile_iav >> OAVCovarianceMatrixM[i][j];
+        }
+    }
+    }
     sprintf(filenameCov,("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/CovarianceMatricesTxT/NLPeriod%d.txt",Combine,week)).c_str());
     ifstream covfile_nl(filenameCov);
     for (Int_t i = 0; i < MaxBins; i++)
@@ -3218,6 +3252,10 @@ void Prediction :: LoadTxtCovarianceMatrices(Int_t week)
     //    AbsoluteEnergyScaleCovarianceMatrixH = new TH2D("Absolute Energy Scale Covariance Matrix","Absolute Energy Scale Covariance Matrix",MaxBins,0,MaxBins,MaxBins,0,MaxBins);
     //    AbsoluteEnergyOffsetCovarianceMatrixH = new TH2D("Absolute Energy Offset Covariance Matrix","Absolute Offset Scale Covariance Matrix",MaxBins,0,MaxBins,MaxBins,0,MaxBins);
     IAVCovarianceMatrixH = new TH2D("IAV Covariance Matrix","IAV Covariance Matrix",MaxBins,0,MaxBins,MaxBins,0,MaxBins);
+    if(analysis)
+    {
+        OAVCovarianceMatrixH = new TH2D("OAV Covariance Matrix","OAV Covariance Matrix",MaxBins,0,MaxBins,MaxBins,0,MaxBins);
+    }
     NLCovarianceMatrixH = new TH2D("NL Covariance Matrix","NL Covariance Matrix",MaxBins,0,MaxBins,MaxBins,0,MaxBins);
     ResolutionCovarianceMatrixH = new TH2D("Resolution Covariance Matrix","Resolution Covariance Matrix",MaxBins,0,MaxBins,MaxBins,0,MaxBins);
     Sin22t12CovarianceMatrixH = new TH2D("Sin22t12 Covariance Matrix","Sin22t12 Covariance Matrix",MaxBins,0,MaxBins,MaxBins,0,MaxBins);
@@ -3241,6 +3279,10 @@ void Prediction :: SaveCovarianceMatrices(Int_t week)
                 //                AbsoluteEnergyScaleCovarianceMatrixH->SetBinContent(i+1,j+1,AbsoluteEnergyScaleCovarianceMatrixM[i][j]);
                 //                AbsoluteEnergyOffsetCovarianceMatrixH->SetBinContent(i+1,j+1,AbsoluteEnergyOffsetCovarianceMatrixM[i][j]);//Included in NL
                 RenormIAVCovarianceMatrixH->SetBinContent(i+1,j+1,RenormIAVCovarianceMatrixM[i][j]);
+                if(analysis)
+                {
+                    RenormOAVCovarianceMatrixH->SetBinContent(i+1,j+1,RenormOAVCovarianceMatrixM[i][j]);
+                }
                 RenormNLCovarianceMatrixH->SetBinContent(i+1,j+1,RenormNLCovarianceMatrixM[i][j]);
                 RenormResolutionCovarianceMatrixH->SetBinContent(i+1,j+1,RenormResolutionCovarianceMatrixM[i][j]);
                 RenormSin22t12CovarianceMatrixH->SetBinContent(i+1,j+1,RenormSin22t12CovarianceMatrixM[i][j]);
@@ -3277,6 +3319,10 @@ void Prediction :: SaveCovarianceMatrices(Int_t week)
     //    AbsoluteEnergyScaleCovarianceMatrixH->Write("Absolute Scale Matrix");
     //    AbsoluteEnergyOffsetCovarianceMatrixH->Write("Absolute Offset Matrix");
     RenormIAVCovarianceMatrixH->Write("IAV Matrix");
+    if(analysis)
+    {
+        RenormOAVCovarianceMatrixH->Write("OAV Matrix");
+    }
     RenormNLCovarianceMatrixH->Write("NL Matrix");
     RenormResolutionCovarianceMatrixH->Write("Reso Matrix");
     RenormSin22t12CovarianceMatrixH->Write("Sin22t12 Matrix");
@@ -3299,6 +3345,11 @@ void Prediction :: SaveCovarianceMatrices(Int_t week)
         TH2D* ReactorPowerCorrelationMatrixH = NormCov(RenormReactorPowerCovarianceMatrixH,ReactorPowerCorrelationMatrixH);
         TH2D* RelativeEnergyScaleCorrelationMatrixH = NormCov(RenormRelativeEnergyScaleCovarianceMatrixH,RelativeEnergyScaleCorrelationMatrixH);
         TH2D* IAVCorrelationMatrixH = NormCov(RenormIAVCovarianceMatrixH,IAVCorrelationMatrixH);
+        TH2D* OAVCorrelationMatrixH;
+        if(analysis)
+        {
+             OAVCorrelationMatrixH = NormCov(RenormOAVCovarianceMatrixH,OAVCorrelationMatrixH);
+        }
         TH2D* NLCorrelationMatrixH = NormCov(RenormNLCovarianceMatrixH,NLCorrelationMatrixH);
         TH2D* ResolutionCorrelationMatrixH = NormCov(RenormResolutionCovarianceMatrixH,ResolutionCorrelationMatrixH);
         TH2D* Sin22t12CorrelationMatrixH = NormCov(RenormSin22t12CovarianceMatrixH,Sin22t12CorrelationMatrixH);
@@ -3332,6 +3383,10 @@ void Prediction :: SaveCovarianceMatrices(Int_t week)
         ReactorPowerCorrelationMatrixH->Write("Power Matrix");
         RelativeEnergyScaleCorrelationMatrixH->Write("Relative Scale Matrix");
         IAVCorrelationMatrixH->Write("IAV Matrix");
+        if(analysis)
+        {
+            OAVCorrelationMatrixH->Write("OAV Matrix");
+        }
         NLCorrelationMatrixH->Write("NL Matrix");
         ResolutionCorrelationMatrixH->Write("Reso Matrix");
         Sin22t12CorrelationMatrixH->Write("Sin22t12 Matrix");
@@ -3346,6 +3401,10 @@ void Prediction :: SaveCovarianceMatrices(Int_t week)
         delete ReactorPowerCorrelationMatrixH;
         delete RelativeEnergyScaleCorrelationMatrixH;
         delete IAVCorrelationMatrixH;
+        if(analysis)
+        {
+            delete OAVCorrelationMatrixH;
+        }
         delete NLCorrelationMatrixH;
         delete ResolutionCorrelationMatrixH;
         delete Sin22t12CorrelationMatrixH;
@@ -3472,6 +3531,10 @@ void Prediction :: CombineMatrices(Int_t week)
     //    RenormAbsoluteEnergyScaleCovarianceMatrixH = new TH2D("Renorm Absolute Energy Scale Covariance Matrix","Renorm Absolute Energy Scale Covariance Matrix",MaxBins, 0,MaxBins,MaxBins, 0,MaxBins);
     //    RenormAbsoluteEnergyOffsetCovarianceMatrixH = new TH2D("Renorm Absolute Energy Offset Covariance Matrix","Renorm Absolute Energy Offset Covariance Matrix",MaxBins, 0,MaxBins,MaxBins, 0,MaxBins);
     RenormIAVCovarianceMatrixH = new TH2D("Renorm IAV Covariance Matrix","Renorm IAV Covariance Matrix",MaxBins, 0,MaxBins,MaxBins, 0,MaxBins);
+    if(analysis)
+    {
+        RenormOAVCovarianceMatrixH = new TH2D("Renorm OAV Covariance Matrix","Renorm OAV Covariance Matrix",MaxBins, 0,MaxBins,MaxBins, 0,MaxBins);
+    }
     RenormNLCovarianceMatrixH = new TH2D("Renorm NL Covariance Matrix","Renorm NL Covariance Matrix",MaxBins, 0,MaxBins,MaxBins, 0,MaxBins);
     RenormResolutionCovarianceMatrixH = new TH2D("Renorm Resolution Covariance Matrix","Renorm Resolution Covariance Matrix",MaxBins, 0,MaxBins,MaxBins, 0,MaxBins);
     RenormSin22t12CovarianceMatrixH = new TH2D("Renorm Sin22t12 Covariance Matrix","Renorm Sin22t12 Covariance Matrix",MaxBins, 0,MaxBins,MaxBins, 0,MaxBins);
@@ -3479,10 +3542,6 @@ void Prediction :: CombineMatrices(Int_t week)
     
     std::cout <<  "\t Matrices Created " << std::endl;
 
-    
-    
-    
-    
     std::cout << SysCovDirectory << BkgCovDirectory << std::endl;
     //Test LBNL inputs, by loading external covariance matrices:
     if(strcmp((SysCovDirectory).c_str(),"")&&strcmp((BkgCovDirectory).c_str(),""))
@@ -3680,7 +3739,10 @@ void Prediction :: CombineMatrices(Int_t week)
                                     //                                RenormAbsoluteEnergyOffsetCovarianceMatrixM[x][y]=RenormAbsoluteEnergyOffsetCovarianceMatrixM[x][y]*(PredictionH[fari][neari]->GetBinContent(i+1)*PredictionH[farj][nearj]->GetBinContent(j+1));
                                     
                                     RenormIAVCovarianceMatrixM[x][y]=IAVCovarianceMatrixM[x][y]*(PredictionH[fari][neari]->GetBinContent(i+1)*PredictionH[farj][nearj]->GetBinContent(j+1));
-                                    
+                                    if(analysis)
+                                    {
+                                        RenormOAVCovarianceMatrixM[x][y]=OAVCovarianceMatrixM[x][y]*(PredictionH[fari][neari]->GetBinContent(i+1)*PredictionH[farj][nearj]->GetBinContent(j+1));
+                                    }
                                     RenormNLCovarianceMatrixM[x][y]=NLCovarianceMatrixM[x][y]*(PredictionH[fari][neari]->GetBinContent(i+1)*PredictionH[farj][nearj]->GetBinContent(j+1));
                                     
                                     RenormResolutionCovarianceMatrixM[x][y]=ResolutionCovarianceMatrixM[x][y]*(PredictionH[fari][neari]->GetBinContent(i+1)*PredictionH[farj][nearj]->GetBinContent(j+1));
@@ -3705,7 +3767,10 @@ void Prediction :: CombineMatrices(Int_t week)
                                     RenormResolutionCovarianceMatrixM[x][y]+
                                     RenormSin22t12CovarianceMatrixM[x][y]+
                                     RenormEfficiencyCovarianceMatrixM[x][y];
-                                    
+                                    if(analysis)
+                                    {
+                                        SystematicCovarianceMatrixM[x][y]+=RenormOAVCovarianceMatrixM[x][y];
+                                    }
                                     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
                                     //                                                             Add Background Covariance Matrix
                                     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3783,6 +3848,10 @@ void Prediction :: CombineMatrices(Int_t week)
                                         else if(Data->GetIAVBudget())
                                         {
                                             TotalCovarianceMatrixM[x*MaxBins+y]=TotalCovarianceMatrixM[x*MaxBins+y]-RenormIAVCovarianceMatrixM[x][y];
+                                        }
+                                        else if(analysis&&Data->GetOAVBudget())
+                                        {
+                                            TotalCovarianceMatrixM[x*MaxBins+y]=TotalCovarianceMatrixM[x*MaxBins+y]-RenormOAVCovarianceMatrixM[x][y];
                                         }
                                         else if(Data->GetNLBudget())
                                         {
@@ -3874,6 +3943,10 @@ void Prediction :: CombineMatrices(Int_t week)
                                         {
                                             TotalCovarianceMatrixM[x*MaxBins+y]+=RenormIAVCovarianceMatrixM[x][y];
                                         }
+                                        else if(analysis&&Data->GetOAVBudget())
+                                        {
+                                            TotalCovarianceMatrixM[x*MaxBins+y]+=RenormOAVCovarianceMatrixM[x][y];
+                                        }
                                         else if(Data->GetNLBudget())
                                         {
                                             TotalCovarianceMatrixM[x*MaxBins+y]+=RenormNLCovarianceMatrixM[x][y];
@@ -3924,6 +3997,10 @@ void Prediction :: CombineMatrices(Int_t week)
                                     //                                RenormAbsoluteEnergyScaleCovarianceMatrixH->SetBinContent(x+1,y+1,RenormAbsoluteEnergyScaleCovarianceMatrixM[x][y]);
                                     //                                RenormAbsoluteEnergyOffsetCovarianceMatrixH->SetBinContent(x+1,y+1,RenormAbsoluteEnergyOffsetCovarianceMatrixM[x][y]);
                                     RenormIAVCovarianceMatrixH->SetBinContent(x+1,y+1,RenormIAVCovarianceMatrixM[x][y]);
+                                    if(analysis)
+                                    {
+                                        RenormOAVCovarianceMatrixH->SetBinContent(x+1,y+1,RenormOAVCovarianceMatrixM[x][y]);
+                                    }
                                     RenormNLCovarianceMatrixH->SetBinContent(x+1,y+1,RenormNLCovarianceMatrixM[x][y]);
                                     RenormResolutionCovarianceMatrixH->SetBinContent(x+1,y+1,RenormResolutionCovarianceMatrixM[x][y]);
                                     RenormSin22t12CovarianceMatrixH->SetBinContent(x+1,y+1,RenormSin22t12CovarianceMatrixM[x][y]);
@@ -3944,7 +4021,10 @@ void Prediction :: CombineMatrices(Int_t week)
                                     //                                RenormAbsoluteEnergyOffsetCovarianceMatrixH->SetBinContent(x+1,y+1,AbsoluteEnergyOffsetCovarianceMatrixH->GetBinContent(x+1,y+1)*(PredictionH[fari][neari]->GetBinContent(i+1)*PredictionH[farj][nearj]->GetBinContent(j+1)));
                                     
                                     RenormIAVCovarianceMatrixH->SetBinContent(x+1,y+1,IAVCovarianceMatrixH->GetBinContent(x+1,y+1)*(PredictionH[fari][neari]->GetBinContent(i+1)*PredictionH[farj][nearj]->GetBinContent(j+1)));
-                                    
+                                    if(analysis)
+                                    {
+                                        RenormOAVCovarianceMatrixH->SetBinContent(x+1,y+1,OAVCovarianceMatrixH->GetBinContent(x+1,y+1)*(PredictionH[fari][neari]->GetBinContent(i+1)*PredictionH[farj][nearj]->GetBinContent(j+1)));
+                                    }
                                     RenormNLCovarianceMatrixH->SetBinContent(x+1,y+1,NLCovarianceMatrixH->GetBinContent(x+1,y+1)*(PredictionH[fari][neari]->GetBinContent(i+1)*PredictionH[farj][nearj]->GetBinContent(j+1)));
                                     
                                     RenormResolutionCovarianceMatrixH->SetBinContent(x+1,y+1,ResolutionCovarianceMatrixH->GetBinContent(x+1,y+1)*(PredictionH[fari][neari]->GetBinContent(i+1)*PredictionH[farj][nearj]->GetBinContent(j+1)));
@@ -3975,6 +4055,10 @@ void Prediction :: CombineMatrices(Int_t week)
             BackgroundsCovarianceMatrixH->Add(DAmCCovarianceMatrixH);
             
             SystematicCovarianceMatrixH=(TH2D*)(RenormIAVCovarianceMatrixH->Clone("Systematic Covariance Matrix"));
+            if(analysis)
+            {
+                SystematicCovarianceMatrixH->Add(RenormOAVCovarianceMatrixH);
+            }
             SystematicCovarianceMatrixH->Add(RenormIsotopeCovarianceMatrixH);
             SystematicCovarianceMatrixH->Add(RenormReactorPowerCovarianceMatrixH);
             SystematicCovarianceMatrixH->Add(RenormRelativeEnergyScaleCovarianceMatrixH);
@@ -4053,6 +4137,10 @@ void Prediction :: CombineMatrices(Int_t week)
                 else if(Data->GetIAVBudget())
                 {
                     TotalCovarianceMatrixH->Add(RenormIAVCovarianceMatrixH,-1);
+                }
+                else if(analysis&&Data->GetOAVBudget())
+                {
+                    TotalCovarianceMatrixH->Add(RenormOAVCovarianceMatrixH,-1);
                 }
                 else if(Data->GetNLBudget())
                 {
@@ -4145,6 +4233,10 @@ void Prediction :: CombineMatrices(Int_t week)
                 {
                     TotalCovarianceMatrixH->Add(RenormIAVCovarianceMatrixH);
                 }
+                else if(analysis&&Data->GetOAVBudget())
+                {
+                    TotalCovarianceMatrixH->Add(RenormOAVCovarianceMatrixH);
+                }
                 else if(Data->GetNLBudget())
                 {
                     TotalCovarianceMatrixH->Add(RenormNLCovarianceMatrixH);
@@ -4185,6 +4277,10 @@ void Prediction :: CombineMatrices(Int_t week)
             RenormIsotopeCovarianceMatrixH->Write();
             RenormReactorPowerCovarianceMatrixH->Write();
             RenormIAVCovarianceMatrixH->Write();
+            if(analysis)
+            {
+                RenormOAVCovarianceMatrixH->Write();
+            }
             RenormNLCovarianceMatrixH->Write();
             RenormResolutionCovarianceMatrixH->Write();
             RenormRelativeEnergyScaleCovarianceMatrixH->Write();
@@ -4355,14 +4451,25 @@ void Prediction :: ProduceCovToyMCSample(Int_t week,TH1D** NominalPredictionH)
     ToyMCSample[1] = (TH2D*)ReactorPowerCovarianceMatrixH->Clone();
     ToyMCSample[2] = (TH2D*)RelativeEnergyScaleCovarianceMatrixH->Clone();
     ToyMCSample[3] = (TH2D*)IAVCovarianceMatrixH->Clone();
+    if(analysis)
+    {
+        ToyMCSample[4] = (TH2D*)OAVCovarianceMatrixH->Clone();
+        ToyMCSample[5] = (TH2D*)NLCovarianceMatrixH->Clone();
+        ToyMCSample[6] = (TH2D*)ResolutionCovarianceMatrixH->Clone();
+        ToyMCSample[7] = (TH2D*)Sin22t12CovarianceMatrixH->Clone();
+        ToyMCSample[8] = (TH2D*)EfficiencyCovarianceMatrixH->Clone();
+        ToyMCSample[9]  = (TH2D*)IsotopeCovarianceMatrixH->Clone();//Total systematics all together
+    }
+    else
+    {
     ToyMCSample[4] = (TH2D*)NLCovarianceMatrixH->Clone();
     ToyMCSample[5] = (TH2D*)ResolutionCovarianceMatrixH->Clone();
     ToyMCSample[6] = (TH2D*)Sin22t12CovarianceMatrixH->Clone();
     ToyMCSample[7] = (TH2D*)EfficiencyCovarianceMatrixH->Clone();
     
     ToyMCSample[8]  = (TH2D*)IsotopeCovarianceMatrixH->Clone();//Total systematics all together
-    
-    for(Int_t SystematicI = 1;SystematicI<MaxSystematics-1; SystematicI++)
+    }
+    for(Int_t SystematicI = 1;SystematicI<VariableMaxSystematics-1; SystematicI++)
     {
         ToyMCSample[8]->Add(ToyMCSample[SystematicI]);
     }
@@ -4374,7 +4481,7 @@ void Prediction :: ProduceCovToyMCSample(Int_t week,TH1D** NominalPredictionH)
     Int_t Fi1=0,Fi2=0,Fi3=0,Fi4=0;
     Int_t Fj1=0,Fj2=0,Fj3=0,Fj4=0;
     
-    for(Int_t SystematicI = 8;SystematicI<MaxSystematics; SystematicI++)
+    for(Int_t SystematicI = VariableMaxSystematics-1;SystematicI<VariableMaxSystematics; SystematicI++)
     {
         
         VariationHistoH[SystematicI] = new TH1D(Form("RandomPredictionFromSystematic%d",SystematicI),Form("RandomPredictionFromSystematic%d",SystematicI),MaxBins,0,MaxBins);
@@ -4784,6 +4891,10 @@ void Prediction :: DeleteMatrices()
     delete ReactorPowerCovarianceMatrixH;
     delete RelativeEnergyScaleCovarianceMatrixH;
     delete IAVCovarianceMatrixH;
+    if(analysis)
+    {
+        delete OAVCovarianceMatrixH;
+    }
     delete NLCovarianceMatrixH;
     delete ResolutionCovarianceMatrixH;
     delete Sin22t12CovarianceMatrixH;

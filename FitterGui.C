@@ -822,7 +822,12 @@ void FitterGui::RunFitter()
         
         if(AutomaticBudget)
         {
-            for (Int_t i = 0; i<=(18); i++) //17+1, the 18th is to produce the normal fit with all systematics in the TurnOff case or only statistics if TurnOn is used.
+            Int_t MaxBudget = 18;
+            if(Analysis)
+            {
+                MaxBudget = 19;
+            }
+            for (Int_t i = 0; i<=(MaxBudget); i++) //17+1, the 18th is to produce the normal fit with all systematics in the TurnOff case or only statistics if TurnOn is used.
             {
                 std::cout << "\t Error Budget run #" << i << std::endl;
                 
@@ -840,13 +845,27 @@ void FitterGui::RunFitter()
                 //                Data->SetAbsoluteEnergyScaleBudget(11==i);
                 //                Data->SetAbsoluteEnergyOffsetBudget(12==i);
                 Data->SetIAVBudget(10==i);
-                Data->SetNLBudget(11==i);
-                Data->SetResolutionBudget(12==i);
-                Data->SetSin22t12Budget(13==i);
-                Data->SetEfficiencyBudget(14==i);
-                Data->SetSystematicBudget(15==i);
-                Data->SetBackgroundBudget(16==i);
-                Data->SetTotalBudget(17==i);
+                if(Analysis)
+                {
+                    Data->SetOAVBudget(11==i);
+                    Data->SetNLBudget(12==i);
+                    Data->SetResolutionBudget(13==i);
+                    Data->SetSin22t12Budget(14==i);
+                    Data->SetEfficiencyBudget(15==i);
+                    Data->SetSystematicBudget(16==i);
+                    Data->SetBackgroundBudget(17==i);
+                    Data->SetTotalBudget(18==i);
+                }
+                else{
+                    Data->SetNLBudget(11==i);
+                    Data->SetResolutionBudget(12==i);
+                    Data->SetSin22t12Budget(13==i);
+                    Data->SetEfficiencyBudget(14==i);
+                    Data->SetSystematicBudget(15==i);
+                    Data->SetBackgroundBudget(16==i);
+                    Data->SetTotalBudget(17==i);
+                }
+         
                 
                 Fitter* Fit = new Fitter(Data);
                 
@@ -889,6 +908,10 @@ void FitterGui::RunFitter()
             //            Data->SetAbsoluteEnergyScaleBudget(0);
             //            Data->SetAbsoluteEnergyOffsetBudget(0);
             Data->SetIAVBudget(0);
+            if(Analysis)
+            {
+                Data->SetOAVBudget(0);
+            }
             Data->SetNLBudget(0);
             Data->SetResolutionBudget(0);
             Data->SetEfficiencyBudget(0);
@@ -1197,12 +1220,26 @@ void FitterGui::DoToyMC()
     CovarianceMatrixBox->AddEntry("Reactor Spectrum Matrix",8);
     CovarianceMatrixBox->AddEntry("Reactor Power Matrix",9);
     CovarianceMatrixBox->AddEntry("IAV Matrix",10);
-    CovarianceMatrixBox->AddEntry("NL Matrix",11);
-    CovarianceMatrixBox->AddEntry("Resolution Matrix",12);
-    CovarianceMatrixBox->AddEntry("Efficiency Matrix",13);
-    CovarianceMatrixBox->AddEntry("Sin^{2}(2#theta_{12}) Matrix",14);
-    CovarianceMatrixBox->AddEntry("Relative Energy Scale Matrix",15);
-    
+    if(Analysis)
+    {
+        CovarianceMatrixBox->AddEntry("OAV Matrix",11);
+        CovarianceMatrixBox->AddEntry("NL Matrix",12);
+        CovarianceMatrixBox->AddEntry("Resolution Matrix",13);
+        CovarianceMatrixBox->AddEntry("Efficiency Matrix",14);
+        CovarianceMatrixBox->AddEntry("Sin^{2}(2#theta_{12}) Matrix",15);
+        CovarianceMatrixBox->AddEntry("Relative Energy Scale Matrix",16);
+        
+    }
+    else
+    {
+        CovarianceMatrixBox->AddEntry("NL Matrix",11);
+        CovarianceMatrixBox->AddEntry("Resolution Matrix",12);
+        CovarianceMatrixBox->AddEntry("Efficiency Matrix",13);
+        CovarianceMatrixBox->AddEntry("Sin^{2}(2#theta_{12}) Matrix",14);
+        CovarianceMatrixBox->AddEntry("Relative Energy Scale Matrix",15);
+        
+    }
+ 
     CovarianceMatrixBox->Connect("Selected(Int_t)", "FitterGui", this, "ChooseCovarianceMatrix()");
     CovarianceMatrixBox->Select(0);//Run all covariance matrices as default
     fToyMCFrame2->AddFrame(CovarianceMatrixBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
@@ -3486,18 +3523,42 @@ void FitterGui::PlotCov()
     CovariancePlotBox->AddEntry("Reactor Spectrum Matrix",8);
     CovariancePlotBox->AddEntry("Reactor Power Matrix",9);
     CovariancePlotBox->AddEntry("IAV Matrix",10);
-    CovariancePlotBox->AddEntry("NL Matrix",11);
-    CovariancePlotBox->AddEntry("Resolution Matrix",12);
-    CovariancePlotBox->AddEntry("Efficiency Matrix",13);
-    CovariancePlotBox->AddEntry("Sin^{2}(2#theta_{12}) Matrix",14);
-    CovariancePlotBox->AddEntry("Relative Energy Scale Matrix",15);
-    CovariancePlotBox->AddEntry("Statistical Covariance Matrix",16);
-    CovariancePlotBox->AddEntry("Background Covariance Matrix",17);
-    CovariancePlotBox->AddEntry("Systematic Covariance Matrix",18);
-    CovariancePlotBox->AddEntry("Total Covariance Matrix",19);
+    if(Analysis)
+    {
+        CovariancePlotBox->AddEntry("OAV Matrix",11);
+        CovariancePlotBox->AddEntry("NL Matrix",12);
+        CovariancePlotBox->AddEntry("Resolution Matrix",13);
+        CovariancePlotBox->AddEntry("Efficiency Matrix",14);
+        CovariancePlotBox->AddEntry("Sin^{2}(2#theta_{12}) Matrix",15);
+        CovariancePlotBox->AddEntry("Relative Energy Scale Matrix",16);
+        CovariancePlotBox->AddEntry("Statistical Covariance Matrix",17);
+        CovariancePlotBox->AddEntry("Background Covariance Matrix",18);
+        CovariancePlotBox->AddEntry("Systematic Covariance Matrix",19);
+        CovariancePlotBox->AddEntry("Total Covariance Matrix",20);
+    }
+    else{
+        CovariancePlotBox->AddEntry("NL Matrix",11);
+        CovariancePlotBox->AddEntry("Resolution Matrix",12);
+        CovariancePlotBox->AddEntry("Efficiency Matrix",13);
+        CovariancePlotBox->AddEntry("Sin^{2}(2#theta_{12}) Matrix",14);
+        CovariancePlotBox->AddEntry("Relative Energy Scale Matrix",15);
+        CovariancePlotBox->AddEntry("Statistical Covariance Matrix",16);
+        CovariancePlotBox->AddEntry("Background Covariance Matrix",17);
+        CovariancePlotBox->AddEntry("Systematic Covariance Matrix",18);
+        CovariancePlotBox->AddEntry("Total Covariance Matrix",19);
+    }
+
     
     CovariancePlotBox->Connect("Selected(Int_t)", "FitterGui", this, "ChoosePlotCov()");
-    CovariancePlotBox->Select(19);//Run all covariance matrices as default
+    if(Analysis)
+    {
+        CovariancePlotBox->Select(20);//Run all covariance matrices as default
+
+    }
+    else
+    {
+        CovariancePlotBox->Select(19);//Run all covariance matrices as default
+    }
     fPlotCovFrame->AddFrame(CovariancePlotBox, new TGLayoutHints(kLHintsLeft | kLHintsTop,2,2,2,2));
     
     hframe->MoveResize(0,0,window_width,button_height);
@@ -3601,73 +3662,153 @@ void FitterGui:: ChoosePlotCovariance()
 
 void FitterGui::ChooseVariations()
 {
-    switch (VariationsPlotBox->GetSelected())
+    if(Analysis)
     {
-        case 0:
-            break;
-        case 1:
-            VarString = "VaryAccidentals";
-            std::cout << " Vary Accidental Matrix " << std::endl;
-            break;
-        case 2:
-            VarString = "VaryLiHe";
-            std::cout << " Vary LiHe Matrix " << std::endl;
-            break;
-        case 3:
-            VarString = "VaryFastNeutrons";
-            std::cout << " Vary Fast Neutrons Matrix " << std::endl;
-            break;
-        case 4:
-            VarString = "VaryAmC";
-            std::cout << " Vary AmC Matrix " << std::endl;
-            break;
-        case 5:
-            VarString = "DistortLiHe";
-            std::cout << " Distort LiHe Matrix " << std::endl;
-            break;
-        case 6:
-            VarString = "DistortFastNeutrons";
-            std::cout << " Distort Fast Neutrons Matrix " << std::endl;
-            break;
-        case 7:
-            VarString = "DistortAmC";
-            std::cout << " Distort AmC Matrix " << std::endl;
-            break;
-        case 8:
-            VarString = "Isotope";
-            std::cout << " Reactor Spectrum Matrix " << std::endl;
-            break;
-        case 9:
-            VarString = "Power";
-            std::cout << " Reactor Power Matrix " << std::endl;
-            break;
-        case 10:
-            VarString = "IAV";
-            std::cout << " IAV Matrix " << std::endl;
-            break;
-        case 11:
-            VarString = "NL";
-            std::cout << " NL Matrix " << std::endl;
-            break;
-        case 12:
-            VarString = "Resolution";
-            std::cout << " Resolution Matrix " << std::endl;
-            break;
-        case 13:
-            VarString = "Efficiency";
-            std::cout << " Efficiency Matrix " << std::endl;
-            break;
-        case 14:
-            VarString = "Sin22t12";
-            std::cout << " Sin22t12 Matrix " << std::endl;
-            break;
-        case 15:
-            VarString = "RelativeEnergyScale";
-            std::cout << " Energy Scale Matrix " << std::endl;
-            break;
-        default:
-            std::cout << " Plotting default: NL" << std::endl;
-            break;
+        switch (VariationsPlotBox->GetSelected())
+        {
+            case 0:
+                break;
+            case 1:
+                VarString = "VaryAccidentals";
+                std::cout << " Vary Accidental Matrix " << std::endl;
+                break;
+            case 2:
+                VarString = "VaryLiHe";
+                std::cout << " Vary LiHe Matrix " << std::endl;
+                break;
+            case 3:
+                VarString = "VaryFastNeutrons";
+                std::cout << " Vary Fast Neutrons Matrix " << std::endl;
+                break;
+            case 4:
+                VarString = "VaryAmC";
+                std::cout << " Vary AmC Matrix " << std::endl;
+                break;
+            case 5:
+                VarString = "DistortLiHe";
+                std::cout << " Distort LiHe Matrix " << std::endl;
+                break;
+            case 6:
+                VarString = "DistortFastNeutrons";
+                std::cout << " Distort Fast Neutrons Matrix " << std::endl;
+                break;
+            case 7:
+                VarString = "DistortAmC";
+                std::cout << " Distort AmC Matrix " << std::endl;
+                break;
+            case 8:
+                VarString = "Isotope";
+                std::cout << " Reactor Spectrum Matrix " << std::endl;
+                break;
+            case 9:
+                VarString = "Power";
+                std::cout << " Reactor Power Matrix " << std::endl;
+                break;
+            case 10:
+                VarString = "IAV";
+                std::cout << " IAV Matrix " << std::endl;
+                break;
+            case 11:
+                VarString = "OAV";
+                std::cout << " IAV Matrix " << std::endl;
+                break;
+            case 12:
+                VarString = "NL";
+                std::cout << " NL Matrix " << std::endl;
+                break;
+            case 13:
+                VarString = "Resolution";
+                std::cout << " Resolution Matrix " << std::endl;
+                break;
+            case 14:
+                VarString = "Efficiency";
+                std::cout << " Efficiency Matrix " << std::endl;
+                break;
+            case 15:
+                VarString = "Sin22t12";
+                std::cout << " Sin22t12 Matrix " << std::endl;
+                break;
+            case 16:
+                VarString = "RelativeEnergyScale";
+                std::cout << " Energy Scale Matrix " << std::endl;
+                break;
+            default:
+                std::cout << " Plotting default: NL" << std::endl;
+                break;
+        }
+
+    }
+    else
+    {
+        switch (VariationsPlotBox->GetSelected())
+        {
+            case 0:
+                break;
+            case 1:
+                VarString = "VaryAccidentals";
+                std::cout << " Vary Accidental Matrix " << std::endl;
+                break;
+            case 2:
+                VarString = "VaryLiHe";
+                std::cout << " Vary LiHe Matrix " << std::endl;
+                break;
+            case 3:
+                VarString = "VaryFastNeutrons";
+                std::cout << " Vary Fast Neutrons Matrix " << std::endl;
+                break;
+            case 4:
+                VarString = "VaryAmC";
+                std::cout << " Vary AmC Matrix " << std::endl;
+                break;
+            case 5:
+                VarString = "DistortLiHe";
+                std::cout << " Distort LiHe Matrix " << std::endl;
+                break;
+            case 6:
+                VarString = "DistortFastNeutrons";
+                std::cout << " Distort Fast Neutrons Matrix " << std::endl;
+                break;
+            case 7:
+                VarString = "DistortAmC";
+                std::cout << " Distort AmC Matrix " << std::endl;
+                break;
+            case 8:
+                VarString = "Isotope";
+                std::cout << " Reactor Spectrum Matrix " << std::endl;
+                break;
+            case 9:
+                VarString = "Power";
+                std::cout << " Reactor Power Matrix " << std::endl;
+                break;
+            case 10:
+                VarString = "IAV";
+                std::cout << " IAV Matrix " << std::endl;
+                break;
+            case 11:
+                VarString = "NL";
+                std::cout << " NL Matrix " << std::endl;
+                break;
+            case 12:
+                VarString = "Resolution";
+                std::cout << " Resolution Matrix " << std::endl;
+                break;
+            case 13:
+                VarString = "Efficiency";
+                std::cout << " Efficiency Matrix " << std::endl;
+                break;
+            case 14:
+                VarString = "Sin22t12";
+                std::cout << " Sin22t12 Matrix " << std::endl;
+                break;
+            case 15:
+                VarString = "RelativeEnergyScale";
+                std::cout << " Energy Scale Matrix " << std::endl;
+                break;
+            default:
+                std::cout << " Plotting default: NL" << std::endl;
+                break;
+        }
+
     }
 }
 
@@ -3940,118 +4081,240 @@ void FitterGui::ChoosePlotCov()
 
     delete Data;
     string FitterCovS;
-    
-    switch (CovariancePlotBox->GetSelected())
+    if(Analysis)
     {
-        case 0:
-            std::cout << " No Matrix Selected " << std::endl;
-            break;
-        case 1:
-            CovString = "VaryAccidental";
-            FitterCovS = "Vacc Matrix";
-            std::cout << " Vary Accidental Matrix " << std::endl;
-            break;
-        case 2:
-            CovString = "VaryLiHe";
-            FitterCovS = "VLiHe Matrix";
-            std::cout << " Vary LiHe Matrix " << std::endl;
-            break;
-        case 3:
-            CovString = "VaryFastNeutrons";
-            FitterCovS = "VFN Matrix";
-            std::cout << " Vary Fast Neutrons Matrix " << std::endl;
-            break;
-        case 4:
-            CovString = "VaryAmC";
-            FitterCovS = "VAmC Matrix";
-            std::cout << " Vary AmC Matrix " << std::endl;
-            break;
-        case 5:
-            CovString = "DistortLiHe";
-            FitterCovS = "DLiHe Matrix";
-            std::cout << " Distort LiHe Matrix " << std::endl;
-            break;
-        case 6:
-            CovString = "DistortFastNeutrons";
-            FitterCovS = "DFN Matrix";
-            std::cout << " Distort Fast Neutrons Matrix " << std::endl;
-            break;
-        case 7:
-            CovString = "DistortAmC";
-            FitterCovS = "DAmC Matrix";
-            std::cout << " Distort AmC Matrix " << std::endl;
-            break;
-        case 8:
-            CovString = "Isotope";
-            FitterCovS = "Isotope Matrix";
-            std::cout << " Reactor Spectrum Matrix " << std::endl;
-            break;
-        case 9:
-            CovString = "ReactorPower";
-            FitterCovS = "Power Matrix";
-            std::cout << " Reactor Power Matrix " << std::endl;
-            break;
-        case 10:
-            CovString = "IAV";
-            FitterCovS = "IAV Matrix";
-            std::cout << " IAV Matrix " << std::endl;
-            break;
-        case 11:
-            CovString = "NL";
-            FitterCovS = "NL Matrix";
-            std::cout << " NL Matrix " << std::endl;
-            break;
-        case 12:
-            CovString = "Resolution";
-            FitterCovS = "Reso Matrix";
-            std::cout << " Resolution Matrix " << std::endl;
-            break;
-        case 13:
-            CovString = "Efficiency";
-            FitterCovS = "Efficiency Matrix";
-            std::cout << " Efficiency Matrix " << std::endl;
-            break;
-        case 14:
-            CovString = "Sin22t12";
-            FitterCovS = "Sin22t12 Matrix";
-            std::cout << " Sin22t12 Matrix " << std::endl;
-            break;
-        case 15:
-            CovString = "RelativeEnergyScale";
-            FitterCovS = "Relative Scale Matrix";
-            std::cout << " Energy Scale Matrix " << std::endl;
-            break;
-        case 16:
-            CovString = "StatisticalCovarianceMatrix";
-            FitterCovS = "Statistical Covariance Matrix";
-            CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/StatisticalCovarianceMatrix.root",CombineMode)).c_str());
-            CovMatrix2H = (TH2D*)CovF->Get(Form("Statistical Covariance Matrix for sin22t13 %f and Δm2ee %f period%d",sen22t13,dm2_ee,Period-1));
-            std::cout << " Statistical Covariance Matrix " << std::endl;
-            break;
-        case 17:
-            CovString = "BackgroundCovarianceMatrix";
-            FitterCovS = "Background Covariance Matrix";
-            CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/BackgroundCovarianceMatrices.root",CombineMode)).c_str());
-            CovMatrix2H = (TH2D*)CovF->Get("Background Covariance Matrix");
-            std::cout << " Background Covariance Matrix " << std::endl;
-            break;
-        case 18:
-            CovString = "SystematicCovarianceMatrix";
-            FitterCovS = "Systematic Covariance Matrix";
-            CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/SystematicCovarianceMatrices.root",CombineMode)).c_str());
-            CovMatrix2H = (TH2D*)CovF->Get("Systematic Covariance Matrix");
-            std::cout << " Systematic Covariance Matrix " << std::endl;
-            break;
-        case 19:
-            CovString = "TotalCovarianceMatrix";
-            FitterCovS = "Total Covariance Matrix";
-            CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/TotalCovarianceMatrix.root",CombineMode)).c_str());
-            CovMatrix2H = (TH2D*)CovF->Get("Total Covariance Matrix");
-            std::cout << " Total Covariance Matrix " << std::endl;
-            break;
-        default:
-            std::cout << " No Matrix Selected " << std::endl;
-            break;
+        switch (CovariancePlotBox->GetSelected())
+        {
+            case 0:
+                std::cout << " No Matrix Selected " << std::endl;
+                break;
+            case 1:
+                CovString = "VaryAccidental";
+                FitterCovS = "Vacc Matrix";
+                std::cout << " Vary Accidental Matrix " << std::endl;
+                break;
+            case 2:
+                CovString = "VaryLiHe";
+                FitterCovS = "VLiHe Matrix";
+                std::cout << " Vary LiHe Matrix " << std::endl;
+                break;
+            case 3:
+                CovString = "VaryFastNeutrons";
+                FitterCovS = "VFN Matrix";
+                std::cout << " Vary Fast Neutrons Matrix " << std::endl;
+                break;
+            case 4:
+                CovString = "VaryAmC";
+                FitterCovS = "VAmC Matrix";
+                std::cout << " Vary AmC Matrix " << std::endl;
+                break;
+            case 5:
+                CovString = "DistortLiHe";
+                FitterCovS = "DLiHe Matrix";
+                std::cout << " Distort LiHe Matrix " << std::endl;
+                break;
+            case 6:
+                CovString = "DistortFastNeutrons";
+                FitterCovS = "DFN Matrix";
+                std::cout << " Distort Fast Neutrons Matrix " << std::endl;
+                break;
+            case 7:
+                CovString = "DistortAmC";
+                FitterCovS = "DAmC Matrix";
+                std::cout << " Distort AmC Matrix " << std::endl;
+                break;
+            case 8:
+                CovString = "Isotope";
+                FitterCovS = "Isotope Matrix";
+                std::cout << " Reactor Spectrum Matrix " << std::endl;
+                break;
+            case 9:
+                CovString = "ReactorPower";
+                FitterCovS = "Power Matrix";
+                std::cout << " Reactor Power Matrix " << std::endl;
+                break;
+            case 10:
+                CovString = "IAV";
+                FitterCovS = "IAV Matrix";
+                std::cout << " IAV Matrix " << std::endl;
+                break;
+            case 11:
+                CovString = "OAV";
+                FitterCovS = "OAV Matrix";
+                std::cout << " OAV Matrix " << std::endl;
+                break;
+            case 12:
+                CovString = "NL";
+                FitterCovS = "NL Matrix";
+                std::cout << " NL Matrix " << std::endl;
+                break;
+            case 13:
+                CovString = "Resolution";
+                FitterCovS = "Reso Matrix";
+                std::cout << " Resolution Matrix " << std::endl;
+                break;
+            case 14:
+                CovString = "Efficiency";
+                FitterCovS = "Efficiency Matrix";
+                std::cout << " Efficiency Matrix " << std::endl;
+                break;
+            case 15:
+                CovString = "Sin22t12";
+                FitterCovS = "Sin22t12 Matrix";
+                std::cout << " Sin22t12 Matrix " << std::endl;
+                break;
+            case 16:
+                CovString = "RelativeEnergyScale";
+                FitterCovS = "Relative Scale Matrix";
+                std::cout << " Energy Scale Matrix " << std::endl;
+                break;
+            case 17:
+                CovString = "StatisticalCovarianceMatrix";
+                FitterCovS = "Statistical Covariance Matrix";
+                CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/StatisticalCovarianceMatrix.root",CombineMode)).c_str());
+                CovMatrix2H = (TH2D*)CovF->Get(Form("Statistical Covariance Matrix for sin22t13 %f and Δm2ee %f period%d",sen22t13,dm2_ee,Period-1));
+                std::cout << " Statistical Covariance Matrix " << std::endl;
+                break;
+            case 18:
+                CovString = "BackgroundCovarianceMatrix";
+                FitterCovS = "Background Covariance Matrix";
+                CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/BackgroundCovarianceMatrices.root",CombineMode)).c_str());
+                CovMatrix2H = (TH2D*)CovF->Get("Background Covariance Matrix");
+                std::cout << " Background Covariance Matrix " << std::endl;
+                break;
+            case 19:
+                CovString = "SystematicCovarianceMatrix";
+                FitterCovS = "Systematic Covariance Matrix";
+                CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/SystematicCovarianceMatrices.root",CombineMode)).c_str());
+                CovMatrix2H = (TH2D*)CovF->Get("Systematic Covariance Matrix");
+                std::cout << " Systematic Covariance Matrix " << std::endl;
+                break;
+            case 20:
+                CovString = "TotalCovarianceMatrix";
+                FitterCovS = "Total Covariance Matrix";
+                CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/TotalCovarianceMatrix.root",CombineMode)).c_str());
+                CovMatrix2H = (TH2D*)CovF->Get("Total Covariance Matrix");
+                std::cout << " Total Covariance Matrix " << std::endl;
+                break;
+            default:
+                std::cout << " No Matrix Selected " << std::endl;
+                break;
+        }
+    }
+    else
+    {
+        switch (CovariancePlotBox->GetSelected())
+        {
+            case 0:
+                std::cout << " No Matrix Selected " << std::endl;
+                break;
+            case 1:
+                CovString = "VaryAccidental";
+                FitterCovS = "Vacc Matrix";
+                std::cout << " Vary Accidental Matrix " << std::endl;
+                break;
+            case 2:
+                CovString = "VaryLiHe";
+                FitterCovS = "VLiHe Matrix";
+                std::cout << " Vary LiHe Matrix " << std::endl;
+                break;
+            case 3:
+                CovString = "VaryFastNeutrons";
+                FitterCovS = "VFN Matrix";
+                std::cout << " Vary Fast Neutrons Matrix " << std::endl;
+                break;
+            case 4:
+                CovString = "VaryAmC";
+                FitterCovS = "VAmC Matrix";
+                std::cout << " Vary AmC Matrix " << std::endl;
+                break;
+            case 5:
+                CovString = "DistortLiHe";
+                FitterCovS = "DLiHe Matrix";
+                std::cout << " Distort LiHe Matrix " << std::endl;
+                break;
+            case 6:
+                CovString = "DistortFastNeutrons";
+                FitterCovS = "DFN Matrix";
+                std::cout << " Distort Fast Neutrons Matrix " << std::endl;
+                break;
+            case 7:
+                CovString = "DistortAmC";
+                FitterCovS = "DAmC Matrix";
+                std::cout << " Distort AmC Matrix " << std::endl;
+                break;
+            case 8:
+                CovString = "Isotope";
+                FitterCovS = "Isotope Matrix";
+                std::cout << " Reactor Spectrum Matrix " << std::endl;
+                break;
+            case 9:
+                CovString = "ReactorPower";
+                FitterCovS = "Power Matrix";
+                std::cout << " Reactor Power Matrix " << std::endl;
+                break;
+            case 10:
+                CovString = "IAV";
+                FitterCovS = "IAV Matrix";
+                std::cout << " IAV Matrix " << std::endl;
+                break;
+            case 11:
+                CovString = "NL";
+                FitterCovS = "NL Matrix";
+                std::cout << " NL Matrix " << std::endl;
+                break;
+            case 12:
+                CovString = "Resolution";
+                FitterCovS = "Reso Matrix";
+                std::cout << " Resolution Matrix " << std::endl;
+                break;
+            case 13:
+                CovString = "Efficiency";
+                FitterCovS = "Efficiency Matrix";
+                std::cout << " Efficiency Matrix " << std::endl;
+                break;
+            case 14:
+                CovString = "Sin22t12";
+                FitterCovS = "Sin22t12 Matrix";
+                std::cout << " Sin22t12 Matrix " << std::endl;
+                break;
+            case 15:
+                CovString = "RelativeEnergyScale";
+                FitterCovS = "Relative Scale Matrix";
+                std::cout << " Energy Scale Matrix " << std::endl;
+                break;
+            case 16:
+                CovString = "StatisticalCovarianceMatrix";
+                FitterCovS = "Statistical Covariance Matrix";
+                CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/StatisticalCovarianceMatrix.root",CombineMode)).c_str());
+                CovMatrix2H = (TH2D*)CovF->Get(Form("Statistical Covariance Matrix for sin22t13 %f and Δm2ee %f period%d",sen22t13,dm2_ee,Period-1));
+                std::cout << " Statistical Covariance Matrix " << std::endl;
+                break;
+            case 17:
+                CovString = "BackgroundCovarianceMatrix";
+                FitterCovS = "Background Covariance Matrix";
+                CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/BackgroundCovarianceMatrices.root",CombineMode)).c_str());
+                CovMatrix2H = (TH2D*)CovF->Get("Background Covariance Matrix");
+                std::cout << " Background Covariance Matrix " << std::endl;
+                break;
+            case 18:
+                CovString = "SystematicCovarianceMatrix";
+                FitterCovS = "Systematic Covariance Matrix";
+                CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/SystematicCovarianceMatrices.root",CombineMode)).c_str());
+                CovMatrix2H = (TH2D*)CovF->Get("Systematic Covariance Matrix");
+                std::cout << " Systematic Covariance Matrix " << std::endl;
+                break;
+            case 19:
+                CovString = "TotalCovarianceMatrix";
+                FitterCovS = "Total Covariance Matrix";
+                CovF = new TFile(("./CovarianceMatrices/"+AnalysisString+Form("/Combine%d/TotalCovarianceMatrix.root",CombineMode)).c_str());
+                CovMatrix2H = (TH2D*)CovF->Get("Total Covariance Matrix");
+                std::cout << " Total Covariance Matrix " << std::endl;
+                break;
+            default:
+                std::cout << " No Matrix Selected " << std::endl;
+                break;
+        }
     }
     
 //    if(CovariancePlotBox->GetSelected()<16)
@@ -4312,81 +4575,161 @@ void FitterGui :: ChooseCovarianceMatrix()
     //         AbsoluteScaleMatrix=0;
     //         AbsoluteOffsetMatrix=0;
     IAVMatrix=0;
+    OAVMatrix=0;
     NLMatrix=0;
     ResolutionMatrix=0;
     Sin22t12Matrix=0;
     EfficiencyMatrix=0;
     std::cout << " Run mode : \n" << std::endl;
-
-    switch (CovarianceMatrixBox->GetSelected())
+    if(Analysis)
     {
-        case 0:
-            Automatic = 1;
-            std::cout << " All Matrices " << std::endl;
-            break;
-        case 1:
-            VaryAccidentalMatrix=1;
-            std::cout << " Vary Accidental Matrix " << std::endl;
-            break;
-        case 2:
-            VaryLiHeMatrix=1;
-            std::cout << " Vary LiHe Matrix " << std::endl;
-            break;
-        case 3:
-            VaryFastNeutronsMatrix=1;
-            std::cout << " Vary Fast Neutrons Matrix " << std::endl;
-            break;
-        case 4:
-            VaryAmCMatrix=1;
-            std::cout << " Vary AmC Matrix " << std::endl;
-            break;
-        case 5:
-            DistortLiHeMatrix=1;
-            std::cout << " Distort LiHe Matrix " << std::endl;
-            break;
-        case 6:
-            DistortFastNeutronsMatrix=1;
-            std::cout << " Distort Fast Neutrons Matrix " << std::endl;
-            break;
-        case 7:
-            DistortAmCMatrix=1;
-            std::cout << " Distort AmC Matrix " << std::endl;
-            break;
-        case 8:
-            IsotopeMatrix=1;
-            std::cout << " Reactor Spectrum Matrix " << std::endl;
-            break;
-        case 9:
-            ReactorPowerMatrix=1;
-            std::cout << " Reactor Power Matrix " << std::endl;
-            break;
-        case 10:
-            IAVMatrix=1;
-            std::cout << " IAV Matrix " << std::endl;
-            break;
-        case 11:
-            NLMatrix=1;
-            std::cout << " NL Matrix " << std::endl;
-            break;
-        case 12:
-            ResolutionMatrix=1;
-            std::cout << " Resolution Matrix " << std::endl;
-            break;
-        case 13:
-            EfficiencyMatrix=1;
-            std::cout << " Efficiency Matrix " << std::endl;
-            break;
-        case 14:
-            Sin22t12Matrix=1;
-            std::cout << " Sin22t12 Matrix " << std::endl;
-            break;
-        case 15:
-            EnergyScaleMatrix=1;
-            std::cout << " Energy Scale Matrix " << std::endl;
-            break;
-        default:
-            std::cout << " No Matrix Selected " << std::endl;
-            break;
+        switch (CovarianceMatrixBox->GetSelected())
+        {
+            case 0:
+                Automatic = 1;
+                std::cout << " All Matrices " << std::endl;
+                break;
+            case 1:
+                VaryAccidentalMatrix=1;
+                std::cout << " Vary Accidental Matrix " << std::endl;
+                break;
+            case 2:
+                VaryLiHeMatrix=1;
+                std::cout << " Vary LiHe Matrix " << std::endl;
+                break;
+            case 3:
+                VaryFastNeutronsMatrix=1;
+                std::cout << " Vary Fast Neutrons Matrix " << std::endl;
+                break;
+            case 4:
+                VaryAmCMatrix=1;
+                std::cout << " Vary AmC Matrix " << std::endl;
+                break;
+            case 5:
+                DistortLiHeMatrix=1;
+                std::cout << " Distort LiHe Matrix " << std::endl;
+                break;
+            case 6:
+                DistortFastNeutronsMatrix=1;
+                std::cout << " Distort Fast Neutrons Matrix " << std::endl;
+                break;
+            case 7:
+                DistortAmCMatrix=1;
+                std::cout << " Distort AmC Matrix " << std::endl;
+                break;
+            case 8:
+                IsotopeMatrix=1;
+                std::cout << " Reactor Spectrum Matrix " << std::endl;
+                break;
+            case 9:
+                ReactorPowerMatrix=1;
+                std::cout << " Reactor Power Matrix " << std::endl;
+                break;
+            case 10:
+                IAVMatrix=1;
+                std::cout << " IAV Matrix " << std::endl;
+                break;
+            case 11:
+                OAVMatrix=1;
+                std::cout << " OAV Matrix " << std::endl;
+                break;
+            case 12:
+                NLMatrix=1;
+                std::cout << " NL Matrix " << std::endl;
+                break;
+            case 13:
+                ResolutionMatrix=1;
+                std::cout << " Resolution Matrix " << std::endl;
+                break;
+            case 14:
+                EfficiencyMatrix=1;
+                std::cout << " Efficiency Matrix " << std::endl;
+                break;
+            case 15:
+                Sin22t12Matrix=1;
+                std::cout << " Sin22t12 Matrix " << std::endl;
+                break;
+            case 16:
+                EnergyScaleMatrix=1;
+                std::cout << " Energy Scale Matrix " << std::endl;
+                break;
+            default:
+                std::cout << " No Matrix Selected " << std::endl;
+                break;
+        }
+    }
+    else
+    {
+        switch (CovarianceMatrixBox->GetSelected())
+        {
+            case 0:
+                Automatic = 1;
+                std::cout << " All Matrices " << std::endl;
+                break;
+            case 1:
+                VaryAccidentalMatrix=1;
+                std::cout << " Vary Accidental Matrix " << std::endl;
+                break;
+            case 2:
+                VaryLiHeMatrix=1;
+                std::cout << " Vary LiHe Matrix " << std::endl;
+                break;
+            case 3:
+                VaryFastNeutronsMatrix=1;
+                std::cout << " Vary Fast Neutrons Matrix " << std::endl;
+                break;
+            case 4:
+                VaryAmCMatrix=1;
+                std::cout << " Vary AmC Matrix " << std::endl;
+                break;
+            case 5:
+                DistortLiHeMatrix=1;
+                std::cout << " Distort LiHe Matrix " << std::endl;
+                break;
+            case 6:
+                DistortFastNeutronsMatrix=1;
+                std::cout << " Distort Fast Neutrons Matrix " << std::endl;
+                break;
+            case 7:
+                DistortAmCMatrix=1;
+                std::cout << " Distort AmC Matrix " << std::endl;
+                break;
+            case 8:
+                IsotopeMatrix=1;
+                std::cout << " Reactor Spectrum Matrix " << std::endl;
+                break;
+            case 9:
+                ReactorPowerMatrix=1;
+                std::cout << " Reactor Power Matrix " << std::endl;
+                break;
+            case 10:
+                IAVMatrix=1;
+                std::cout << " IAV Matrix " << std::endl;
+                break;
+            case 11:
+                NLMatrix=1;
+                std::cout << " NL Matrix " << std::endl;
+                break;
+            case 12:
+                ResolutionMatrix=1;
+                std::cout << " Resolution Matrix " << std::endl;
+                break;
+            case 13:
+                EfficiencyMatrix=1;
+                std::cout << " Efficiency Matrix " << std::endl;
+                break;
+            case 14:
+                Sin22t12Matrix=1;
+                std::cout << " Sin22t12 Matrix " << std::endl;
+                break;
+            case 15:
+                EnergyScaleMatrix=1;
+                std::cout << " Energy Scale Matrix " << std::endl;
+                break;
+            default:
+                std::cout << " No Matrix Selected " << std::endl;
+                break;
+        }
     }
 }
 

@@ -224,6 +224,7 @@ private:
     //        bool AbsoluteScaleMatrix;
     //        bool AbsoluteOffsetMatrix;
     bool IAVMatrix;
+    bool OAVMatrix;
     bool NLMatrix;
     bool ResolutionMatrix;
     bool Sin22t12Matrix;

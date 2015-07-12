@@ -230,7 +230,8 @@ void FitBackgrounds2 :: ReadHBackgrounds()
         }
         else
         {
-            BackgroundsH[AD]=(TH1D*)AccidentalsH[AD]->Clone(Form("Accidentals_AD%i",AD+1));
+           // BackgroundsH[AD]=(TH1D*)AccidentalsH[AD]->Clone(Form("Accidentals_AD%i",AD+1));
+            BackgroundsH[AD] = (TH1D*)AccidentalsH[AD]->Rebin(n_evis_bins,Form("Accidentals_AD%i",AD+1),evis_bins);
         }
         AccidentalsF->Close();
     }
@@ -255,8 +256,8 @@ void FitBackgrounds2 :: ReadHBackgrounds()
     
    // LiHeBackgroundH->Add(HeliumH,.1);
     
-    BackgroundsH[NADs] = new TH1D("LiHe","LiHe",n_evis_bins,evis_bins);
-    TH1D* LinearBackgroundsH = new TH1D("LinearLiHe","LiHe",240,0,12);
+    BackgroundsH[NADs] = new TH1D("LiHeOriginal","^{9}Li^{8}He",n_evis_bins,evis_bins);
+    TH1D* LinearBackgroundsH = new TH1D("LinearLiHe","^{9}Li^{8}He",240,0,12);
     for (Int_t visbin = 1; visbin <= 240; visbin++)
     {
         LinearBackgroundsH->SetBinContent(visbin,(.9)*LithiumH->Interpolate(LinearBackgroundsH->GetXaxis()->GetBinCenter(visbin))+(.1)*HeliumH->Interpolate(HeliumH->GetXaxis()->GetBinCenter(visbin)));
@@ -290,6 +291,18 @@ void FitBackgrounds2 :: ReadHBackgrounds()
     {
         BGNDC->cd(AD+1);
         // AccidentalsH[AD]->Draw();
+        if(AD<6)
+        {
+            BackgroundsH[AD]->SetTitle(Form("Accidental Background AD%d",AD+1));
+        }
+        else if(AD==(NADs+2))
+        {
+            BackgroundsH[AD]->SetTitle("^{241}Am^{13}C");
+        }
+        BackgroundsH[AD]->GetXaxis()->SetTitle("Prompt Energy [MeV]");
+        BackgroundsH[AD]->GetYaxis()->SetTitleOffset(1.5);
+        BackgroundsH[AD]->GetYaxis()->SetTitle("Entries/bin");
+
         BackgroundsH[AD]->Draw("HIST");
     }
     BGNDC->Print("./Images/Hydrogen/BackgroundVariations/HydrogenBackgrounds.eps");
@@ -423,7 +436,7 @@ void FitBackgrounds2::SaveAndDelete()
                             FinalFastNeutronsH[AD][week][idx][idy]=(TH1D*)FinalFastNeutronsH[AD][week][idx][idy]->Rebin(n_evis_bins,Form("FN_AD%i_Volume%i",AD,idx),evis_bins);
                             FinalFastNeutronsH[AD][week][idx][idy]->Scale(ScaleFN[AD][week][idx][idy]/FinalFastNeutronsH[AD][week][idx][idy]->Integral());
                             
-                            FinalFastNeutronsH[AD][week][idx][idy]->SetTitle("FN");
+                            FinalFastNeutronsH[AD][week][idx][idy]->SetTitle("Fast Neutron");
                            // std::cout << " SCALE FN : " << ScaleFN[AD][week][idx][idy]  << " " <<  FinalFastNeutronsH[AD][week][idx][idy]->Integral() << std::endl;
                             
                         }
@@ -630,8 +643,8 @@ void FitBackgrounds2 :: FitAmc()
     
     delete OriginalAmCH;
     
-    BackgroundsH[NADs+2]=(TH1D*)AmCH->Clone();
-    BackgroundsH[NADs+2]->Reset();
+    TH1D* LinearAmCH=(TH1D*)AmCH->Clone();
+    LinearAmCH->Reset();
     
     //    I need to study what are the implications. Right now I'm not applying any correction to the original histogram.
     
@@ -651,18 +664,21 @@ void FitBackgrounds2 :: FitAmc()
     //Should I fit this with or without errors? (CHECK) (Original histogram (errors+content) vs only GetBinContent)???? What about negative bins?
     ///////////////////////////////////////////////////
     
-    BackgroundsH[NADs+2]->Add(ExtendedHAmCFunc);
+    LinearAmCH->Add(ExtendedHAmCFunc);
     
     delete ExtendedHAmCFunc;
     
-    Double_t IntegralExponential = BackgroundsH[NADs+2]->Integral();//  Check that this works correctly, otherwise write explicitly limits in terms of the bins (InitialVisibleEnergy/binwidth, Final...)
+    Double_t IntegralExponential = LinearAmCH->Integral();//  Check that this works correctly, otherwise write explicitly limits in terms of the bins (InitialVisibleEnergy/binwidth, Final...)
     //    cout << IntegralExponential <<"\n";
     
     //Normalize histogram with respect to integral of the original graph (not accurate since the limits are different, anyway when backgrounds are used they are normalized using data to match the expected number of AmC events)
     
-    BackgroundsH[NADs+2]->Scale(IntegralOriginal/IntegralExponential);
+    LinearAmCH->Scale(IntegralOriginal/IntegralExponential);
     // BackgroundsH[NADs]->Draw("same");
     //cout << IntegralOriginal/IntegralExponential <<"\n";
+    BackgroundsH[NADs+2] = (TH1D*)LinearAmCH->Rebin(n_evis_bins,"AmC",evis_bins);
+
+    delete LinearAmCH;
     delete AmCH;
 }
 
@@ -711,7 +727,7 @@ void FitBackgrounds2::PrintBackgrounds()
                     {
                         LiHeC->cd(AD+NADs*idy+NADs*YCellLimit*idx+1);
                         FinalLiHeH[AD][week][idx][idy]->SetStats(ShowStatBoxInPlots);
-                        FinalLiHeH[AD][week][idx][idy]->SetTitle(Form("Li He AD%i Volume%i",AD+1,idx));
+                        FinalLiHeH[AD][week][idx][idy]->SetTitle(Form("^{9}Li^{8}He AD%i Volume%i",AD+1,idx));
                         if(!LoganBinning)
                         {
                             FinalLiHeH[AD][week][idx][idy]->GetXaxis()->SetRange(1,n_evis_bins-1);
@@ -767,7 +783,7 @@ void FitBackgrounds2::PrintBackgrounds()
                     {
                         AmCC->cd(AD+NADs*idy+NADs*YCellLimit*idx+1);
                         FinalAmCH[AD][week][idx][idy]->SetStats(ShowStatBoxInPlots);
-                        FinalAmCH[AD][week][idx][idy]->SetTitle(Form("AmC AD%i Volume%i",AD+1,idx));
+                        FinalAmCH[AD][week][idx][idy]->SetTitle(Form("^{241}Am^{13}C AD%i Volume%i",AD+1,idx));
                         if(!LoganBinning)
                         {
                             FinalAmCH[AD][week][idx][idy]->GetXaxis()->SetRange(1,n_evis_bins-1);
